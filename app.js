@@ -248,6 +248,12 @@ const state = {
     panY: 0,
     layout: null,
     dirty: false
+  },
+  // Molecular landing drill-down state. focusPath is a stack of node ids representing
+  // the current focus depth: ['__you'] (root) → ['__you','p:eh'] (project) →
+  // ['__you','p:eh','sp:q4'] (subproject). Persisted to localStorage on every change.
+  molecular: {
+    focusPath: ['__you']
   }
 };
 
@@ -4385,11 +4391,67 @@ const molState = {
   hoveredId: null,
   rafHandle: null,
   resizeHandler: null,
-  mouseHandler: null,
-  clickHandler: null,
-  leaveHandler: null,
-  loaderRetry: null
+  pointerDownHandler: null,
+  pointerMoveHandler: null,
+  pointerUpHandler: null,
+  pointerCancelHandler: null,
+  pointerLeaveHandler: null,
+  contextMenuHandler: null,
+  loaderRetry: null,
+  // Per-frame focus state used by the renderer + animation loop
+  focusTags: null,         // Map<id, 'bright' | 'dim' | 'hidden'> from applyFocusFilter
+  // Tap-vs-drag detection
+  pointer: null,           // { id, x0, y0, t0, moved, type } during an active gesture
+  // Auto-rotate management
+  autoRotateUserChoice: true, // user's intent — survives touch pauses
+  autoRotateResumeTimer: null
 };
+
+// ===== MOLECULAR FOCUS PERSISTENCE =====
+// Round-trip state.molecular.focusPath through localStorage so reopening the app
+// returns the user to the same cluster they were inside.
+
+const MOL_FOCUS_STORAGE_KEY = 'molFocusPath';
+
+function persistMolFocusPath() {
+  try {
+    localStorage.setItem(MOL_FOCUS_STORAGE_KEY, JSON.stringify(state.molecular.focusPath));
+  } catch {}
+}
+
+// Read whatever's in localStorage and validate it against current data — projects
+// and subprojects can be archived or deleted between sessions, so a stored path
+// may point at nodes that no longer exist. Falls back to the deepest valid prefix.
+function restoreMolFocusPath() {
+  let raw;
+  try { raw = localStorage.getItem(MOL_FOCUS_STORAGE_KEY); } catch { return; }
+  if (!raw) return;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return; }
+  if (!Array.isArray(parsed) || parsed.length === 0 || parsed[0] !== '__you') return;
+
+  const validated = ['__you'];
+  // Segment 1 should be 'p:KEY' — verify the project exists and isn't archived.
+  if (parsed.length >= 2 && typeof parsed[1] === 'string' && parsed[1].startsWith('p:')) {
+    const projKey = parsed[1].slice(2);
+    const proj = state.data?.projects?.[projKey];
+    if (proj && !proj.archived) {
+      validated.push(parsed[1]);
+      // Segment 2 should be 'sp:ID' — verify the subproject exists on that project.
+      if (parsed.length >= 3 && typeof parsed[2] === 'string' && parsed[2].startsWith('sp:')) {
+        const spId = parsed[2].slice(3);
+        // Special case: the loose bucket has id 'sp:__loose__KEY'.
+        if (spId.startsWith('__loose__')) {
+          if (spId === '__loose__' + projKey) validated.push(parsed[2]);
+        } else {
+          const sp = (proj.subprojects || []).find(s => s.id === spId && !s.archived);
+          if (sp) validated.push(parsed[2]);
+        }
+      }
+    }
+  }
+  state.molecular.focusPath = validated;
+}
 
 function molDaysSince(iso) {
   if (!iso) return 9999;
@@ -4583,10 +4645,35 @@ function buildMolecularGraph() {
 
 // 3D force layout. Project nodes seed on a Fibonacci sphere so they distribute
 // evenly across the sphere surface, not in a flat ring. Items seed near their
-// parent project. Forces: n² repulsion + spring on edges + soft pull to origin.
-function molSimulate3D(graph, iterations = 500) {
+// parent project. Forces: n² repulsion + spring on edges + soft pull toward
+// the gravity anchor.
+//
+// `anchorId` (optional): node id to act as the gravity center. When null,
+// gravity pulls toward (0,0,0). When set, the named node is fixed at origin
+// and centerPull pulls all others toward (0,0,0) — same vector math, but the
+// resulting layout has the focused node at the universe's hot center.
+// Used at first render only when state.molecular.focusPath is non-root
+// (e.g. user reopens the app while focused on a project).
+function molSimulate3D(graph, iterations = 500, anchorId = null) {
   const { nodes, edges } = graph;
   const idx = new Map(nodes.map((n, i) => [n.id, i]));
+
+  // If an anchor is requested, find it; if not, the You node (id '__you') already
+  // sits at origin and is fixed, so gravity-toward-origin is gravity-toward-You.
+  // For project/subproject anchors, free You from its origin pin and pin the
+  // anchor there instead — only one fixed node at a time, otherwise the
+  // simulation has two rigid overlapping points and distorts.
+  let anchorNode = null;
+  if (anchorId && anchorId !== '__you') {
+    anchorNode = nodes[idx.get(anchorId)] || null;
+    if (anchorNode) {
+      const youNode = nodes[idx.get('__you')];
+      if (youNode) youNode.fixed = false;
+      anchorNode.fixed = true;
+      anchorNode.x = 0; anchorNode.y = 0; anchorNode.z = 0;
+      anchorNode.vx = 0; anchorNode.vy = 0; anchorNode.vz = 0;
+    }
+  }
 
   const projectNodes = nodes.filter(n => n.type === 'project');
   const projectPos = new Map();
@@ -4699,6 +4786,261 @@ function resolveColor(c) {
   return c;
 }
 
+// ===== MOLECULAR FOCUS FILTER =====
+// Walks the graph and tags each node 'bright' / 'dim' / 'hidden' based on the
+// current focusPath. Returns the tag map plus the deepest valid anchorId for
+// the simulation to use as a gravity anchor (only at first render).
+//
+//   ['__you']                  → You + projects bright; everything else hidden.
+//   ['__you','p:eh']           → You + project eh + eh's subprojects + eh's loose
+//                                + items inside eh's subprojects/loose are bright.
+//                                Other projects are dim. Items inside other projects hidden.
+//   ['__you','p:eh','sp:q4']   → subproject q4 + its items bright. Project eh and
+//                                sibling subprojects dim. Everything else hidden.
+function applyFocusFilter(graph, focusPath) {
+  const tags = new Map();
+  const set = (id, t) => tags.set(id, t);
+  const nodes = graph.nodes;
+  const edges = graph.edges;
+
+  // Build a quick parent lookup: child id → parent id (via primary edges).
+  const primaryParent = new Map();
+  for (const e of edges) {
+    if (e.kind === 'primary') primaryParent.set(e.target, e.source);
+  }
+
+  const depth = focusPath.length;
+  // Default everything hidden, then promote what should be visible.
+  for (const n of nodes) set(n.id, 'hidden');
+
+  if (depth === 1) {
+    // Root: You + every project node bright; rest hidden.
+    set('__you', 'bright');
+    for (const n of nodes) {
+      if (n.type === 'project') set(n.id, 'bright');
+    }
+  } else if (depth === 2) {
+    // Project focus: focused project + its subprojects/loose + their items bright.
+    // Other projects dim, everything else hidden.
+    const focusedProjId = focusPath[1];
+    set('__you', 'bright');
+    set(focusedProjId, 'bright');
+    for (const n of nodes) {
+      if (n.type === 'project') {
+        if (n.id !== focusedProjId) set(n.id, 'dim');
+      } else if (n.type === 'subproject' || n.type === 'loose') {
+        if (primaryParent.get(n.id) === focusedProjId) set(n.id, 'bright');
+      } else if (n.type === 'todo' || n.type === 'note' || n.type === 'reminder') {
+        // Items hang off either a subproject/loose (which hangs off the project)
+        // or directly off the project (when the project has no subprojects).
+        const parent = primaryParent.get(n.id);
+        if (!parent) continue;
+        if (parent === focusedProjId) {
+          set(n.id, 'bright');
+        } else {
+          // Parent is a subproject/loose — check if its parent is the focused project.
+          const grandparent = primaryParent.get(parent);
+          if (grandparent === focusedProjId) set(n.id, 'bright');
+        }
+      }
+    }
+  } else if (depth >= 3) {
+    // Subproject focus: focused subproject + its items bright. Project + sibling
+    // subprojects dim. Everything else hidden.
+    const focusedProjId = focusPath[1];
+    const focusedSubId = focusPath[2];
+    set(focusedSubId, 'bright');
+    set(focusedProjId, 'dim');
+    set('__you', 'dim');
+    for (const n of nodes) {
+      if ((n.type === 'subproject' || n.type === 'loose') && primaryParent.get(n.id) === focusedProjId && n.id !== focusedSubId) {
+        set(n.id, 'dim');
+      } else if (n.type === 'todo' || n.type === 'note' || n.type === 'reminder') {
+        if (primaryParent.get(n.id) === focusedSubId) set(n.id, 'bright');
+      }
+    }
+  }
+
+  // Resolve the gravity anchor for the simulation. Deepest segment wins, but if
+  // it points at a node that doesn't exist (subproject was removed mid-session,
+  // graph dropped it under some condition, etc.), fall back to the parent.
+  const idsInGraph = new Set(nodes.map(n => n.id));
+  let anchorId = null;
+  for (let i = focusPath.length - 1; i >= 0; i--) {
+    if (idsInGraph.has(focusPath[i])) { anchorId = focusPath[i]; break; }
+  }
+  if (!anchorId) anchorId = '__you';
+
+  return { tags, anchorId };
+}
+
+// Smooth camera fly-to. OrbitControls' `target` is the orbit center; we lerp it
+// AND camera.position toward the new spot, preserving the camera's offset
+// direction so the user keeps their orientation.
+function flyCameraTo(targetPos, distance, ms = 600) {
+  const camera = molState.camera;
+  const controls = molState.controls;
+  if (!camera || !controls) return;
+  const startTarget = controls.target.clone();
+  const startCam = camera.position.clone();
+  const endTarget = targetPos.clone();
+  // Preserve current viewing direction; if the camera is currently sitting on top
+  // of the target (degenerate), use the world-Y axis as a fallback.
+  let dir = startCam.clone().sub(startTarget);
+  if (dir.lengthSq() < 0.0001) dir = new window.THREE.Vector3(0, 0.2, 1);
+  dir.normalize();
+  const endCam = endTarget.clone().add(dir.multiplyScalar(distance));
+  const t0 = performance.now();
+  const tick = () => {
+    const t = Math.min(1, (performance.now() - t0) / ms);
+    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
+    controls.target.lerpVectors(startTarget, endTarget, e);
+    camera.position.lerpVectors(startCam, endCam, e);
+    controls.update();
+    if (t < 1 && state.view === 'molecular') requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+// Per-focus-level camera distance (orbit radius from the focus node).
+function molFocusDistance(depth) {
+  if (depth <= 1) return 1200;
+  if (depth === 2) return 600;
+  return 300;
+}
+
+// Push a node id onto the focus stack. Validates that the push is legal
+// (project at root, subproject at project, no deeper). Persists + applies.
+function pushMolFocus(nodeId) {
+  if (!molState.scene) return;
+  const path = state.molecular.focusPath;
+  // Defend against duplicate pushes.
+  if (path[path.length - 1] === nodeId) return;
+  // Cap at depth 3.
+  const newPath = (path.length >= 3 ? path.slice(0, 2) : path.slice()).concat(nodeId);
+  state.molecular.focusPath = newPath;
+  persistMolFocusPath();
+  applyFocusToScene();
+}
+
+// Truncate the focus stack to a given segment index (0 = root). Persist + apply.
+function popMolFocusTo(index) {
+  if (!molState.scene) return;
+  const path = state.molecular.focusPath;
+  const targetIdx = Math.max(0, Math.min(path.length - 1, index));
+  if (targetIdx === path.length - 1) return; // already there
+  state.molecular.focusPath = path.slice(0, targetIdx + 1);
+  persistMolFocusPath();
+  applyFocusToScene();
+}
+
+// Re-apply the current focus path to the existing scene without re-running the
+// simulation. Updates: visibility tags on every node mesh + halo + label,
+// edge opacity, camera fly-to, autorotate level, and the breadcrumb DOM.
+function applyFocusToScene() {
+  if (!molState.scene) return;
+  const graph = { nodes: molState.nodeMeshes.map(nm => ({ id: nm.id, type: nm.type })),
+                  edges: molState.edgeLines.map(e => ({ source: e.source, target: e.target, kind: e.kind })) };
+  const { tags, anchorId } = applyFocusFilter(graph, state.molecular.focusPath);
+  molState.focusTags = tags;
+
+  // Apply tags to every node's mesh / halo / label.
+  for (const nm of molState.nodeMeshes) {
+    const tag = tags.get(nm.id) || 'hidden';
+    if (tag === 'hidden') {
+      nm.mesh.visible = false;
+      if (nm.halo) nm.halo.visible = false;
+      if (nm.label3D) nm.label3D.visible = false;
+    } else if (tag === 'dim') {
+      nm.mesh.visible = true;
+      nm.mesh.material.transparent = true;
+      nm.mesh.material.opacity = 0.18;
+      if (nm.halo) nm.halo.visible = false;
+      if (nm.label3D) { nm.label3D.visible = false; }
+    } else { // bright
+      nm.mesh.visible = true;
+      nm.mesh.material.transparent = false;
+      nm.mesh.material.opacity = 1;
+      if (nm.halo) nm.halo.visible = true;
+      if (nm.label3D) nm.label3D.visible = true; // animate-loop will set per-distance opacity
+    }
+  }
+
+  // Apply tags to edges.
+  for (const e of molState.edgeLines) {
+    const sTag = tags.get(e.source) || 'hidden';
+    const tTag = tags.get(e.target) || 'hidden';
+    // Worst tag wins: bright > dim > hidden.
+    const worst = (sTag === 'hidden' || tTag === 'hidden') ? 'hidden'
+                : (sTag === 'dim' || tTag === 'dim') ? 'dim' : 'bright';
+    if (worst === 'hidden') { e.line.visible = false; }
+    else if (worst === 'dim') { e.line.visible = true; e.line.material.opacity = 0.05; }
+    else { e.line.visible = true; e.line.material.opacity = e.baseOpacity; }
+  }
+
+  // Fly the camera to the anchor's current position.
+  const anchorNm = molState.nodeMeshes.find(nm => nm.id === anchorId);
+  const anchorPos = anchorNm ? anchorNm.mesh.position : new window.THREE.Vector3(0, 0, 0);
+  flyCameraTo(anchorPos, molFocusDistance(state.molecular.focusPath.length));
+
+  // Auto-rotate: on at root + project levels (when user hasn't manually toggled it
+  // off), off at subproject level.
+  const depth = state.molecular.focusPath.length;
+  if (molState.controls) {
+    if (depth >= 3) {
+      molState.controls.autoRotate = false;
+    } else if (molState.autoRotateUserChoice && !molState.pointer) {
+      molState.controls.autoRotate = true;
+    }
+  }
+
+  // Re-render the breadcrumb chrome (cheap DOM swap, no full view re-render).
+  rebuildMolBreadcrumbDOM();
+}
+
+// Resolve a focusPath segment id to its display label. Used by the breadcrumb.
+function molLabelFor(id) {
+  if (id === '__you') return 'You';
+  if (id.startsWith('p:')) {
+    const proj = state.data?.projects?.[id.slice(2)];
+    return proj ? (proj.name || '(project)') : '(project)';
+  }
+  if (id.startsWith('sp:')) {
+    const spId = id.slice(3);
+    if (spId.startsWith('__loose__')) return 'No subproject';
+    for (const proj of Object.values(state.data?.projects || {})) {
+      const sp = (proj.subprojects || []).find(s => s.id === spId);
+      if (sp) return sp.name || '(subproject)';
+    }
+    return '(subproject)';
+  }
+  return id;
+}
+
+// Re-render the breadcrumb chrome in-place (no full view re-render). Each
+// non-final segment is a tappable button; the final segment is plain text.
+function rebuildMolBreadcrumbDOM() {
+  const host = document.getElementById('mol-breadcrumb');
+  if (!host) return;
+  const path = state.molecular.focusPath;
+  const lastIdx = path.length - 1;
+  host.innerHTML = path.map((id, i) => {
+    const label = escapeHTML(molLabelFor(id));
+    if (i < lastIdx) {
+      return `<button class="mol-bc-btn" type="button" data-mol-focus-index="${i}" aria-label="Pop focus to ${label}">${i === 0 ? '⌂ ' : ''}${label}</button>` +
+             `<span class="mol-bc-sep" aria-hidden="true">›</span>`;
+    }
+    return `<span class="mol-bc-current">${i === 0 ? '⌂ ' : ''}${label}</span>`;
+  }).join('');
+  // Wire each breadcrumb segment to popMolFocusTo. We use click here (works
+  // for mouse + tap once `touch-action: manipulation` is in place via CSS).
+  host.querySelectorAll('[data-mol-focus-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      popMolFocusTo(parseInt(btn.dataset.molFocusIndex, 10));
+    });
+  });
+}
+
 function renderMolecular() {
   // Three.js loads as an ES module and is deferred — if we get here before it's ready,
   // show a tiny loading state and retry once the global appears.
@@ -4718,13 +5060,30 @@ function renderMolecular() {
 
   teardownMolecular();
 
+  // Restore the persisted focusPath from the last session and validate it
+  // against current data. Validation strips segments pointing at projects /
+  // subprojects that have been removed or archived since the user last
+  // looked at the universe.
+  if (!Array.isArray(state.molecular.focusPath) || state.molecular.focusPath[0] !== '__you') {
+    state.molecular.focusPath = ['__you'];
+  }
+  restoreMolFocusPath();
+
   const graph = buildMolecularGraph();
-  molSimulate3D(graph);
+
+  // Compute the focus filter once (derives the gravity anchor for the sim) and
+  // again later for visibility tags after the scene is built.
+  const initialFilter = applyFocusFilter(graph, state.molecular.focusPath);
+
+  // Simulate with anchor only when restoring a non-root focus — otherwise the
+  // default origin gravity (You at center) is what we want.
+  molSimulate3D(graph, 500, initialFilter.anchorId);
 
   document.getElementById('content').innerHTML = `
     <div class="view active" id="view-molecular">
       <div class="mol-toolbar">
         <div class="mol-title">⚛ <strong>Your universe</strong> · ${graph.nodes.length - 1} nodes · ${graph.edges.length} bonds</div>
+        <div class="mol-breadcrumb" id="mol-breadcrumb" role="navigation" aria-label="Molecular focus"></div>
         <div class="mol-legend" title="Node shape by item type">
           <span class="mol-legend-item"><span class="mol-legend-dot mol-legend-subproject"></span>subproject</span>
           <span class="mol-legend-item"><span class="mol-legend-dot mol-legend-todo"></span>todo</span>
@@ -4739,11 +5098,15 @@ function renderMolecular() {
       </div>
       <div class="mol-canvas-wrap" id="mol-canvas-wrap">
         <div class="mol-hover-label" id="mol-hover-label" hidden></div>
-        <div class="mol-hint">Drag to rotate · scroll to zoom · click a node to open</div>
+        <div class="mol-hint">Drag to rotate · scroll to zoom · tap a node to drill in</div>
       </div>
     </div>`;
 
   setupMolecularThree(graph);
+  // After scene is built, apply the focus filter so dim/hidden tags are reflected
+  // in mesh visibility and the camera flies to the anchor. This also paints the
+  // breadcrumb chrome.
+  applyFocusToScene();
 }
 
 function setupMolecularThree(graph) {
@@ -4898,14 +5261,23 @@ function setupMolecularThree(graph) {
     molState.edgeLines.push({ source: e.source, target: e.target, line, kind: e.kind, baseColor: new THREE.Color(colorHex), baseOpacity });
   }
 
-  // OrbitControls — drag to rotate, scroll to zoom, right-drag to pan.
+  // OrbitControls — drag to rotate, scroll to zoom, right-drag (or two-finger) to pan.
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
-  controls.autoRotate = true;
+  controls.autoRotate = molState.autoRotateUserChoice;
   controls.autoRotateSpeed = 0.35;
   controls.minDistance = 200;
   controls.maxDistance = 2000;
+  controls.enablePan = true;
+  // Touch gestures: one finger rotates the universe, two fingers pinch-zoom + pan.
+  // Without this explicit map, OrbitControls' touch defaults are inconsistent
+  // across versions. THREE.TOUCH.* enums are: ROTATE = 0, PAN = 1, DOLLY_PAN = 2,
+  // DOLLY_ROTATE = 3.
+  controls.touches = {
+    ONE: THREE.TOUCH.ROTATE,
+    TWO: THREE.TOUCH.DOLLY_PAN
+  };
 
   // Raycaster for hover/click.
   const raycaster = new THREE.Raycaster();
@@ -4929,7 +5301,13 @@ function setupMolecularThree(graph) {
     const visMin = 500, visMax = 1700;
     const tNorm = Math.max(0, Math.min(1, (camDist - visMin) / (visMax - visMin)));
 
+    const focusTags = molState.focusTags;
     for (const nm of molState.nodeMeshes) {
+      // Skip nodes that the focus filter has hidden — no need to spin or bob
+      // off-screen geometry, and we'd just thrash visibility flags otherwise.
+      const focusTag = focusTags ? focusTags.get(nm.id) : 'bright';
+      if (focusTag === 'hidden') continue;
+
       // Subtle bobbing on item-level nodes (skip projects/you so they stay anchored).
       if (nm.id !== '__you' && nm.type !== 'project') {
         const phase = (nm.id.charCodeAt(2) || 0) + (nm.id.charCodeAt(3) || 0);
@@ -4944,8 +5322,9 @@ function setupMolecularThree(graph) {
       // Item label opacity: heavy (recent) items fight through more zoom-out.
       // Each item has weight 0..1; show it when weight > tNorm, with a soft fade band.
       // Skip anchors (project/subproject/loose) — those are always visible.
+      // Skip dim items — applyFocusToScene already set their label visible=false.
       const isAnchorType = nm.type === 'project' || nm.type === 'subproject' || nm.type === 'loose';
-      if (nm.label3D && !isAnchorType && nm.id !== '__you') {
+      if (nm.label3D && !isAnchorType && nm.id !== '__you' && focusTag === 'bright') {
         // If hovered, override and force full opacity for the hovered node + neighbours.
         let opacity;
         if (molState.hoveredId) {
@@ -4966,26 +5345,45 @@ function setupMolecularThree(graph) {
   };
   animate();
 
-  // Hover: dim everything not connected to the hovered node.
+  // Hover + tap detection via pointer events. Pointer events unify mouse,
+  // pen, and touch under one event model — and OrbitControls captures the
+  // gesture for rotation/zoom independently. We layer our hover/tap on top.
+  //
+  // Tap-vs-drag: track movement + duration on pointerdown→pointerup. If
+  // movement > TAP_MOVE_PX or duration > TAP_TIME_MS, treat as a drag and
+  // skip navigation. This prevents OrbitControls' touch-rotate from
+  // accidentally firing the click handler.
+  const TAP_MOVE_PX = 6;
+  const TAP_TIME_MS = 300;
+  const AUTOROTATE_RESUME_MS = 3000;
+
   const hoverLabel = document.getElementById('mol-hover-label');
-  const onMouseMove = (e) => {
+
+  // Filter the raycaster to only bright-tagged meshes — dimmed/hidden nodes
+  // shouldn't be tappable or hoverable.
+  const pickAt = (clientX, clientY) => {
     const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    const meshes = molState.nodeMeshes.map(nm => nm.mesh);
+    const tags = molState.focusTags;
+    const meshes = molState.nodeMeshes
+      .filter(nm => !tags || tags.get(nm.id) === 'bright')
+      .map(nm => nm.mesh);
     const intersects = raycaster.intersectObjects(meshes);
-    if (intersects.length) {
-      const id = intersects[0].object.userData.id;
-      if (molState.hoveredId !== id) {
-        molState.hoveredId = id;
+    return intersects.length ? { hit: intersects[0].object.userData, rect } : { hit: null, rect };
+  };
+
+  const updateHover = (hit, rect, clientX, clientY) => {
+    if (hit) {
+      if (molState.hoveredId !== hit.id) {
+        molState.hoveredId = hit.id;
         applyHoverHighlight();
       }
-      const label = intersects[0].object.userData.label || '';
       if (hoverLabel) {
-        hoverLabel.textContent = label;
-        hoverLabel.style.left = (e.clientX - rect.left + 14) + 'px';
-        hoverLabel.style.top  = (e.clientY - rect.top + 14) + 'px';
+        hoverLabel.textContent = hit.label || '';
+        hoverLabel.style.left = (clientX - rect.left + 14) + 'px';
+        hoverLabel.style.top  = (clientY - rect.top + 14) + 'px';
         hoverLabel.hidden = false;
       }
       renderer.domElement.style.cursor = 'pointer';
@@ -4998,47 +5396,98 @@ function setupMolecularThree(graph) {
       renderer.domElement.style.cursor = '';
     }
   };
-  renderer.domElement.addEventListener('mousemove', onMouseMove);
-  molState.mouseHandler = onMouseMove;
 
-  const onLeave = () => {
+  // Drill the focus path one level deeper. Items at subproject focus level
+  // are no-ops in Phase A — Phase D will handle the side panel.
+  const dispatchTapTarget = (nm) => {
+    if (!nm) return;
+    const depth = state.molecular.focusPath.length;
+    if (depth === 1 && nm.type === 'project') {
+      pushMolFocus('p:' + nm.projectKey);
+    } else if (depth === 2 && (nm.type === 'subproject' || nm.type === 'loose')) {
+      // Subproject id is sp:ID; loose bucket id is sp:__loose__KEY.
+      const id = nm.type === 'loose' ? 'sp:__loose__' + nm.projectKey : 'sp:' + nm.refId;
+      pushMolFocus(id);
+    }
+    // depth === 3 (subproject focus): tapping items is a Phase D concern.
+  };
+
+  const scheduleAutoRotateResume = () => {
+    if (molState.autoRotateResumeTimer) clearTimeout(molState.autoRotateResumeTimer);
+    molState.autoRotateResumeTimer = setTimeout(() => {
+      molState.autoRotateResumeTimer = null;
+      if (molState.pointer) return;             // still touching
+      if (state.view !== 'molecular') return;
+      const depth = state.molecular.focusPath.length;
+      if (depth >= 3) return;                   // subproject level: stay paused
+      if (molState.controls && molState.autoRotateUserChoice) {
+        molState.controls.autoRotate = true;
+      }
+    }, AUTOROTATE_RESUME_MS);
+  };
+
+  const onPointerDown = (e) => {
+    molState.pointer = { id: e.pointerId, x0: e.clientX, y0: e.clientY, t0: Date.now(), moved: 0, type: e.pointerType };
+    // Pause auto-rotate while a touch is in progress; we'll resume after release + idle.
+    if (molState.autoRotateResumeTimer) {
+      clearTimeout(molState.autoRotateResumeTimer);
+      molState.autoRotateResumeTimer = null;
+    }
+    if (molState.controls) molState.controls.autoRotate = false;
+  };
+  const onPointerMove = (e) => {
+    // Mouse-only hover. Touch doesn't have a hover semantic — we don't want
+    // a swipe to spam hover updates and re-rendering.
+    if (e.pointerType === 'mouse' && (!molState.pointer || molState.pointer.type === 'mouse')) {
+      const { hit, rect } = pickAt(e.clientX, e.clientY);
+      updateHover(hit, rect, e.clientX, e.clientY);
+    }
+    if (molState.pointer && e.pointerId === molState.pointer.id) {
+      const dx = e.clientX - molState.pointer.x0;
+      const dy = e.clientY - molState.pointer.y0;
+      molState.pointer.moved = Math.max(molState.pointer.moved, Math.sqrt(dx*dx + dy*dy));
+    }
+  };
+  const onPointerUp = (e) => {
+    const p = molState.pointer;
+    molState.pointer = null;
+    scheduleAutoRotateResume();
+    if (!p || e.pointerId !== p.id) return;
+    const dt = Date.now() - p.t0;
+    const isTap = p.moved <= TAP_MOVE_PX && dt <= TAP_TIME_MS;
+    if (!isTap) return;
+    // Resolve the tapped node by raycasting at the current pointer position.
+    // For touch, hover state is unreliable — always re-pick on tap.
+    const { hit } = pickAt(e.clientX, e.clientY);
+    if (!hit) return;
+    const nm = molState.nodeMeshes.find(x => x.id === hit.id);
+    dispatchTapTarget(nm);
+  };
+  const onPointerCancel = () => {
+    molState.pointer = null;
+    scheduleAutoRotateResume();
+  };
+  const onPointerLeave = () => {
     if (molState.hoveredId !== null) { molState.hoveredId = null; applyHoverHighlight(); }
     if (hoverLabel) hoverLabel.hidden = true;
   };
-  renderer.domElement.addEventListener('mouseleave', onLeave);
-  molState.leaveHandler = onLeave;
+  // Held finger / right click on the canvas should NOT pop the system context
+  // menu — users expect a long press to do nothing visible (or to be a future
+  // gesture).
+  const onContextMenu = (e) => { e.preventDefault(); };
 
-  // Click: navigate to the hovered node.
-  const onClick = () => {
-    if (!molState.hoveredId) return;
-    const nm = molState.nodeMeshes.find(x => x.id === molState.hoveredId);
-    if (!nm) return;
-    if (nm.type === 'project' && nm.projectKey) {
-      switchProject(nm.projectKey);
-      showView('dashboard');
-    } else if (nm.type === 'subproject' && nm.projectKey && nm.refId) {
-      if (nm.projectKey !== state.project) switchProject(nm.projectKey);
-      state.activeSubproject = nm.refId;
-      showView('subprojects');
-    } else if (nm.type === 'loose' && nm.projectKey) {
-      // The "no subproject" bucket: jump to the project's subprojects view, no specific sp selected.
-      if (nm.projectKey !== state.project) switchProject(nm.projectKey);
-      state.activeSubproject = null;
-      showView('subprojects');
-    } else if (nm.type === 'todo' && nm.projectKey) {
-      if (nm.projectKey !== state.project) switchProject(nm.projectKey);
-      showView('todos');
-    } else if (nm.type === 'note' && nm.projectKey && nm.refId) {
-      if (nm.projectKey !== state.project) switchProject(nm.projectKey);
-      state.editingNote = nm.refId;
-      showView('notes');
-    } else if (nm.type === 'reminder' && nm.projectKey) {
-      if (nm.projectKey !== state.project) switchProject(nm.projectKey);
-      showView('reminders');
-    }
-  };
-  renderer.domElement.addEventListener('click', onClick);
-  molState.clickHandler = onClick;
+  renderer.domElement.addEventListener('pointerdown', onPointerDown);
+  renderer.domElement.addEventListener('pointermove', onPointerMove);
+  renderer.domElement.addEventListener('pointerup', onPointerUp);
+  renderer.domElement.addEventListener('pointercancel', onPointerCancel);
+  renderer.domElement.addEventListener('pointerleave', onPointerLeave);
+  renderer.domElement.addEventListener('contextmenu', onContextMenu);
+  molState.pointerDownHandler = onPointerDown;
+  molState.pointerMoveHandler = onPointerMove;
+  molState.pointerUpHandler = onPointerUp;
+  molState.pointerCancelHandler = onPointerCancel;
+  molState.pointerLeaveHandler = onPointerLeave;
+  molState.contextMenuHandler = onContextMenu;
 
   // Resize handler so the canvas tracks the panel size.
   const onResize = () => {
@@ -5052,16 +5501,26 @@ function setupMolecularThree(graph) {
   window.addEventListener('resize', onResize);
   molState.resizeHandler = onResize;
 
-  // Toolbar.
+  // Toolbar. Reset pops focus all the way out and flies back to the home view.
   document.getElementById('mol-fit')?.addEventListener('click', () => {
-    camera.position.set(0, 140, 1200);
-    controls.target.set(0, 0, 0);
-    controls.update();
+    if (state.molecular.focusPath.length > 1) {
+      popMolFocusTo(0);
+    } else {
+      // Already at root — just re-center the camera if the user has dragged it.
+      camera.position.set(0, 140, 1200);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
   });
   document.getElementById('mol-refresh')?.addEventListener('click', () => renderMolecular());
   document.getElementById('mol-toggle-rotate')?.addEventListener('click', (e) => {
-    controls.autoRotate = !controls.autoRotate;
-    e.currentTarget.classList.toggle('on', controls.autoRotate);
+    // The user's intent toggles independently of the auto-pause-on-touch state.
+    molState.autoRotateUserChoice = !molState.autoRotateUserChoice;
+    // Apply immediately if we're not deeper than project level (subproject focus
+    // forces autorotate off).
+    const depth = state.molecular.focusPath.length;
+    controls.autoRotate = molState.autoRotateUserChoice && depth < 3 && !molState.pointer;
+    e.currentTarget.classList.toggle('on', molState.autoRotateUserChoice);
   });
 
   molState.scene = scene;
@@ -5171,16 +5630,24 @@ function teardownMolecular() {
     cancelAnimationFrame(molState.rafHandle);
     molState.rafHandle = null;
   }
+  if (molState.autoRotateResumeTimer) {
+    clearTimeout(molState.autoRotateResumeTimer);
+    molState.autoRotateResumeTimer = null;
+  }
   if (molState.resizeHandler) { window.removeEventListener('resize', molState.resizeHandler); molState.resizeHandler = null; }
   if (molState.controls) { molState.controls.dispose(); molState.controls = null; }
   if (molState.renderer) {
-    if (molState.mouseHandler) molState.renderer.domElement.removeEventListener('mousemove', molState.mouseHandler);
-    if (molState.clickHandler) molState.renderer.domElement.removeEventListener('click', molState.clickHandler);
-    if (molState.leaveHandler) molState.renderer.domElement.removeEventListener('mouseleave', molState.leaveHandler);
-    molState.renderer.dispose();
-    if (molState.renderer.domElement && molState.renderer.domElement.parentNode) {
-      molState.renderer.domElement.parentNode.removeChild(molState.renderer.domElement);
+    const dom = molState.renderer.domElement;
+    if (dom) {
+      if (molState.pointerDownHandler)   dom.removeEventListener('pointerdown', molState.pointerDownHandler);
+      if (molState.pointerMoveHandler)   dom.removeEventListener('pointermove', molState.pointerMoveHandler);
+      if (molState.pointerUpHandler)     dom.removeEventListener('pointerup', molState.pointerUpHandler);
+      if (molState.pointerCancelHandler) dom.removeEventListener('pointercancel', molState.pointerCancelHandler);
+      if (molState.pointerLeaveHandler)  dom.removeEventListener('pointerleave', molState.pointerLeaveHandler);
+      if (molState.contextMenuHandler)   dom.removeEventListener('contextmenu', molState.contextMenuHandler);
     }
+    molState.renderer.dispose();
+    if (dom && dom.parentNode) dom.parentNode.removeChild(dom);
     molState.renderer = null;
   }
   if (molState.scene) {
@@ -5197,9 +5664,14 @@ function teardownMolecular() {
   molState.nodeMeshes = [];
   molState.edgeLines = [];
   molState.hoveredId = null;
-  molState.mouseHandler = null;
-  molState.clickHandler = null;
-  molState.leaveHandler = null;
+  molState.pointer = null;
+  molState.focusTags = null;
+  molState.pointerDownHandler = null;
+  molState.pointerMoveHandler = null;
+  molState.pointerUpHandler = null;
+  molState.pointerCancelHandler = null;
+  molState.pointerLeaveHandler = null;
+  molState.contextMenuHandler = null;
   molState.camera = null;
   molState.raycaster = null;
   molState.mouse = null;
