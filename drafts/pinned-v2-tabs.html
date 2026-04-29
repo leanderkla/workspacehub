@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned V2 — Three-mode tab strip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0f172a; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 30px; padding: 30px 20px; flex-wrap: wrap;
+    color: #f1f5ff; font-size: 13px;
+  }
+  .label { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .window {
+    width: 360px;
+    background:
+      radial-gradient(at 20% 10%, rgba(76, 29, 149, 0.4) 0%, transparent 55%),
+      radial-gradient(at 80% 90%, rgba(14, 165, 233, 0.3) 0%, transparent 55%),
+      #0a0f1e;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .titlebar {
+    height: 30px; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.25); backdrop-filter: blur(8px);
+  }
+  .titlebar .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+  .titlebar .name { font-weight: 600; color: rgba(255,255,255,0.75); }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .close { color: rgba(255,255,255,0.3); cursor: pointer; }
+
+  .tab-strip {
+    display: flex;
+    margin: 10px 14px 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .tab {
+    flex: 1;
+    background: transparent; border: 0;
+    color: rgba(255,255,255,0.6);
+    padding: 6px 8px; border-radius: 7px;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .tab .kbd { font-size: 9px; color: rgba(255,255,255,0.35); font-weight: 500; }
+  .tab.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .tab:hover:not(.active) { color: rgba(255,255,255,0.85); }
+
+  /* ===== PULSE PANE ===== */
+  .pane-body { padding-top: 4px; }
+  .ring-section { display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+  .ring-wrap { width: 140px; height: 140px; position: relative; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-wrap circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+  .ring-bg { stroke: rgba(255,255,255,0.07); }
+  .ring-fg { stroke: #ef4444; stroke-dasharray: 390; stroke-dashoffset: 160; filter: drop-shadow(0 0 8px #ef4444); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-num { font-size: 30px; font-weight: 700; color: #fff; line-height: 1; }
+  .ring-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 4px; }
+  .legend { display: flex; justify-content: center; gap: 14px; padding: 0 20px 10px; font-size: 11px; color: rgba(255,255,255,0.7); }
+  .leg-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 14px 12px; }
+  .tile {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 9px 10px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tile:hover { background: rgba(255,255,255,0.08); }
+  .tile-num { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
+  .tile-lbl { font-size: 9px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.04em; }
+  .tile.alert .tile-num { color: #fda4af; }
+
+  /* ===== TRIAGE PANE ===== */
+  .triage-progress {
+    padding: 10px 18px 8px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .prog-label { font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 600; }
+  .prog-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .prog-fill { height: 100%; background: #8b5cf6; width: 42%; }
+  .prog-count { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 600; }
+
+  .card-stack { padding: 14px; min-height: 180px; }
+  .tri-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 3px solid #ef4444;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .tri-type { display: inline-flex; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #fca5a5; background: rgba(239,68,68,0.15); padding: 2px 7px; border-radius: 10px; }
+  .tri-title { font-size: 13px; font-weight: 600; line-height: 1.4; margin: 8px 0 4px; color: #fff; }
+  .tri-meta { font-size: 10px; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 8px; }
+  .proj-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; display: inline-block; margin-right: 4px; }
+  .tri-context { margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-size: 11px; color: rgba(255,255,255,0.7); font-style: italic; }
+
+  /* ===== FOCUS PANE ===== */
+  .focus-hero { padding: 12px 18px 10px; background: linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%); }
+  .focus-proj { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #f59e0b; display: flex; align-items: center; gap: 6px; }
+  .focus-proj::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .focus-title { font-size: 14px; font-weight: 600; line-height: 1.35; margin-top: 5px; color: #f8fafc; }
+
+  .timer-section { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .timer-ring { width: 60px; height: 60px; flex-shrink: 0; position: relative; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke-width: 4; stroke-linecap: round; }
+  .timer-ring .bg { stroke: rgba(255,255,255,0.08); }
+  .timer-ring .fg { stroke: #8b5cf6; stroke-dasharray: 164; stroke-dashoffset: 44; filter: drop-shadow(0 0 6px #8b5cf6); }
+  .timer-time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .timer-info { flex: 1; }
+  .timer-state { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a78bfa; }
+  .timer-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .timer-controls { display: flex; gap: 5px; margin-top: 6px; }
+  .tmr-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #e2e8f0; padding: 3px 8px; border-radius: 5px; font-size: 10px; cursor: pointer; font-family: inherit; }
+  .tmr-btn.primary { background: #8b5cf6; border-color: #8b5cf6; }
+
+  .steps { padding: 10px 18px 6px; }
+  .steps-header { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .step-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px; }
+  .step-row:last-child { border: 0; }
+  .step-check { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+  .step-check.done { background: #16a34a; border-color: #16a34a; position: relative; }
+  .step-check.done::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; font-weight: 700; }
+  .step-row.done .step-label { text-decoration: line-through; color: rgba(255,255,255,0.4); }
+
+  /* ===== SHARED BOTTOM ===== */
+  .actions-row {
+    display: flex; gap: 3px; padding: 8px 14px 0;
+  }
+  .act {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.8);
+    padding: 6px 3px; border-radius: 6px;
+    cursor: pointer; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    font-size: 10px;
+  }
+  .act:hover { background: rgba(255,255,255,0.1); }
+  .act-kbd { font-size: 8px; color: rgba(255,255,255,0.4); }
+  .act.done { color: #86efac; }
+  .act.now { color: #c4b5fd; background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); }
+
+  .capture-bar {
+    margin: 10px 14px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 9px;
+    padding: 6px 9px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .capture-bar input { flex: 1; background: transparent; border: 0; outline: 0; color: #fff; font-family: inherit; font-size: 11px; }
+  .capture-bar input::placeholder { color: rgba(255,255,255,0.4); }
+  .mic-btn { width: 22px; height: 22px; border-radius: 50%; border: 0; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; cursor: pointer; font-size: 10px; }
+
+  .callout { padding: 30px 20px; text-align: center; color: #64748b; font-size: 12px; max-width: 360px; line-height: 1.6; margin: 0 auto; }
+  .callout strong { color: #e2e8f0; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <!-- PULSE TAB ACTIVE -->
+  <div>
+    <div class="label">Tab 1 · Pulse</div>
+    <div class="window">
+      <div class="titlebar"><div class="dot"></div><span class="name">Energy Hero · 8 due</span><span class="spacer"></span><span class="close">✕</span></div>
+      <div class="tab-strip">
+        <button class="tab active">⚡ Pulse <span class="kbd">1</span></button>
+        <button class="tab">🎯 Triage <span class="kbd">2</span></button>
+        <button class="tab">🔥 Focus <span class="kbd">3</span></button>
+      </div>
+      <div class="pane-body">
+        <div class="ring-section">
+          <div class="ring-wrap">
+            <svg width="140" height="140">
+              <circle class="ring-bg" cx="70" cy="70" r="62"></circle>
+              <circle class="ring-fg" cx="70" cy="70" r="62"></circle>
+            </svg>
+            <div class="ring-center"><div class="ring-num">8</div><div class="ring-lbl">Need attention</div></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="leg-dot" style="background:#ef4444"></span>3 overdue</span>
+          <span><span class="leg-dot" style="background:#f59e0b"></span>5 today</span>
+        </div>
+        <div class="tiles">
+          <div class="tile alert"><span>⚠</span><div><div class="tile-num">3</div><div class="tile-lbl">Overdue</div></div></div>
+          <div class="tile"><span>📅</span><div><div class="tile-num">5</div><div class="tile-lbl">Today</div></div></div>
+          <div class="tile"><span>📤</span><div><div class="tile-num">2</div><div class="tile-lbl">Waiting</div></div></div>
+          <div class="tile"><span>🔔</span><div><div class="tile-num">1</div><div class="tile-lbl">Reminder</div></div></div>
+        </div>
+      </div>
+      <div class="capture-bar"><span style="font-size:11px; color:rgba(255,255,255,0.4)">＋</span><input placeholder="Quick capture…"><button class="mic-btn">🎙</button></div>
+    </div>
+  </div>
+
+  <!-- TRIAGE TAB ACTIVE -->
+  <div>
+    <div class="label">Tab 2 · Triage</div>
+    <div class="window">
+      <div class="titlebar"><div class="dot"></div><span class="name">Energy Hero · 8 due</span><span class="spacer"></span><span class="close">✕</span></div>
+      <div class="tab-strip">
+        <button class="tab">⚡ Pulse <span class="kbd">1</span></button>
+        <button class="tab active">🎯 Triage <span class="kbd">2</span></button>
+        <button class="tab">🔥 Focus <span class="kbd">3</span></button>
+      </div>
+      <div class="triage-progress">
+        <span class="prog-label">Working through</span>
+        <div class="prog-bar"><div class="prog-fill"></div></div>
+        <span class="prog-count">3/8</span>
+      </div>
+      <div class="card-stack">
+        <div class="tri-card">
+          <span class="tri-type">⚠ 1 day overdue</span>
+          <div class="tri-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+          <div class="tri-meta"><span><span class="proj-dot"></span>Energy Hero</span><span>·</span><span>Accounts</span></div>
+          <div class="tri-context">Blocked on webforms schema last check-in. Ping Lukas if still stuck tomorrow.</div>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="act done"><span>✓</span><span>Done</span><span class="act-kbd">D</span></button>
+        <button class="act now"><span>⚡</span><span>Now</span><span class="act-kbd">N</span></button>
+        <button class="act"><span>⏰</span><span>Snooze</span><span class="act-kbd">S</span></button>
+        <button class="act"><span>📤</span><span>Deleg.</span><span class="act-kbd">G</span></button>
+        <button class="act"><span>→</span><span>Skip</span><span class="act-kbd">↵</span></button>
+      </div>
+      <div class="capture-bar"><span style="font-size:11px; color:rgba(255,255,255,0.4)">＋</span><input placeholder="Capture while triaging…"><button class="mic-btn">🎙</button></div>
+    </div>
+  </div>
+
+  <!-- FOCUS TAB ACTIVE -->
+  <div>
+    <div class="label">Tab 3 · Focus</div>
+    <div class="window">
+      <div class="titlebar"><div class="dot" style="background:#8b5cf6"></div><span class="name">Focus — 18:47</span><span class="spacer"></span><span class="close">✕</span></div>
+      <div class="tab-strip">
+        <button class="tab">⚡ Pulse <span class="kbd">1</span></button>
+        <button class="tab">🎯 Triage <span class="kbd">2</span></button>
+        <button class="tab active">🔥 Focus <span class="kbd">3</span></button>
+      </div>
+      <div class="focus-hero">
+        <div class="focus-proj">Energy Hero</div>
+        <div class="focus-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+      </div>
+      <div class="timer-section">
+        <div class="timer-ring">
+          <svg width="60" height="60"><circle class="bg" cx="30" cy="30" r="26"></circle><circle class="fg" cx="30" cy="30" r="26"></circle></svg>
+          <div class="timer-time">18:47</div>
+        </div>
+        <div class="timer-info">
+          <div class="timer-state">Deep Work</div>
+          <div class="timer-label">25-min focus block</div>
+          <div class="timer-controls">
+            <button class="tmr-btn primary">⏸ Pause</button>
+            <button class="tmr-btn">Skip</button>
+            <button class="tmr-btn">+5m</button>
+          </div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="steps-header"><span>Sub-steps</span><span>2/4</span></div>
+        <div class="step-row done"><div class="step-check done"></div><div class="step-label">Umsatz feld anlegen</div></div>
+        <div class="step-row done"><div class="step-check done"></div><div class="step-label">Gesamte Ersparnis anlegen</div></div>
+        <div class="step-row"><div class="step-check"></div><div class="step-label">Friendscode count</div></div>
+        <div class="step-row"><div class="step-check"></div><div class="step-label">Webforms count</div></div>
+      </div>
+      <div class="actions-row" style="padding-top:4px">
+        <button class="act done"><span>✓</span><span>Done</span><span class="act-kbd">D</span></button>
+        <button class="act"><span>⏸</span><span>Pause</span><span class="act-kbd">Sp</span></button>
+        <button class="act"><span>→</span><span>Next</span><span class="act-kbd">↵</span></button>
+      </div>
+      <div class="capture-bar"><span style="font-size:11px; color:rgba(255,255,255,0.4)">＋</span><input placeholder="Jot a thought…"><button class="mic-btn">🎙</button></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>V2 — Three-mode tab strip</strong>
+    A segmented control at top switches between Pulse / Triage / Focus. Each pane is its own full experience but shares the same titlebar, shortcut bar, and capture input. Number keys 1/2/3 instantly swap modes. D/N/S/G/↵ shortcuts stay consistent across all three.
+    <ul>
+      <li>Each mode gets full real estate — no cramped hybrid</li>
+      <li>Fast cross-mode navigation (press <kbd>2</kbd> to jump from Pulse to Triage)</li>
+      <li>Same capture bar always at bottom — never hunt for it</li>
+      <li>Mental model is clear: Pulse = look, Triage = decide, Focus = do</li>
+    </ul>
+  </div>
+</body>
+</html>

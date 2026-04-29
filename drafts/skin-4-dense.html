@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skin 4 — Dense (power-user)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #f59e0b;
+    --sidebar-bg: #0a0f1e;
+    --content-bg: #f5f6f8;
+    --card-bg: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
+    --border: #e5e7eb;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #1a1a1a; padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--content-bg);
+    border-radius: 8px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.3);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    grid-template-rows: 32px 1fr;
+    min-height: 740px;
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: #0a0f1e;
+    color: #94a3b8;
+    display: flex; align-items: center;
+    padding: 0 10px; gap: 10px;
+  }
+  .logo { width: 18px; height: 18px; border-radius: 4px; background: var(--accent); }
+  .tb-title { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+  .spacer { flex: 1; }
+  .search {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 10px; height: 22px; width: 320px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5); border-radius: 5px; font-size: 11px;
+  }
+  .tb-btns { display: flex; gap: 1px; }
+  .tb-btn { width: 30px; height: 24px; background: transparent; border: 0; color: rgba(255,255,255,0.55); border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .tb-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Sidebar — tight */
+  .sidebar { background: var(--sidebar-bg); color: #cbd5e1; padding: 6px 0; overflow-y: auto; }
+  .sb-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b; padding: 8px 14px 3px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px;
+    color: #cbd5e1; font-size: 12px; cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .sb-item:hover { background: rgba(255,255,255,0.04); color: white; }
+  .sb-item.active { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-left-color: var(--accent); font-weight: 500; }
+  .sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 10px; color: #f87171; font-weight: 700; }
+  .sb-ic { width: 14px; text-align: center; font-size: 11px; }
+
+  /* Content — dense info */
+  .content { overflow-y: auto; padding: 14px 18px; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .page-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+  .page-title .b { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .page-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .page-actions { display: flex; gap: 4px; }
+  .ba { background: white; border: 1px solid var(--border); color: var(--text-secondary); padding: 3px 9px; font-size: 11px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .ba:hover { background: #f0f2f6; }
+  .ba.primary { background: var(--accent); border-color: var(--accent); color: white; font-weight: 500; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--card-bg);
+    padding: 8px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+  }
+  .stat-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .stat-val { font-size: 18px; font-weight: 700; margin-top: 2px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .stat.alert .stat-val { color: #dc2626; }
+
+  .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; }
+
+  .panel { background: var(--card-bg); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 10px; }
+  .panel-hdr {
+    padding: 5px 10px; display: flex; align-items: center; gap: 6px;
+    background: #f8f9fb;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .panel-hdr .count { background: #e5e7eb; color: var(--text-secondary); padding: 0 6px; border-radius: 8px; font-size: 10px; }
+  .panel-hdr.alert { color: #991b1b; background: #fef2f2; border-bottom-color: #fecaca; }
+  .panel-hdr.alert .count { background: #fecaca; color: #991b1b; }
+  .panel-hdr .spacer { flex: 1; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    gap: 8px;
+    padding: 4px 10px;
+    border-bottom: 1px solid #f0f2f5;
+    font-size: 12px;
+    align-items: center;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #fafbfc; }
+  .row .ck { width: 12px; height: 12px; border: 1.5px solid #cbd5e1; border-radius: 50%; }
+  .row .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+  .row .chip { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: #fff7ed; color: #92400e; border: 1px solid #fed7aa; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  .row .due { font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .row.overdue .title { color: #991b1b; font-weight: 500; }
+  .row.overdue .due { color: #dc2626; font-weight: 600; }
+
+  .callout { max-width: 680px; margin: 28px auto 0; text-align: center; color: #9ca3af; font-size: 12.5px; line-height: 1.6; }
+  .callout strong { display: block; color: #e2e8f0; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="logo"></div>
+      <div class="tb-title">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <div class="search">🔍 Search or capture… <span style="margin-left:auto; font-size:9px; opacity:0.6">Ctrl K</span></div>
+      <div class="tb-btns">
+        <button class="tb-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></button>
+        <button class="tb-btn">⚙</button>
+        <button class="tb-btn">↻</button>
+        <button class="tb-btn">─</button>
+        <button class="tb-btn">□</button>
+        <button class="tb-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <div class="page-title"><span class="b"></span>Energy Hero</div>
+          <div class="page-meta">Dashboard · Wed 22 Apr · 4 overdue · 21 open · last 12m</div>
+        </div>
+        <div class="page-actions">
+          <button class="ba">Filter</button>
+          <button class="ba">+30d</button>
+          <button class="ba primary">+ Todo</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Today</div><div class="stat-val">5</div></div>
+        <div class="stat"><div class="stat-lbl">Open</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Done</div><div class="stat-val">17</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subproj.</div><div class="stat-val">10</div></div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="panel">
+            <div class="panel-hdr alert">⚠ Overdue <span class="count">4</span></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="chip">Accounts</div><div class="due">21-Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="chip">Vollmacht</div><div class="due">22-Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Vorlage Email GK</div><div class="chip">Großkund</div><div class="due">22-Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Rückbucher inaktiv stellen</div><div class="chip">Ops</div><div class="due">22-Apr</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr">Due this week <span class="count">5</span></div>
+            <div class="row"><div class="ck"></div><div class="title">Anrufen GK · hufnagl leads abgleichen</div><div class="chip">Sales</div><div class="due">24-Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">Claude wordpress integration test</div><div class="chip">Tech</div><div class="due">24-Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">Review Q2 onboarding script</div><div class="chip">CRM</div><div class="due">25-Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">Ping Lukas about friendscode rollout</div><div class="chip">Marketing</div><div class="due">26-Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">E Control Daten Tarifkalkulator</div><div class="chip">Tech</div><div class="due">27-Apr</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-hdr">Recent notes <span class="count">6</span></div>
+            <div class="row"><div class="ck" style="border:0; background:#eab308; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">Friendscode rollout plan</div><div class="chip">Strategy</div><div class="due">Yesterday</div></div>
+            <div class="row"><div class="ck" style="border:0; background:#eab308; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">Sales deck revisions</div><div class="chip">Sales</div><div class="due">2d ago</div></div>
+            <div class="row"><div class="ck" style="border:0; background:#eab308; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">Meeting · Lukas</div><div class="chip">Meeting</div><div class="due">18 Mar</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr">Commitments <span class="count">3</span></div>
+            <div class="row overdue"><div class="ck" style="border:0; background:#ef4444; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">← Akropolis — Vollmachten 5 Firmen</div><div class="chip">They owe</div><div class="due">Stale 1d</div></div>
+            <div class="row"><div class="ck" style="border:0; background:#ef4444; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">→ Lukas — Friendscode draft</div><div class="chip">I owe</div><div class="due">24-Apr</div></div>
+            <div class="row"><div class="ck" style="border:0; background:#ef4444; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">← Schnider — Vertriebspartner</div><div class="chip">They owe</div><div class="due">24-Apr</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr">Reminders <span class="count">2</span></div>
+            <div class="row"><div class="ck" style="border:0; background:#8b5cf6; width:7px; height:7px; border-radius:50%; margin-left:3px"></div><div class="title">Rauch GK — Nachhaken?</div><div class="due">28 Apr 11:02</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>4 — Dense (power-user)</strong>
+    Same structure, tighter everywhere. 32px titlebar (was 40), 200px sidebar, 12px base font, 6 stats in one row instead of 4, two-column dashboard layout, smaller panels packed with more rows. Shows maybe 3× the information in the same pixels.
+    <ul>
+      <li>Real "pro tool" density — Linear, Airtable, Notion compact</li>
+      <li>Fits overdue + due this week + notes + commitments on one screen</li>
+      <li>Rewards muscle memory — less scrolling, more at-a-glance</li>
+      <li>Risk: overwhelming at first; needs learning curve</li>
+    </ul>
+  </div>
+</body>
+</html>

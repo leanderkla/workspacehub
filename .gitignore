@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+
+# Electron specific
+*.app
+*.dmg
+*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# User data (if Electron stores anything locally that shouldn't be tracked)
+userData/
+
+# Claude Code per-user state (allowed-tools history etc.); keep settings.json tracked
+.claude/settings.local.json

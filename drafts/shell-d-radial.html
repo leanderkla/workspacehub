@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell D — Radial / Orbital</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: radial-gradient(at 50% 50%, #1a1340 0%, #0a0918 70%, #000 100%);
+    color: #e4e0f2; font-size: 12px;
+    min-height: 100vh; padding: 20px;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: radial-gradient(at 50% 50%, rgba(30, 20, 60, 0.6) 0%, rgba(10, 8, 24, 0.9) 70%, rgba(0,0,0,1) 100%);
+    border-radius: 18px;
+    box-shadow: 0 30px 100px rgba(0,0,0,0.6);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+    min-height: 780px;
+  }
+
+  .topstrip {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; padding: 12px 20px;
+    gap: 14px; z-index: 10;
+    color: rgba(255,255,255,0.5);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+  }
+  .tl-wrap { display: flex; gap: 8px; }
+  .tl { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+  .topstrip .name { text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.8); font-weight: 600; }
+  .topstrip .spacer { flex: 1; }
+  .topstrip .act { padding: 4px 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.02); cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-family: inherit; }
+  .topstrip .act:hover { border-color: rgba(255,255,255,0.3); color: white; }
+
+  .canvas {
+    width: 100%; height: 780px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Orbit rings (decorative) */
+  .orbit {
+    position: absolute;
+    border: 1px dashed rgba(255,255,255,0.06);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .orbit-1 { width: 220px; height: 220px; }
+  .orbit-2 { width: 400px; height: 400px; }
+  .orbit-3 { width: 620px; height: 620px; border-style: solid; border-color: rgba(255,255,255,0.04); }
+
+  /* Center star — active project */
+  .core {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(at 30% 30%, #fbbf24, #f59e0b 50%, #b45309 100%);
+    box-shadow:
+      0 0 40px rgba(251, 191, 36, 0.6),
+      0 0 80px rgba(245, 158, 11, 0.3),
+      inset -20px -30px 50px rgba(0,0,0,0.25);
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    z-index: 3;
+  }
+  .core-name { color: #2a1a00; font-size: 15px; font-weight: 700; text-shadow: 0 1px 2px rgba(255,255,255,0.4); line-height: 1.1; padding: 0 16px; }
+  .core-meta { color: #5a3a00; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-top: 4px; }
+  .core-overdue {
+    position: absolute; top: -4px; right: -4px;
+    background: #ef4444; color: white;
+    font-size: 11px; font-weight: 700;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    border: 2px solid #0a0918;
+  }
+
+  /* Subprojects orbit inner ring */
+  .sub {
+    position: absolute;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; font-size: 10px; color: #fcd34d; font-weight: 600;
+    cursor: pointer; z-index: 2;
+    backdrop-filter: blur(8px);
+    transition: transform 0.2s, box-shadow 0.2s;
+    padding: 4px;
+    line-height: 1.1;
+  }
+  .sub:hover { transform: scale(1.1); box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); z-index: 5; }
+  .sub-count { font-size: 8px; color: rgba(252, 211, 77, 0.7); margin-top: 2px; letter-spacing: 0.05em; }
+
+  /* Other projects on outer ring */
+  .proj {
+    position: absolute;
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 2;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(30, 20, 60, 0.6);
+    backdrop-filter: blur(8px);
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .proj:hover { transform: scale(1.15); border-color: rgba(255,255,255,0.6); }
+  .proj-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+  }
+  .proj-name {
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: rgba(255,255,255,0.6);
+    margin-top: 6px;
+  }
+
+  /* Task satellites */
+  .task {
+    position: absolute;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.9);
+    cursor: pointer;
+    width: 200px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .task:hover { transform: scale(1.04); border-color: rgba(255,255,255,0.3); z-index: 5; }
+  .task.overdue { border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.08); }
+  .task-tag {
+    font-size: 9px; color: rgba(245, 158, 11, 0.9);
+    font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .task.overdue .task-tag { color: #fca5a5; }
+  .task-title { line-height: 1.35; color: white; font-size: 11.5px; font-weight: 500; }
+  .task-meta { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+  .task.overdue .task-meta { color: #fca5a5; }
+
+  /* Connecting line */
+  .line { position: absolute; pointer-events: none; z-index: 1; }
+
+  /* Side panels */
+  .sidepanel {
+    position: absolute; top: 56px; bottom: 14px;
+    width: 200px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 16px 14px;
+    backdrop-filter: blur(12px);
+  }
+  .sidepanel.left { left: 14px; }
+  .sidepanel.right { right: 14px; }
+  .sp-title { font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+  .sp-item { padding: 6px 0; font-size: 11px; color: rgba(255,255,255,0.85); border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; gap: 8px; }
+  .sp-item:last-child { border: 0; }
+  .sp-item .sp-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* Bottom dock */
+  .dock {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(16px);
+    border-radius: 30px;
+    padding: 8px 16px;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
+  }
+  .dock-input { background: transparent; border: 0; outline: 0; color: white; font-family: inherit; font-size: 11px; width: 260px; }
+  .dock-input::placeholder { color: rgba(255,255,255,0.4); }
+  .dock-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #8a85a8; font-size: 13px; line-height: 1.6; }
+  .callout strong { color: #fbbf24; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #fbbf24; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="topstrip">
+      <div class="tl-wrap"><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+      <div class="name">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <button class="act">⌕ Capture</button>
+      <button class="act">⚙ Settings</button>
+    </div>
+
+    <div class="canvas">
+      <div class="orbit orbit-1"></div>
+      <div class="orbit orbit-2"></div>
+      <div class="orbit orbit-3"></div>
+
+      <div class="core">
+        <div class="core-name">Energy Hero</div>
+        <div class="core-meta">active</div>
+        <div class="core-overdue">4</div>
+      </div>
+
+      <!-- Subprojects on inner orbit (radius ~110px from center) -->
+      <div class="sub" style="top: calc(50% - 140px); left: calc(50% - 30px);">Accounts<span class="sub-count">!1</span></div>
+      <div class="sub" style="top: calc(50% - 60px); left: calc(50% + 90px);">Vollmachten<span class="sub-count">!1</span></div>
+      <div class="sub" style="top: calc(50% + 40px); left: calc(50% + 80px);">Großkunden<span class="sub-count">3</span></div>
+      <div class="sub" style="top: calc(50% + 80px); left: calc(50% - 30px);">Friendscode<span class="sub-count">2</span></div>
+      <div class="sub" style="top: calc(50% + 20px); left: calc(50% - 120px);">Operations<span class="sub-count">1</span></div>
+      <div class="sub" style="top: calc(50% - 90px); left: calc(50% - 120px);">Sales<span class="sub-count">4</span></div>
+
+      <!-- Other projects on outer ring -->
+      <div class="proj" style="top: 90px; left: calc(50% - 22px);">
+        <div class="proj-dot" style="background:#0ea5e9; color:#0ea5e9"></div>
+        <div class="proj-name">AI5</div>
+      </div>
+      <div class="proj" style="top: calc(50% - 22px); right: 80px;">
+        <div class="proj-dot" style="background:#8b5cf6; color:#8b5cf6"></div>
+        <div class="proj-name">WSHub</div>
+      </div>
+      <div class="proj" style="bottom: 90px; left: calc(50% - 22px);">
+        <div class="proj-dot" style="background:#ec4899; color:#ec4899"></div>
+        <div class="proj-name">Erasmus</div>
+      </div>
+      <div class="proj" style="top: calc(50% - 22px); left: 80px;">
+        <div class="proj-dot" style="background:#10b981; color:#10b981"></div>
+        <div class="proj-name">Memory Pix</div>
+      </div>
+
+      <!-- Task satellites -->
+      <div class="task overdue" style="top: 160px; right: 280px;">
+        <div class="task-tag">Accounts · Overdue</div>
+        <div class="task-title">KPI Felder → Umsatz &amp; Ersparnis</div>
+        <div class="task-meta">⚠ 1 day overdue</div>
+      </div>
+      <div class="task overdue" style="top: 330px; right: 230px;">
+        <div class="task-tag">Vollmachten · Overdue</div>
+        <div class="task-title">Kontaktformular EDA Vollmacht</div>
+        <div class="task-meta">⚠ due today</div>
+      </div>
+      <div class="task" style="bottom: 200px; right: 260px;">
+        <div class="task-tag">Großkunden · Today</div>
+        <div class="task-title">Vorlage Email GK</div>
+        <div class="task-meta">due today</div>
+      </div>
+      <div class="task" style="bottom: 260px; left: 260px;">
+        <div class="task-tag">Operations · 24 Apr</div>
+        <div class="task-title">Rückbucher inaktiv stellen</div>
+        <div class="task-meta">in 2 days</div>
+      </div>
+      <div class="task" style="top: 280px; left: 240px;">
+        <div class="task-tag">Sales · 24 Apr</div>
+        <div class="task-title">Anrufen GK · hufnagl leads</div>
+        <div class="task-meta">in 2 days</div>
+      </div>
+    </div>
+
+    <div class="dock">
+      <span style="color:rgba(255,255,255,0.4)">⌕</span>
+      <input class="dock-input" placeholder="What do you want to do?  ·  Ctrl+K">
+      <button class="dock-btn" title="Pinned">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="dock-btn" title="Focus">⚡</button>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>D — Radial / Orbital</strong>
+    No sidebar. No content panel. The active project is a glowing star at center, its subprojects orbit around it, and other projects sit on an outer ring. Tasks float in space around the core like satellites — you feel the "mass" of what's due. A single floating dock at the bottom holds capture + pinned + focus. Feels like a sci-fi mission-control console.
+    <ul>
+      <li>You never forget which project you're in — it's literally at the center</li>
+      <li>Subprojects are visible without opening a dropdown</li>
+      <li>Click an outer-ring planet to orbit-swap to that project (animated transition)</li>
+      <li>Radical — abandons the sidebar paradigm entirely</li>
+    </ul>
+  </div>
+</body>
+</html>

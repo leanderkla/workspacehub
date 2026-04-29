@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skin 1 — Parchment (warmer)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #d97706;
+    --sidebar-bg: #2a251f;
+    --content-bg: #faf7f1;
+    --card-bg: #ffffff;
+    --text-primary: #2a2520;
+    --text-secondary: #6a5f52;
+    --text-muted: #9a9085;
+    --border: #ebe4d3;
+    --border-strong: #d9d0bb;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #3a3530; padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--content-bg);
+    border-radius: 14px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    grid-template-rows: 40px 1fr;
+    min-height: 760px;
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: #0a0f1e;
+    color: #d0c8b8;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+  }
+  .logo { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), #92400e); }
+  .tb-title { font-size: 13px; font-weight: 600; }
+  .spacer { flex: 1; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 28px; width: 380px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6); border-radius: 9px; font-size: 12px;
+    cursor: text;
+  }
+  .tb-btns { display: flex; gap: 2px; }
+  .tb-btn {
+    width: 34px; height: 30px; background: transparent; border: 0;
+    color: rgba(255,255,255,0.55); border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tb-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Sidebar — warm tone, not stark dark */
+  .sidebar {
+    background: var(--sidebar-bg);
+    color: #d0c8b8;
+    padding: 12px 8px;
+    overflow-y: auto;
+  }
+  .sb-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #8a7e6e; padding: 12px 12px 6px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px; margin: 1px 4px; border-radius: 7px;
+    color: #c5b9a5; font-size: 13px; cursor: pointer;
+  }
+  .sb-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .sb-item.active { background: rgba(217, 119, 6, 0.18); color: #fbbf24; border-left: 3px solid var(--accent); padding-left: 9px; font-weight: 500; }
+  .sb-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: #ef6c3f; font-weight: 700; }
+  .sb-ic { width: 16px; text-align: center; font-size: 13px; }
+
+  /* Content */
+  .content { overflow-y: auto; padding: 32px 40px 40px; background: var(--content-bg); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
+  .page-title { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+  .page-title .b { width: 10px; height: 10px; border-radius: 4px; background: var(--accent); }
+  .page-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.03);
+  }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .stat-val { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
+  .stat.alert .stat-val { color: #b5442a; }
+
+  .sec-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .sec-title .bar { width: 24px; height: 2px; background: var(--accent); border-radius: 1px; }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.03);
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #f7f2e8; }
+  .row .ck { width: 15px; height: 15px; border: 1.5px solid #c5b9a5; border-radius: 50%; flex-shrink: 0; }
+  .row .title { flex: 1; }
+  .row .chip {
+    font-size: 10px; padding: 2px 9px; border-radius: 10px;
+    background: #fdf4e2; color: #92400e; border: 1px solid #f2dfb0; font-weight: 500;
+  }
+  .row .due { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .row.overdue { border-left: 3px solid #b5442a; padding-left: 15px; }
+  .row.overdue .due { color: #b5442a; font-weight: 600; }
+
+  .callout { max-width: 680px; margin: 28px auto 0; text-align: center; color: #c0b5a0; font-size: 12.5px; line-height: 1.6; }
+  .callout strong { display: block; color: #f5e8cf; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="logo"></div>
+      <div class="tb-title">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <div class="search">🔍 Search or capture… <span style="margin-left:auto; font-size:10px; opacity:0.6">Ctrl K</span></div>
+      <div class="tb-btns">
+        <button class="tb-btn" title="Pinned"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></button>
+        <button class="tb-btn">⚙</button>
+        <button class="tb-btn">↻</button>
+        <button class="tb-btn">─</button>
+        <button class="tb-btn">□</button>
+        <button class="tb-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#d97706"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <div class="page-title"><span class="b"></span>Energy Hero</div>
+          <div class="page-meta">Dashboard · Wednesday, 22 April · 4 overdue</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Open todos</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subprojects</div><div class="stat-val">10</div></div>
+      </div>
+
+      <div class="sec-title"><span class="bar"></span>Overdue</div>
+      <div class="card" style="margin-bottom:22px">
+        <div class="row overdue"><div class="ck"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="chip">Accounts</div><div class="due">21 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="chip">Vollmachten</div><div class="due">22 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Vorlage Email GK</div><div class="chip">Großkunden</div><div class="due">22 Apr</div></div>
+      </div>
+
+      <div class="sec-title"><span class="bar"></span>Due this week</div>
+      <div class="card">
+        <div class="row"><div class="ck"></div><div class="title">Rückbucher inaktiv stellen</div><div class="chip">Operations</div><div class="due">24 Apr</div></div>
+        <div class="row"><div class="ck"></div><div class="title">Anrufen GK · hufnagl leads abgleichen</div><div class="chip">Sales</div><div class="due">24 Apr</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>1 — Parchment</strong>
+    Same layout you have. Swap the stark gray/white content background for a warm cream, the sidebar to a soft brown-black (less stark), corners slightly rounder, shadows softer. The overall feel goes from "productivity app" to "notebook you want to open."
+    <ul>
+      <li>Zero structural change — just a warmer palette + softer edges</li>
+      <li>Reduces eye strain for long sessions</li>
+      <li>Accent color (orange/amber) already matches Energy Hero's identity</li>
+      <li>Risk: can feel less "enterprise" if that's your brand goal</li>
+    </ul>
+  </div>
+</body>
+</html>

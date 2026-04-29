@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sidebar combo v3 — current look + drag-to-compact only</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, "Inter", sans-serif;
+    background: #1a1a1a; padding: 30px 20px;
+    color: #cccccc; font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { color: #f1f5f9; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .intro { color: #94a3b8; font-size: 13px; margin-bottom: 24px; max-width: 760px; line-height: 1.55; }
+  .intro strong { color: #fbbf24; }
+
+  .row { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; margin-bottom: 32px; }
+  .col {
+    background: #232328;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2e2e34;
+    display: flex; flex-direction: column;
+  }
+  .col-head {
+    padding: 10px 14px;
+    background: #2a2a30;
+    border-bottom: 1px solid #2e2e34;
+    font-size: 12px; color: #cbd5e1; font-weight: 600;
+  }
+  .col-head .label { font-size: 10px; color: #fbbf24; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 2px; }
+  .col-body {
+    background: #050a14;
+    padding: 0;
+    display: flex;
+    height: 760px;
+  }
+
+  /* ===== Title strip + sidebar wrapper ===== */
+  .titlebar {
+    height: 40px;
+    background: #0a0f1e;
+    display: flex; align-items: center;
+    padding: 0 14px;
+    border-bottom: 1px solid #1e293b;
+    color: #e2e8f0;
+    font-size: 13px; font-weight: 600;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .logo {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    background: #4c1d95;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    padding: 3px;
+  }
+  .logo span { background: #fff; border-radius: 1px; }
+  .logo span:nth-child(2), .logo span:nth-child(3) { opacity: 0.5; }
+
+  .sb-with-title {
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+    background: #0f172a;
+    border-right: 1px solid #1e293b;
+    transition: width 0.18s ease;
+  }
+  .sb-full-wrap { width: 230px; }
+  .sb-compact-wrap { width: 56px; }
+
+  .sb-with-title .titlebar { background: #0a0f1e; padding: 0 12px; }
+  .sb-compact-wrap .titlebar { padding: 0; justify-content: center; }
+  .sb-compact-wrap .titlebar .name { display: none; }
+
+  .sb {
+    flex: 1;
+    overflow-y: auto;
+    color: #cbd5e1;
+    padding: 4px 0;
+  }
+
+  .resizer {
+    width: 4px; background: #1a1f2e; cursor: col-resize; flex-shrink: 0;
+    position: relative;
+  }
+  .resizer::after {
+    content: ''; position: absolute; left: 1px; right: 1px; top: 50%; transform: translateY(-50%);
+    height: 30px; background: #475569; opacity: 0.4; border-radius: 1px;
+  }
+  .resizer:hover::after { opacity: 0.8; background: #f59e0b; }
+
+  .content-fake {
+    flex: 1; padding: 0;
+    background: #f1f5f9;
+  }
+  .content-fake .head {
+    padding: 16px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f172a; font-weight: 600;
+  }
+  .content-fake .body {
+    padding: 30px 20px;
+    color: #64748b;
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  /* ===== FULL SIDEBAR — matches your current look ===== */
+
+  .ov-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: calc(100% - 16px);
+    margin: 8px 8px;
+    padding: 9px 14px;
+    background: #1e2638;
+    border: 1px solid #2a3447;
+    color: #e2e8f0;
+    border-radius: 7px;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+  }
+  .ov-btn:hover { background: #243047; }
+  .ov-icon {
+    width: 14px; height: 14px;
+    background: #f59e0b;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  .sb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #475569;
+    padding: 14px 18px 6px;
+  }
+
+  .proj-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 18px;
+    margin: 1px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    color: #cbd5e1;
+    font-size: 14px;
+  }
+  .proj-row:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .proj-row.active {
+    background: #1e2638;
+    color: #f8fafc;
+    font-weight: 500;
+  }
+  .proj-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--c, #f59e0b);
+    flex-shrink: 0;
+  }
+  .proj-name {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .new-proj {
+    color: #475569; font-style: italic;
+  }
+  .new-proj .proj-dot {
+    background: transparent;
+    border: 1px dashed #475569;
+    width: 12px; height: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #475569; font-style: normal; font-size: 12px; line-height: 1;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 18px;
+    margin: 1px 0;
+    color: #cbd5e1;
+    font-size: 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(245,158,11,0.16) 0%, transparent 100%);
+    border-left-color: #f59e0b;
+    color: #fff;
+    font-weight: 500;
+  }
+  .nav-ic { width: 20px; text-align: center; font-size: 16px; flex-shrink: 0; }
+  .nav-count {
+    margin-left: auto;
+    background: #ef4444; color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 7px; border-radius: 10px;
+    line-height: 1.5;
+  }
+
+  /* ===== COMPACT — only dots + icons centered ===== */
+
+  .sb-compact-wrap .ov-btn {
+    width: 36px; height: 36px;
+    margin: 8px auto;
+    padding: 0;
+    border-radius: 7px;
+    justify-content: center;
+  }
+  .sb-compact-wrap .ov-btn span { display: none; }
+
+  .sb-compact-wrap .sb-label { display: none; }
+
+  .sb-compact-wrap .proj-row {
+    width: 36px; height: 36px;
+    margin: 3px auto;
+    padding: 0;
+    border-radius: 7px;
+    justify-content: center;
+    position: relative;
+  }
+  .sb-compact-wrap .proj-row .proj-name { display: none; }
+  .sb-compact-wrap .proj-row .proj-dot {
+    width: 14px; height: 14px;
+    transition: transform 0.15s;
+  }
+  .sb-compact-wrap .proj-row:hover .proj-dot { transform: scale(1.1); }
+  .sb-compact-wrap .proj-row.active {
+    background: #1e2638;
+  }
+  .sb-compact-wrap .proj-row.active .proj-dot {
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.18);
+  }
+  .sb-compact-wrap .new-proj { display: none; }
+
+  .sb-compact-wrap .nav-item {
+    width: 40px; height: 36px;
+    margin: 2px auto;
+    padding: 0;
+    border-radius: 7px;
+    justify-content: center;
+    border-left: 0;
+    position: relative;
+  }
+  .sb-compact-wrap .nav-item span:not(.nav-ic):not(.nav-count) { display: none; }
+  .sb-compact-wrap .nav-item .nav-ic { width: auto; font-size: 18px; }
+  .sb-compact-wrap .nav-item.active {
+    background: rgba(245,158,11,0.18);
+    color: #fbbf24;
+  }
+  .sb-compact-wrap .nav-item.active::before {
+    content: ''; position: absolute; left: -8px; top: 7px; bottom: 7px; width: 3px;
+    background: #f59e0b; border-radius: 0 2px 2px 0;
+  }
+  .sb-compact-wrap .nav-item .nav-count {
+    position: absolute;
+    top: 1px; right: 1px;
+    width: 14px; height: 14px;
+    margin-left: 0;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid #0f172a;
+    font-size: 8px;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+
+  /* ===== Section divider between projects + workspace in compact ===== */
+  .sb-compact-wrap .section-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    margin: 8px 14px;
+  }
+
+  /* ===== Callout ===== */
+  .callout {
+    margin-top: 18px; padding: 18px 22px;
+    background: #2a2a30;
+    border-radius: 10px;
+    border: 1px solid #3e3e44;
+    max-width: 1080px;
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #fbbf24; display: block; margin-bottom: 6px; font-size: 15px; }
+  .callout ul { padding-left: 20px; margin-top: 10px; }
+  .callout li { padding: 3px 0; }
+  .callout li::marker { color: #fbbf24; }
+</style>
+</head>
+<body>
+
+  <h1>Sidebar combo v3 — current look kept, only drag-to-compact added</h1>
+  <p class="intro">
+    Full mode is <strong>untouched</strong> — same Overview button, same project pill highlight, same workspace icons, same nav order, same active-state stripe. The only new behavior: drag the resizer below ~110px and the sidebar collapses to a centered column of dots + icons.
+  </p>
+
+  <div class="row">
+    <div class="col" style="flex: 1 1 600px">
+      <div class="col-head"><div class="label">Drag width: 230px</div>Full mode (unchanged)</div>
+      <div class="col-body">
+
+        <div class="sb-with-title sb-full-wrap">
+          <div class="titlebar">
+            <div class="logo"><span></span><span></span><span></span><span></span></div>
+            <span class="name">WorkspaceHub</span>
+          </div>
+          <div class="sb">
+
+            <button class="ov-btn"><span class="ov-icon"></span><span>Overview</span></button>
+
+            <div class="sb-label">Projects</div>
+            <div class="proj-row active"><span class="proj-dot" style="--c:#f59e0b"></span><span class="proj-name">Energy Hero</span></div>
+            <div class="proj-row"><span class="proj-dot" style="--c:#0ea5e9"></span><span class="proj-name">AI5innovation</span></div>
+            <div class="proj-row"><span class="proj-dot" style="--c:#8b5cf6"></span><span class="proj-name">WorkspaceHub</span></div>
+            <div class="proj-row"><span class="proj-dot" style="--c:#ec4899"></span><span class="proj-name">Erasmus Buch</span></div>
+            <div class="proj-row"><span class="proj-dot" style="--c:#10b981"></span><span class="proj-name">Memory Pix</span></div>
+            <div class="proj-row new-proj"><span class="proj-dot">+</span><span class="proj-name">New project</span></div>
+
+            <div class="sb-label" style="margin-top: 4px">Workspace</div>
+            <div class="nav-item active"><span class="nav-ic">⊞</span><span>Dashboard</span></div>
+            <div class="nav-item"><span class="nav-ic">📁</span><span>Subprojects</span></div>
+            <div class="nav-item"><span class="nav-ic">🧠</span><span>Dump Zone</span></div>
+            <div class="nav-item"><span class="nav-ic">✅</span><span>Todos</span><span class="nav-count">3</span></div>
+            <div class="nav-item"><span class="nav-ic">🤝</span><span>Commitments</span></div>
+            <div class="nav-item"><span class="nav-ic">📝</span><span>Notes</span></div>
+            <div class="nav-item"><span class="nav-ic">✨</span><span>Spark Map</span></div>
+            <div class="nav-item"><span class="nav-ic">🔔</span><span>Reminders</span></div>
+            <div class="nav-item"><span class="nav-ic">📤</span><span>Delegations</span></div>
+            <div class="nav-item"><span class="nav-ic">🔀</span><span>Flows</span></div>
+          </div>
+        </div>
+        <div class="resizer"></div>
+        <div class="content-fake">
+          <div class="head">Energy Hero · Dashboard</div>
+          <div class="body">main content area, full width</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col" style="flex: 1 1 600px">
+      <div class="col-head"><div class="label">Drag width: 56px (below 110px threshold)</div>Compact — dots &amp; icons, centered</div>
+      <div class="col-body">
+
+        <div class="sb-with-title sb-compact-wrap">
+          <div class="titlebar">
+            <div class="logo"><span></span><span></span><span></span><span></span></div>
+            <span class="name">WorkspaceHub</span>
+          </div>
+          <div class="sb">
+
+            <button class="ov-btn" title="Overview"><span class="ov-icon"></span><span>Overview</span></button>
+
+            <div class="proj-row active" title="Energy Hero"><span class="proj-dot" style="--c:#f59e0b"></span><span class="proj-name">Energy Hero</span></div>
+            <div class="proj-row" title="AI5innovation"><span class="proj-dot" style="--c:#0ea5e9"></span><span class="proj-name">AI5innovation</span></div>
+            <div class="proj-row" title="WorkspaceHub"><span class="proj-dot" style="--c:#8b5cf6"></span><span class="proj-name">WorkspaceHub</span></div>
+            <div class="proj-row" title="Erasmus Buch"><span class="proj-dot" style="--c:#ec4899"></span><span class="proj-name">Erasmus Buch</span></div>
+            <div class="proj-row" title="Memory Pix"><span class="proj-dot" style="--c:#10b981"></span><span class="proj-name">Memory Pix</span></div>
+
+            <div class="section-divider"></div>
+
+            <div class="nav-item active" title="Dashboard"><span class="nav-ic">⊞</span><span>Dashboard</span></div>
+            <div class="nav-item" title="Subprojects"><span class="nav-ic">📁</span><span>Subprojects</span></div>
+            <div class="nav-item" title="Dump Zone"><span class="nav-ic">🧠</span><span>Dump Zone</span></div>
+            <div class="nav-item" title="Todos · 3 overdue"><span class="nav-ic">✅</span><span>Todos</span><span class="nav-count">3</span></div>
+            <div class="nav-item" title="Commitments"><span class="nav-ic">🤝</span><span>Commitments</span></div>
+            <div class="nav-item" title="Notes"><span class="nav-ic">📝</span><span>Notes</span></div>
+            <div class="nav-item" title="Spark Map"><span class="nav-ic">✨</span><span>Spark Map</span></div>
+            <div class="nav-item" title="Reminders"><span class="nav-ic">🔔</span><span>Reminders</span></div>
+            <div class="nav-item" title="Delegations"><span class="nav-ic">📤</span><span>Delegations</span></div>
+            <div class="nav-item" title="Flows"><span class="nav-ic">🔀</span><span>Flows</span></div>
+          </div>
+        </div>
+        <div class="resizer"></div>
+        <div class="content-fake">
+          <div class="head">Energy Hero · Dashboard</div>
+          <div class="body">extra horizontal real estate when collapsed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>What's preserved (unchanged from your current sidebar)</strong>
+    <ul>
+      <li><strong>Overview button</strong> — orange diamond ◆ icon, same fill, same pill style</li>
+      <li><strong>Active project</strong> — same darker pill background (no orange tint, no left stripe). Just the dot + name with the current style</li>
+      <li><strong>Active nav item</strong> — orange-tinted gradient + 3px orange left stripe + bold white text — exactly what's there today</li>
+      <li><strong>Nav icons</strong> — colorful emojis in their existing order (Dashboard / Subprojects / Dump Zone / Todos / Commitments / Notes / Spark Map / Reminders / Delegations / Flows)</li>
+      <li><strong>Todos red badge</strong> — same red pill with overdue count</li>
+      <li><strong>"+ New project"</strong> — dashed circle, italic muted label</li>
+      <li><strong>"PROJECTS" / "WORKSPACE" labels</strong> — same uppercase muted style</li>
+    </ul>
+    <strong style="margin-top:10px">What's new</strong>
+    <ul>
+      <li>When the resizer is dragged below ~110px, <code>body.sidebar-compact</code> is added. CSS swaps in the centered icons-only layout.</li>
+      <li>Project rows shrink to a 36×36 slot with just the dot (slightly bigger at 14px so it's visible). Active project keeps the darker bg + adds a subtle white outer ring on the dot.</li>
+      <li>Nav rows shrink to 40×36 with the icon centered. Active gets the orange tint + a left-edge stripe.</li>
+      <li>Todos red badge becomes a small bordered bubble in the corner.</li>
+      <li>Section labels hidden, replaced by a faint hairline divider between projects and workspace.</li>
+      <li>Overview button → 36×36 square with just the orange diamond.</li>
+      <li>Tooltips on every row so hovering still tells you what each item is.</li>
+    </ul>
+  </div>
+
+</body>
+</html>

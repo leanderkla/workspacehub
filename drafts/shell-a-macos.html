@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell A — macOS Native</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    background: #d8d6d2;
+    color: #1a1a1a;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 30px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #f5f2ec;
+    border-radius: 12px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.08);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 52px 1fr;
+    min-height: 720px;
+  }
+
+  /* Unified titlebar/toolbar spanning full width */
+  .titlebar {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #ebe7e0 0%, #e2ddd5 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    display: flex; align-items: center;
+    padding: 0 14px;
+    gap: 12px;
+  }
+  .traffic-lights { display: flex; gap: 8px; }
+  .tl { width: 12px; height: 12px; border-radius: 50%; border: 0.5px solid rgba(0,0,0,0.1); }
+  .tl.red { background: #ff5f57; }
+  .tl.yellow { background: #febc2e; }
+  .tl.green { background: #28c840; }
+
+  .tb-divider { width: 1px; height: 22px; background: rgba(0,0,0,0.1); margin: 0 4px; }
+
+  .tb-group { display: flex; gap: 2px; }
+  .tb-btn {
+    width: 30px; height: 28px;
+    border: 0;
+    background: transparent;
+    color: #4a4a48;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tb-btn:hover { background: rgba(0,0,0,0.06); }
+  .tb-btn.active { background: rgba(0,0,0,0.08); color: #1a1a1a; }
+
+  .tb-segment {
+    display: flex;
+    background: rgba(0,0,0,0.06);
+    border-radius: 6px;
+    padding: 2px;
+  }
+  .tb-seg-btn {
+    padding: 3px 10px;
+    font-size: 12px;
+    background: transparent; border: 0;
+    color: #4a4a48;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tb-seg-btn.active { background: #fefcf9; color: #1a1a1a; box-shadow: 0 1px 2px rgba(0,0,0,0.08); font-weight: 500; }
+
+  .title-center {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2a2a28;
+  }
+  .title-center .sub { font-weight: 400; color: #7a7a78; font-size: 11px; margin-top: 1px; display: block; }
+
+  .search-mini {
+    background: rgba(0,0,0,0.05);
+    border: 0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    width: 180px;
+    font-family: inherit;
+    outline: none;
+  }
+  .search-mini::placeholder { color: #9a9a98; }
+  .search-mini:focus { background: #fefcf9; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
+
+  /* Sidebar */
+  .sidebar {
+    background: rgba(240, 235, 225, 0.6);
+    backdrop-filter: blur(20px);
+    padding: 8px 4px 8px;
+    overflow-y: auto;
+    border-right: 0.5px solid rgba(0,0,0,0.08);
+  }
+  .sb-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #8a8a86;
+    padding: 10px 14px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 14px 5px 12px;
+    margin: 1px 6px;
+    border-radius: 5px;
+    color: #3a3a38;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .sb-item:hover { background: rgba(0,0,0,0.04); }
+  .sb-item.active { background: rgba(0,0,0,0.06); font-weight: 500; color: #1a1a1a; }
+  .sb-item .i { width: 16px; font-size: 12px; color: #6a6a68; }
+  .sb-item.active .i { color: #1a1a1a; }
+  .sb-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: #b84a4a; font-weight: 600; }
+
+  /* Content */
+  .content {
+    overflow-y: auto;
+    padding: 28px 40px 40px;
+    background: #fbf8f2;
+  }
+  .page-title {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #1a1a1a;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .page-title .badge { width: 10px; height: 10px; border-radius: 3px; background: #f59e0b; }
+  .page-meta { color: #7a7a78; font-size: 12px; margin-top: 2px; margin-bottom: 28px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 26px; }
+  .stat {
+    background: #fefcf9;
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  }
+  .stat-lbl { font-size: 10px; color: #8a8a86; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-val { font-size: 22px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; }
+  .stat.alert .stat-val { color: #b84a4a; }
+
+  .sec-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #8a8a86; margin-bottom: 10px;
+  }
+  .card {
+    background: #fefcf9;
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 0.5px solid rgba(0,0,0,0.06);
+    font-size: 13px;
+    cursor: default;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: rgba(0,0,0,0.02); }
+  .row .check { width: 14px; height: 14px; border: 1.5px solid #b0b0ae; border-radius: 50%; flex-shrink: 0; }
+  .row .title { flex: 1; }
+  .row .badge-chip { font-size: 10px; background: #fff4e6; color: #8a5a1f; border: 1px solid #f2dca0; padding: 1px 7px; border-radius: 8px; }
+  .row .due { font-size: 11px; color: #8a8a86; font-variant-numeric: tabular-nums; }
+  .row.overdue .due { color: #b84a4a; font-weight: 500; }
+
+  .callout {
+    margin: 40px auto 0; padding: 24px;
+    max-width: 680px;
+    text-align: center;
+    color: #6a6a68;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #1a1a1a; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #8a5a1f; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="traffic-lights">
+        <div class="tl red"></div>
+        <div class="tl yellow"></div>
+        <div class="tl green"></div>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-group">
+        <button class="tb-btn" title="Back">‹</button>
+        <button class="tb-btn" title="Forward">›</button>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-segment">
+        <button class="tb-seg-btn active">Dashboard</button>
+        <button class="tb-seg-btn">Todos</button>
+        <button class="tb-seg-btn">Notes</button>
+        <button class="tb-seg-btn">Timeline</button>
+      </div>
+      <div class="title-center">
+        Energy Hero
+        <span class="sub">Wed · 22 Apr · 8 items need attention</span>
+      </div>
+      <input class="search-mini" placeholder="🔍  Search">
+      <div class="tb-divider"></div>
+      <button class="tb-btn active" title="Pinned mode">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" title="Settings">⚙</button>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">!4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">!3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+      <div class="sb-item" style="color:#8a8a86"><span class="i">+</span>New project</div>
+
+      <div class="sb-label">Energy Hero</div>
+      <div class="sb-item"><span class="i">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="i">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="i">📝</span>Notes</div>
+      <div class="sb-item"><span class="i">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="i">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="i">📤</span>Delegations</div>
+      <div class="sb-item"><span class="i">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="i">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="i">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <h1 class="page-title"><span class="badge"></span>Energy Hero</h1>
+      <div class="page-meta">Dashboard · last activity 12 minutes ago</div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Open todos</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subprojects</div><div class="stat-val">10</div></div>
+      </div>
+
+      <div class="sec-title">Overdue</div>
+      <div class="card" style="margin-bottom:24px">
+        <div class="row overdue"><div class="check"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="badge-chip">Accounts</div><div class="due">21 Apr</div></div>
+        <div class="row overdue"><div class="check"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="badge-chip">Vollmachten</div><div class="due">22 Apr</div></div>
+        <div class="row overdue"><div class="check"></div><div class="title">Vorlage Email GK</div><div class="badge-chip">Großkunden</div><div class="due">22 Apr</div></div>
+      </div>
+
+      <div class="sec-title">Due this week</div>
+      <div class="card">
+        <div class="row"><div class="check"></div><div class="title">Rückbucher inaktiv stellen</div><div class="badge-chip">Operations</div><div class="due">24 Apr</div></div>
+        <div class="row"><div class="check"></div><div class="title">Anrufen GK · hufnagl leads abgleichen</div><div class="badge-chip">Sales</div><div class="due">24 Apr</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>A — macOS Native</strong>
+    Traffic lights left. Unified titlebar-as-toolbar with segmented view switcher, mini-search, icon buttons. Sidebar has soft vibrancy + SF-style iconography. Warm off-white background instead of stark gray/white. Subtle 0.5px dividers instead of panel borders. Dense but calm.
+    <ul>
+      <li>Looks intentionally macOS — but runs anywhere (Windows still gets traffic-light-style controls)</li>
+      <li>Segmented control replaces tab-like nav — more "toolbar" than "browser tabs"</li>
+      <li>No hard panel separation — sidebar bleeds into content via color temperature shift</li>
+      <li>Good fit if you want WorkspaceHub to feel like a premium desktop tool (Things, Fantastical, Bear)</li>
+    </ul>
+  </div>
+</body>
+</html>

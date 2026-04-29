@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell E — Editorial / Newspaper</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Charter", "Iowan Old Style", "Palatino Linotype", "Georgia", serif;
+    background: #c4beb2;
+    color: #1a1a1a;
+    min-height: 100vh; padding: 30px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #f6f2e8;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.25);
+    min-height: 800px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Chrome — ultra minimal */
+  .chrome {
+    display: flex; align-items: center;
+    padding: 10px 28px;
+    border-bottom: 0.5px solid #8a8270;
+    background: #ede7d7;
+    gap: 14px;
+  }
+  .tl-wrap { display: flex; gap: 7px; }
+  .tl { width: 10px; height: 10px; border-radius: 50%; background: rgba(0,0,0,0.1); }
+  .tl.red { background: #b5614a; }
+  .tl.yellow { background: #c59838; }
+  .tl.green { background: #6a8a58; }
+  .chrome .spacer { flex: 1; }
+  .chrome .mini {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 10px; color: #5a5240; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
+  }
+  .chrome-btn {
+    font-family: -apple-system, "Inter", sans-serif;
+    background: transparent; border: 0; color: #5a5240;
+    padding: 4px 10px; font-size: 11px; cursor: pointer;
+    border-radius: 4px;
+  }
+  .chrome-btn:hover { background: rgba(0,0,0,0.04); }
+
+  /* Masthead */
+  .masthead {
+    padding: 22px 48px 14px;
+    text-align: center;
+    border-bottom: 4px double #1a1a1a;
+    margin-bottom: 2px;
+  }
+  .masthead h1 {
+    font-size: 56px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    font-variant: small-caps;
+    line-height: 1;
+    font-family: "Charter", "Didot", "Bodoni 72", "Iowan Old Style", serif;
+  }
+  .masthead-strip {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 10px;
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: #3a3a38; font-weight: 600;
+  }
+  .masthead-strip .center {
+    font-style: italic; font-weight: 400; letter-spacing: 0.05em; text-transform: none;
+    font-family: "Charter", "Iowan Old Style", serif; font-size: 13px;
+  }
+
+  /* Tabs — look like section rubrics */
+  .sections {
+    display: flex; justify-content: center; gap: 28px;
+    padding: 10px 48px;
+    border-bottom: 0.5px solid #1a1a1a;
+    margin-bottom: 22px;
+  }
+  .section-link {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #3a3a38; font-weight: 600;
+    cursor: pointer;
+  }
+  .section-link.active { color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-bottom: -10px; }
+  .section-link:hover { color: #1a1a1a; }
+
+  /* Body: 3-column newspaper layout */
+  .body {
+    padding: 0 48px 48px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 28px;
+    position: relative;
+  }
+  .body::before, .body::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 0.5px;
+    background: #8a8270;
+  }
+  .body::before { left: calc(48px + (100% - 96px - 56px) * 0.353); }
+  .body::after { left: calc(48px + (100% - 96px - 56px) * 0.676); }
+
+  .kicker {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 700;
+    color: #b5614a;
+    margin-bottom: 6px;
+  }
+
+  .lead-headline {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin-bottom: 10px;
+    color: #1a1a1a;
+  }
+  .lead-deck {
+    font-size: 15px; font-style: italic; color: #3a3a38;
+    line-height: 1.45; margin-bottom: 14px;
+  }
+  .lead-body { font-size: 14px; line-height: 1.55; color: #2a2a28; }
+  .lead-body::first-letter {
+    font-family: "Charter", "Didot", serif;
+    font-size: 54px;
+    float: left;
+    line-height: 0.9;
+    padding-right: 8px;
+    padding-top: 4px;
+    font-weight: 700;
+  }
+  .lead-meta {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: #8a8270; margin-top: 16px; padding-top: 10px;
+    border-top: 0.5px solid #8a8270;
+  }
+
+  .col-head {
+    font-family: "Charter", "Iowan Old Style", serif;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    border-bottom: 2px solid #1a1a1a; padding-bottom: 6px; margin-bottom: 12px;
+    color: #1a1a1a;
+  }
+
+  .story {
+    padding: 10px 0;
+    border-bottom: 0.5px solid #c5bfb0;
+  }
+  .story:last-child { border: 0; }
+  .story h3 {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+  .story .meta {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #8a8270;
+  }
+  .story.alert .meta { color: #b5614a; font-weight: 600; }
+  .story .bullets { margin-top: 6px; font-size: 12.5px; color: #3a3a38; line-height: 1.5; }
+
+  .sidebar-panels {
+    position: absolute; top: 160px; left: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    font-family: -apple-system, "Inter", sans-serif;
+  }
+  .sp-box {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #5a5240;
+    padding: 6px 10px;
+    border: 0.5px solid #8a8270;
+    background: #ede7d7;
+    cursor: pointer;
+  }
+  .sp-box.active { background: #1a1a1a; color: #f6f2e8; border-color: #1a1a1a; }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #3a3632; font-size: 13px; line-height: 1.6; font-family: -apple-system, "Inter", sans-serif; }
+  .callout strong { color: #1a1a1a; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #b5614a; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="chrome">
+      <div class="tl-wrap"><div class="tl red"></div><div class="tl yellow"></div><div class="tl green"></div></div>
+      <div class="mini">Energy Hero · 4 overdue</div>
+      <div class="spacer"></div>
+      <button class="chrome-btn">Search</button>
+      <button class="chrome-btn">Pinned</button>
+      <button class="chrome-btn">⚙</button>
+    </div>
+
+    <div class="masthead">
+      <h1>The WorkspaceHub Daily</h1>
+      <div class="masthead-strip">
+        <span>Vol. 3 · No. 112</span>
+        <span class="center">"What needs your attention, Wednesday morning."</span>
+        <span>22 April 2026</span>
+      </div>
+    </div>
+
+    <div class="sections">
+      <div class="section-link active">Today's Desk</div>
+      <div class="section-link">Agenda</div>
+      <div class="section-link">Correspondence</div>
+      <div class="section-link">Archive</div>
+      <div class="section-link">Obligations</div>
+      <div class="section-link">Ideas &amp; Sparks</div>
+    </div>
+
+    <div class="body">
+      <div class="col-lead">
+        <div class="kicker">Most Urgent · 1 day overdue</div>
+        <h2 class="lead-headline">KPI Felder in Accounts — a queue long overdue</h2>
+        <div class="lead-deck">Umsatz pro Account, Gesamte Ersparnis, Friendscode count. Four of the six remain unfilled, blocking the Q2 reporting cadence.</div>
+        <div class="lead-body">
+          It has been twenty-four hours since the fields in the Accounts object were meant to be finalized. Two of the four planned values are in place; the remaining two depend on a schema decision last parked with Lukas on the fifteenth. A reminder remains unsent. The onboarding script review, queued behind this, is expected to slip by a further day.
+        </div>
+        <div class="lead-meta">Subproject: Accounts · Due 21 April · No attachments</div>
+      </div>
+
+      <div class="col-2">
+        <div class="col-head">Due Today</div>
+
+        <div class="story">
+          <h3>Kontaktformular EDA Vollmacht</h3>
+          <div class="meta">Vollmachten · 22 April · High priority</div>
+          <div class="bullets">Final copy with legal, signature fields, and PDF generation. No blockers reported.</div>
+        </div>
+        <div class="story">
+          <h3>Vorlage Email GK — Großkunden outreach</h3>
+          <div class="meta">Großkunden · 22 April</div>
+          <div class="bullets">Template version three. Tone-matched to vanguard segment; ready for send-group test.</div>
+        </div>
+        <div class="story">
+          <h3>Rückbucher inaktiv stellen</h3>
+          <div class="meta">Operations · Recurring (workdays only)</div>
+          <div class="bullets">Today's batch: eleven customers, last contacted day five.</div>
+        </div>
+
+        <div class="col-head" style="margin-top: 22px">Commitments</div>
+
+        <div class="story alert">
+          <h3>← Akropolis — Vollmachten for 5 firms</h3>
+          <div class="meta">They owe · 1 day stale</div>
+        </div>
+        <div class="story">
+          <h3>→ Lukas — Friendscode rollout plan draft</h3>
+          <div class="meta">I owe · Due 24 April</div>
+        </div>
+      </div>
+
+      <div class="col-3">
+        <div class="col-head">From the Desk</div>
+
+        <div class="story">
+          <h3>Friendscode rollout plan</h3>
+          <div class="meta">Note · 1 day ago · 320 words</div>
+          <div class="bullets">Three-phase rollout — pilot with top-10 partners, tier-2 at day 15, full by day 30. Measure conversion vs. control group.</div>
+        </div>
+        <div class="story">
+          <h3>Sales deck revisions</h3>
+          <div class="meta">Note · 2 days ago</div>
+          <div class="bullets">Slide 4 replaced with actual EH customer median. Slide 7 cut.</div>
+        </div>
+        <div class="story">
+          <h3>Meeting · Lukas</h3>
+          <div class="meta">Note · 18 March</div>
+          <div class="bullets">CRM field prefix <em>eh_</em>, snake_case. Backfill pushed.</div>
+        </div>
+
+        <div class="col-head" style="margin-top: 22px">Coming Up</div>
+        <div class="story">
+          <h3>Anrufen GK · hufnagl leads</h3>
+          <div class="meta">Sales · 24 April</div>
+        </div>
+        <div class="story">
+          <h3>Claude WordPress integration</h3>
+          <div class="meta">Tech · 24 April</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>E — Editorial / Newspaper</strong>
+    The app is a morning briefing, not a control panel. Masthead-dated front page, section rubrics across the top, three newspaper columns with drop cap on the lead story, kickers and decks, double-rule divider. Warm cream paper on an ash-gray table. You read your workday instead of scanning it.
+    <ul>
+      <li>Completely reframes productivity — opens to a curated "what matters today" page</li>
+      <li>Typography does the work: serif display, sans kickers, italic deck — genuine print hierarchy</li>
+      <li>Section links (Today's Desk / Agenda / Correspondence) replace browser-like nav</li>
+      <li>Best for someone who likes reading their work rather than checking lists</li>
+    </ul>
+  </div>
+</body>
+</html>

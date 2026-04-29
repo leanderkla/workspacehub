@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skin 5 — Signature (project-colored)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #f59e0b;
+    --accent-deep: #b45309;
+    --accent-soft: #fef3c7;
+    --sidebar-bg: #0a0f1e;
+    --content-bg: #f8f9fb;
+    --card-bg: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #1a1a1a; padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--content-bg);
+    border-radius: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.3);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    grid-template-rows: 40px 1fr;
+    min-height: 760px;
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #0a0f1e 0%, #0a0f1e 60%, var(--accent-deep) 60%, var(--accent-deep) 100%);
+    color: #94a3b8;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .titlebar::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--accent);
+  }
+  .logo { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); }
+  .tb-title { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+  .spacer { flex: 1; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 28px; width: 380px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6); border-radius: 6px; font-size: 12px;
+  }
+  .tb-btns { display: flex; gap: 2px; }
+  .tb-btn { width: 34px; height: 30px; background: transparent; border: 0; color: rgba(255,255,255,0.6); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tb-btn:hover { background: rgba(255,255,255,0.08); color: white; }
+
+  /* Sidebar — with project color accent header */
+  .sidebar { background: var(--sidebar-bg); color: #cbd5e1; padding: 0; overflow-y: auto; }
+  .sb-active-project {
+    padding: 14px 16px 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-left: 3px solid var(--accent);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sb-active-project .ap-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  }
+  .sb-active-project .ap-name { color: white; font-size: 14px; font-weight: 600; }
+  .sb-active-project .ap-badge { margin-left: auto; background: #dc2626; color: white; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+
+  .sb-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b; padding: 14px 18px 6px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 18px;
+    color: #cbd5e1; font-size: 13px; cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .sb-item:hover { background: rgba(255,255,255,0.04); color: white; }
+  .sb-item.active { background: rgba(245, 158, 11, 0.12); color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: var(--accent); font-weight: 700; }
+  .sb-ic { width: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  .sb-item.active .sb-ic { color: var(--accent); }
+
+  /* Content */
+  .content { overflow-y: auto; padding: 28px 36px 36px; }
+  .page-head {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--accent);
+    position: relative;
+  }
+  .page-head::before {
+    content: ''; position: absolute; left: 0; bottom: -2px;
+    width: 60px; height: 2px; background: var(--accent-deep);
+  }
+  .page-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-deep); margin-bottom: 6px; }
+  .page-title { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; display: flex; align-items: center; gap: 14px; }
+  .page-title::before {
+    content: ''; width: 6px; height: 30px; background: var(--accent); border-radius: 3px;
+  }
+  .page-meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 16px 18px 14px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+  }
+  .stat.alert::before { background: #dc2626; }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .stat-val { font-size: 26px; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em; }
+  .stat.alert .stat-val { color: #dc2626; }
+
+  .sec-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-title::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #fafbfc; }
+  .row .ck { width: 15px; height: 15px; border: 1.5px solid #cbd5e1; border-radius: 50%; flex-shrink: 0; }
+  .row .title { flex: 1; }
+  .row .chip {
+    font-size: 10px; padding: 2px 9px; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent-deep);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    font-weight: 600;
+  }
+  .row .due { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .row.overdue {
+    border-left: 3px solid #dc2626;
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.04), transparent 40%);
+  }
+  .row.overdue .due { color: #dc2626; font-weight: 600; }
+
+  .callout { max-width: 680px; margin: 28px auto 0; text-align: center; color: #94a3b8; font-size: 12.5px; line-height: 1.6; }
+  .callout strong { display: block; color: #fbbf24; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="logo"></div>
+      <div class="tb-title">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <div class="search">🔍 Search or capture… <span style="margin-left:auto; font-size:10px; opacity:0.6">Ctrl K</span></div>
+      <div class="tb-btns">
+        <button class="tb-btn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></button>
+        <button class="tb-btn">⚙</button>
+        <button class="tb-btn">↻</button>
+        <button class="tb-btn">─</button>
+        <button class="tb-btn">□</button>
+        <button class="tb-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-active-project">
+        <div class="ap-dot"></div>
+        <div class="ap-name">Energy Hero</div>
+        <div class="ap-badge">!4</div>
+      </div>
+
+      <div class="sb-label">All projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count" style="color:#0ea5e9">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div class="page-eyebrow">Dashboard · Wed, 22 April</div>
+        <h1 class="page-title">Energy Hero</h1>
+        <div class="page-meta">4 overdue · 21 open · 14 notes · last activity 12 min ago</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Open todos</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subprojects</div><div class="stat-val">10</div></div>
+      </div>
+
+      <div class="sec-title">Overdue</div>
+      <div class="card">
+        <div class="row overdue"><div class="ck"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="chip">Accounts</div><div class="due">21 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="chip">Vollmachten</div><div class="due">22 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Vorlage Email GK</div><div class="chip">Großkunden</div><div class="due">22 Apr</div></div>
+      </div>
+
+      <div class="sec-title">Due this week</div>
+      <div class="card">
+        <div class="row"><div class="ck"></div><div class="title">Rückbucher inaktiv stellen</div><div class="chip">Operations</div><div class="due">24 Apr</div></div>
+        <div class="row"><div class="ck"></div><div class="title">Anrufen GK · hufnagl leads abgleichen</div><div class="chip">Sales</div><div class="due">24 Apr</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>5 — Signature (project-colored)</strong>
+    Same layout. The active project's color permeates: thin accent stripe along the bottom of the titlebar, a "now showing" card at the top of the sidebar, 3px colored top edge on every stat card, colored bar beside the page title, colored section bullets, chips tinted with the project accent. Every project feels visually distinct without shouting.
+    <ul>
+      <li>When you switch Energy Hero → AI5, the whole UI subtly re-tints cyan</li>
+      <li>Anchors you in context — you always know which project you're in</li>
+      <li>Chips/badges/accents auto-theme; zero code changes when you add a new project</li>
+      <li>Closest to "same app, more personality" of these five</li>
+    </ul>
+  </div>
+</body>
+</html>

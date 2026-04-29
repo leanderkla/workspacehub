@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell I — Zenith (timeline-first)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0b0b0d;
+    color: #e4e4e4; font-size: 13px;
+    min-height: 100vh; padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #121215;
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid #1e1e22;
+    min-height: 800px;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+  }
+
+  /* Top hero */
+  .top {
+    background: linear-gradient(180deg, #1a1a20, #121215);
+    border-bottom: 1px solid #24242a;
+    display: flex; align-items: center;
+    padding: 0 20px;
+    gap: 14px;
+  }
+  .tl { display: flex; gap: 8px; }
+  .tl span { width: 11px; height: 11px; border-radius: 50%; }
+  .tl .r { background: #ff5f57; } .tl .y { background: #febc2e; } .tl .g { background: #28c840; }
+
+  .now {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 0 12px; border-left: 1px solid #24242a; height: 100%;
+    align-items: center;
+  }
+  .now-time { font-size: 18px; font-weight: 600; color: white; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .now-date { font-size: 11px; color: #8a8a90; text-transform: uppercase; letter-spacing: 0.14em; }
+
+  .proj-chips { display: flex; gap: 4px; margin-left: auto; }
+  .chip {
+    padding: 4px 10px;
+    background: transparent; border: 1px solid transparent; color: #8a8a90;
+    border-radius: 6px; font-size: 11px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    font-family: inherit;
+  }
+  .chip:hover { color: #fff; background: rgba(255,255,255,0.04); }
+  .chip.active { color: #fff; background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+  .chip .d { width: 8px; height: 8px; border-radius: 50%; }
+
+  .top-btn {
+    width: 30px; height: 28px;
+    background: transparent; border: 1px solid transparent;
+    color: #8a8a90; border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .top-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 220px 1fr;
+  }
+
+  /* TIMELINE — the hero */
+  .timeline-wrap {
+    background: linear-gradient(180deg, #14141a 0%, #0f0f13 100%);
+    border-bottom: 1px solid #24242a;
+    padding: 14px 0 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .timeline-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px 10px;
+  }
+  .timeline-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #8a8a90; }
+  .timeline-label strong { color: #fff; }
+  .zoom-controls { display: flex; gap: 2px; }
+  .zc { background: transparent; border: 1px solid #24242a; color: #8a8a90; padding: 3px 9px; font-size: 10px; border-radius: 4px; cursor: pointer; font-family: inherit; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .zc.active { background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15); }
+
+  .timeline {
+    position: relative;
+    height: 140px;
+    margin: 0 24px;
+  }
+  .tl-axis {
+    position: absolute;
+    left: 0; right: 0; top: 55px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #24242a 3%, #24242a 97%, transparent 100%);
+  }
+  .tl-now {
+    position: absolute;
+    top: -6px; bottom: -6px;
+    left: 35%;
+    width: 2px;
+    background: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+  }
+  .tl-now::before {
+    content: 'NOW';
+    position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+    color: #fbbf24;
+    background: #121215;
+    padding: 2px 6px; border-radius: 3px;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+  }
+
+  .tl-day {
+    position: absolute;
+    top: 60px;
+    font-size: 10px; color: #6a6a70;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    transform: translateX(-50%);
+    padding-top: 6px;
+    font-weight: 600;
+  }
+  .tl-day.today { color: #fbbf24; }
+  .tl-day::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 1px; height: 4px; background: #3a3a40;
+  }
+  .tl-day.today::before { background: #fbbf24; height: 6px; }
+
+  /* Event markers */
+  .tl-event {
+    position: absolute;
+    padding: 4px 9px;
+    font-size: 11px;
+    border-radius: 5px;
+    transform: translateX(-50%);
+    cursor: pointer;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .tl-event::after {
+    content: '';
+    position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+    width: 7px; height: 7px;
+    background: inherit; border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .tl-event.overdue {
+    top: 14px;
+    background: rgba(239, 68, 68, 0.15); color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+  .tl-event.today {
+    top: 14px;
+    background: rgba(245, 158, 11, 0.15); color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+  }
+  .tl-event.upcoming {
+    top: 84px;
+    background: rgba(99, 102, 241, 0.15); color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+  }
+  .tl-event.upcoming::after { top: -6px; bottom: auto; }
+  .tl-event:hover { z-index: 5; background-color: rgba(255,255,255,0.1); }
+
+  /* Bottom split: details + queue */
+  .bottom {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    min-height: 500px;
+  }
+
+  .detail {
+    padding: 28px 32px;
+    border-right: 1px solid #1e1e22;
+  }
+  .detail-eyebrow { font-size: 10px; color: #fca5a5; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .detail-eyebrow::before { content: '⚠'; font-size: 12px; }
+  .detail-title { font-size: 28px; font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; color: white; margin-bottom: 10px; }
+  .detail-meta { font-size: 12px; color: #8a8a90; display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .detail-meta .pill { background: rgba(245, 158, 11, 0.12); color: #fcd34d; padding: 2px 8px; border-radius: 10px; font-weight: 600; font-size: 11px; }
+
+  .detail-sec { font-size: 10px; color: #6a6a70; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 20px; margin-bottom: 8px; }
+  .detail-steps { display: flex; flex-direction: column; gap: 2px; }
+  .step {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #1e1e22;
+    font-size: 13px;
+  }
+  .step:last-child { border: 0; }
+  .step .ck { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #3a3a40; flex-shrink: 0; }
+  .step.done .ck { background: #10b981; border-color: #10b981; position: relative; }
+  .step.done .ck::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #0a0; font-weight: 700; }
+  .step.done .txt { text-decoration: line-through; color: #6a6a70; }
+
+  .detail-actions { display: flex; gap: 6px; margin-top: 20px; }
+  .da-btn {
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: #e4e4e4; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .da-btn:hover { background: rgba(255,255,255,0.08); }
+  .da-btn.primary { background: #fbbf24; border-color: #fbbf24; color: #1a1a00; font-weight: 600; }
+  .da-btn kbd { font-size: 10px; opacity: 0.6; }
+
+  /* Right: day queue */
+  .queue {
+    padding: 20px 18px;
+    overflow-y: auto;
+    background: #0f0f13;
+  }
+  .queue-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .queue-title { font-size: 18px; font-weight: 600; color: white; letter-spacing: -0.01em; }
+  .queue-count { font-size: 10px; color: #8a8a90; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .q-day { font-size: 10px; color: #6a6a70; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 14px 0 6px; }
+  .q-day:first-of-type { margin-top: 0; }
+  .q-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid transparent;
+    margin-bottom: 3px;
+  }
+  .q-item:hover { background: rgba(255,255,255,0.05); }
+  .q-item.selected { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); }
+  .q-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .q-dot.overdue { background: #ef4444; } .q-dot.today { background: #f59e0b; } .q-dot.upcoming { background: #6366f1; }
+  .q-title { flex: 1; font-size: 12px; color: #e4e4e4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .q-item.selected .q-title { font-weight: 600; }
+  .q-time { font-size: 10px; color: #6a6a70; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #8a8a8a; font-size: 13px; line-height: 1.6; }
+  .callout strong { color: #fbbf24; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #fbbf24; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="top">
+      <div class="tl"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="now">
+        <div class="now-time">14:07</div>
+        <div class="now-date">Wed · 22 Apr</div>
+      </div>
+      <div class="proj-chips">
+        <button class="chip active"><span class="d" style="background:#f59e0b"></span>Energy Hero</button>
+        <button class="chip"><span class="d" style="background:#0ea5e9"></span>AI5</button>
+        <button class="chip"><span class="d" style="background:#8b5cf6"></span>WSHub</button>
+        <button class="chip"><span class="d" style="background:#ec4899"></span>Erasmus</button>
+      </div>
+      <div style="display:flex; gap:4px; border-left: 1px solid #24242a; padding-left: 12px;">
+        <button class="top-btn" title="Pinned">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+        </button>
+        <button class="top-btn" title="Search">⌕</button>
+        <button class="top-btn" title="Settings">⚙</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- TIMELINE -->
+      <div class="timeline-wrap">
+        <div class="timeline-header">
+          <div class="timeline-label"><strong>Next 14 days</strong> · 8 items need attention</div>
+          <div class="zoom-controls">
+            <button class="zc">Day</button>
+            <button class="zc active">2 Weeks</button>
+            <button class="zc">Month</button>
+            <button class="zc">Quarter</button>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <div class="tl-axis"></div>
+          <div class="tl-now"></div>
+
+          <!-- Day markers: 14 days, today at ~35% -->
+          <div class="tl-day" style="left: 7%">Mon</div>
+          <div class="tl-day" style="left: 14%">Tue 20</div>
+          <div class="tl-day" style="left: 21%">Wed 21</div>
+          <div class="tl-day today" style="left: 28%">Thu 22</div>
+          <div class="tl-day" style="left: 35%">Fri 23</div>
+          <div class="tl-day" style="left: 42%">Sat</div>
+          <div class="tl-day" style="left: 49%">Sun</div>
+          <div class="tl-day" style="left: 56%">Mon 27</div>
+          <div class="tl-day" style="left: 63%">Tue 28</div>
+          <div class="tl-day" style="left: 70%">Wed 29</div>
+          <div class="tl-day" style="left: 77%">Thu 30</div>
+          <div class="tl-day" style="left: 84%">Fri 1</div>
+          <div class="tl-day" style="left: 91%">Sat</div>
+
+          <!-- Events -->
+          <div class="tl-event overdue" style="left: 21%">KPI Felder Accounts</div>
+          <div class="tl-event overdue" style="left: 26%; top: 36px">Kontaktformular EDA</div>
+          <div class="tl-event today" style="left: 28%">Vorlage Email GK</div>
+          <div class="tl-event today" style="left: 30%; top: 36px">Rückbucher inaktiv</div>
+          <div class="tl-event upcoming" style="left: 40%">Anrufen GK</div>
+          <div class="tl-event upcoming" style="left: 42%; top: 106px">Claude wordpress</div>
+          <div class="tl-event upcoming" style="left: 56%">Review Q2 onboarding</div>
+          <div class="tl-event upcoming" style="left: 63%; top: 106px">Friendscode rollout</div>
+          <div class="tl-event upcoming" style="left: 77%">Wochenreport</div>
+        </div>
+      </div>
+
+      <!-- Detail + queue -->
+      <div class="bottom">
+        <div class="detail">
+          <div class="detail-eyebrow">1 day overdue</div>
+          <div class="detail-title">KPI Felder in Accounts — Umsatz pro Account &amp; Gesamte Ersparnis</div>
+          <div class="detail-meta">
+            <span class="pill">Energy Hero</span>
+            <span>Subproject: Accounts</span>
+            <span>Due 21 April</span>
+            <span>2 of 4 steps complete</span>
+          </div>
+
+          <div class="detail-sec">Sub-steps</div>
+          <div class="detail-steps">
+            <div class="step done"><div class="ck"></div><div class="txt">Umsatz pro Account feld anlegen</div></div>
+            <div class="step done"><div class="ck"></div><div class="txt">Gesamte Ersparnis feld anlegen</div></div>
+            <div class="step"><div class="ck"></div><div class="txt">Friendscode count feld anlegen</div></div>
+            <div class="step"><div class="ck"></div><div class="txt">Webforms count feld anlegen</div></div>
+          </div>
+
+          <div class="detail-sec">Linked notes</div>
+          <div style="font-size: 13px; color: #cccccc; padding: 6px 0; border-left: 2px solid #3a3a40; padding-left: 12px; margin-bottom: 12px;">
+            <strong style="color: white; display: block; margin-bottom: 3px">Friendscode rollout plan</strong>
+            <span style="color: #8a8a90">3-phase rollout — pilot with top-10 partners, then tier-2 at day 15, full launch day 30.</span>
+          </div>
+
+          <div class="detail-actions">
+            <button class="da-btn primary">✓ Done <kbd>D</kbd></button>
+            <button class="da-btn">⚡ Focus <kbd>N</kbd></button>
+            <button class="da-btn">⏰ Snooze <kbd>S</kbd></button>
+            <button class="da-btn">→ Next <kbd>↵</kbd></button>
+          </div>
+        </div>
+
+        <div class="queue">
+          <div class="queue-head">
+            <div class="queue-title">Queue</div>
+            <div class="queue-count">8 items</div>
+          </div>
+
+          <div class="q-day">⚠ Overdue</div>
+          <div class="q-item selected"><span class="q-dot overdue"></span><span class="q-title">KPI Felder in Accounts</span><span class="q-time">21 Apr</span></div>
+          <div class="q-item"><span class="q-dot overdue"></span><span class="q-title">Kontaktformular EDA</span><span class="q-time">22 Apr</span></div>
+
+          <div class="q-day">Today</div>
+          <div class="q-item"><span class="q-dot today"></span><span class="q-title">Vorlage Email GK</span><span class="q-time">22 Apr</span></div>
+          <div class="q-item"><span class="q-dot today"></span><span class="q-title">Rückbucher inaktiv stellen</span><span class="q-time">22 Apr</span></div>
+
+          <div class="q-day">Friday · 24 Apr</div>
+          <div class="q-item"><span class="q-dot upcoming"></span><span class="q-title">Anrufen GK · hufnagl</span><span class="q-time">24 Apr</span></div>
+          <div class="q-item"><span class="q-dot upcoming"></span><span class="q-title">Claude wordpress</span><span class="q-time">24 Apr</span></div>
+
+          <div class="q-day">Next week</div>
+          <div class="q-item"><span class="q-dot upcoming"></span><span class="q-title">Review Q2 onboarding</span><span class="q-time">25 Apr</span></div>
+          <div class="q-item"><span class="q-dot upcoming"></span><span class="q-title">Friendscode rollout</span><span class="q-time">28 Apr</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>I — Zenith (timeline-first)</strong>
+    Time is the primary axis. The top third of the app is a horizontal 2-week timeline with a glowing NOW-marker, past on the left, future on the right, items plotted by due-date. Overdue items ride the top lane, today's items the middle, upcoming the bottom. Below: selected item's full detail + steps on the left, a grouped queue on the right. D/N/S/↵ act on the selected item.
+    <ul>
+      <li>Time-aware — you physically see "this is piling up" or "next week is light"</li>
+      <li>Timeline is zoomable (day / 2 weeks / month / quarter)</li>
+      <li>Detail view is rich — steps, linked notes, metadata — no modal needed</li>
+      <li>Best if you think about work as "when" more than "what"</li>
+    </ul>
+  </div>
+</body>
+</html>

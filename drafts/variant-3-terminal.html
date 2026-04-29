@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Draft 3 — Retro Terminal / Brutalist</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+    background: #0a0e0a; color: #c8e6c9; font-size: 13px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px);
+  }
+  .titlebar {
+    height: 32px; background: #050a05; border-bottom: 1px solid #1f3a1f;
+    display: flex; align-items: center; padding: 0 14px;
+    color: #5eff8a; font-size: 11px; letter-spacing: 0.1em;
+  }
+  .titlebar::before { content: "●"; color: #5eff8a; margin-right: 8px; animation: blink 1.4s infinite; }
+  @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.25; } }
+  .titlebar .path { color: #c8e6c9; margin-left: 10px; }
+  .titlebar .path span { color: #6a9a6a; }
+  .app { display: flex; height: calc(100vh - 32px); }
+  .sidebar {
+    width: 250px; padding: 14px 0; overflow-y: auto;
+    background: #0c130c; border-right: 1px solid #1f3a1f;
+  }
+  .sidebar-label {
+    font-size: 10px; color: #6a9a6a; letter-spacing: 0.12em;
+    padding: 12px 14px 6px; text-transform: uppercase;
+  }
+  .sidebar-label::before { content: "── "; }
+  .nav-item {
+    padding: 5px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    border-left: 2px solid transparent; color: #a8c8a8; font-size: 12px;
+  }
+  .nav-item::before { content: "  "; color: #6a9a6a; }
+  .nav-item:hover { background: #142314; color: #c8e6c9; }
+  .nav-item.active { border-left-color: #5eff8a; background: #142314; color: #5eff8a; }
+  .nav-item.active::before { content: "▶ "; color: #5eff8a; }
+  .nav-item .count-tag { margin-left: auto; color: #ff6b6b; font-size: 11px; }
+  .proj-line { padding: 5px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #a8c8a8; }
+  .proj-line::before { content: "  "; }
+  .proj-line:hover { background: #142314; }
+  .proj-line.active { color: #ffaa00; background: #142314; border-left: 2px solid #ffaa00; padding-left: 12px; }
+  .proj-line.active::before { content: "▶ "; color: #ffaa00; }
+  .main { flex: 1; padding: 18px 24px; overflow-y: auto; }
+  .header-line { color: #6a9a6a; font-size: 11px; margin-bottom: 6px; }
+  .header-title { font-size: 22px; color: #ffaa00; font-weight: 400; margin-bottom: 2px; }
+  .header-title::before { content: "$ "; color: #5eff8a; }
+  .header-sub { color: #6a9a6a; font-size: 11px; margin-bottom: 22px; }
+  .ascii-rule { color: #1f3a1f; letter-spacing: 0; white-space: pre; margin: 4px 0 16px; font-size: 12px; }
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: #1f3a1f; border: 1px solid #1f3a1f; margin-bottom: 22px;
+  }
+  .stat { padding: 12px 14px; background: #0a0e0a; }
+  .stat-label { font-size: 10px; color: #6a9a6a; text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-value { font-size: 24px; color: #c8e6c9; margin: 4px 0; font-weight: 400; }
+  .stat-value.warn { color: #ffaa00; }
+  .stat-delta { font-size: 10px; color: #ff6b6b; }
+  .stat-delta.ok { color: #5eff8a; }
+  .panel { border: 1px solid #1f3a1f; margin-bottom: 16px; background: #0c130c; }
+  .panel-header { padding: 8px 14px; border-bottom: 1px solid #1f3a1f; display: flex; align-items: center; gap: 10px; font-size: 11px; color: #6a9a6a; letter-spacing: 0.08em; text-transform: uppercase; }
+  .panel-header.danger { background: rgba(255, 107, 107, 0.08); color: #ff6b6b; border-bottom-color: #5a1f1f; }
+  .panel-header .count { margin-left: auto; color: #c8e6c9; }
+  .panel-header.danger .count { color: #ff6b6b; }
+  .row {
+    padding: 8px 14px; border-bottom: 1px solid #152015; display: flex;
+    align-items: center; gap: 10px; font-size: 12px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: #142314; }
+  .check { color: #6a9a6a; flex-shrink: 0; }
+  .row.overdue .check { color: #ff6b6b; }
+  .row.overdue .title-text { color: #ffccbc; }
+  .title-text { flex: 1; color: #c8e6c9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10px; color: #ffaa00; background: rgba(255,170,0,0.1); padding: 1px 6px; border: 1px solid rgba(255,170,0,0.3); }
+  .due { font-size: 11px; color: #6a9a6a; font-variant-numeric: tabular-nums; }
+  .row.overdue .due { color: #ff6b6b; }
+  .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  .note { padding: 10px 14px; border-bottom: 1px solid #152015; }
+  .note:last-child { border-bottom: 0; }
+  .note-title { color: #ffaa00; font-size: 12px; margin-bottom: 3px; }
+  .note-title::before { content: "# "; color: #5eff8a; }
+  .note-body { color: #a8c8a8; font-size: 11px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .note-meta { font-size: 10px; color: #6a9a6a; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="titlebar">
+    WORKSPACEHUB<span class="path">~ <span>/</span> energy-hero <span>/</span> dashboard</span>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-label">projects</div>
+      <div class="proj-line active">energy-hero</div>
+      <div class="proj-line">ai5innovation</div>
+      <div class="proj-line">workspacehub</div>
+      <div class="sidebar-label">energy-hero</div>
+      <div class="nav-item">overview</div>
+      <div class="nav-item active">dashboard</div>
+      <div class="nav-item">dump_zone</div>
+      <div class="nav-item">notes</div>
+      <div class="nav-item">todos <span class="count-tag">[3!]</span></div>
+      <div class="nav-item">commitments</div>
+      <div class="nav-item">delegations</div>
+      <div class="nav-item">subprojects</div>
+      <div class="nav-item">spark_map</div>
+      <div class="nav-item">reminders</div>
+    </aside>
+    <main class="main">
+      <div class="header-line">[2026-04-20 · synced]</div>
+      <div class="header-title">energy-hero/dashboard</div>
+      <div class="header-sub">&gt; 3 overdue tasks · 12 open · last activity 8m ago</div>
+      <div class="ascii-rule">─────────────────────────────────────────────────────────────────────────</div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">open_todos</div><div class="stat-value warn">12</div><div class="stat-delta">3 overdue</div></div>
+        <div class="stat"><div class="stat-label">notes</div><div class="stat-value">8</div><div class="stat-delta ok">+2 /week</div></div>
+        <div class="stat"><div class="stat-label">commitments</div><div class="stat-value">5</div><div class="stat-delta">1 overdue</div></div>
+        <div class="stat"><div class="stat-label">subprojects</div><div class="stat-value">4</div><div class="stat-delta ok">ok</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="panel">
+            <div class="panel-header danger">!! overdue <span class="count">[03]</span></div>
+            <div class="row overdue"><span class="check">[ ]</span><div class="title-text">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis…</div><span class="badge">crm</span><span class="due">17-Apr</span></div>
+            <div class="row overdue"><span class="check">[ ]</span><div class="title-text">Ask Claude how to set up the agents</div><span class="badge">research</span><span class="due">17-Apr</span></div>
+            <div class="row overdue"><span class="check">[ ]</span><div class="title-text">connect claude to energy hero github</div><span class="badge">devops</span><span class="due">20-Apr</span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">upcoming <span class="count">[05]</span></div>
+            <div class="row"><span class="check">[ ]</span><div class="title-text">Review Q2 onboarding script</div><span class="badge">crm</span><span class="due">22-Apr</span></div>
+            <div class="row"><span class="check">[ ]</span><div class="title-text">Ping Lukas about friendscode rollout</div><span class="badge">marketing</span><span class="due">23-Apr</span></div>
+            <div class="row"><span class="check">[ ]</span><div class="title-text">Finalize webforms v2 design</div><span class="badge">product</span><span class="due">25-Apr</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-header">recent_notes <span class="count">[08]</span></div>
+            <div class="note"><div class="note-title">friendscode_rollout_plan</div><div class="note-body">3-phase rollout — pilot with top-10 partners, then tier-2, then everyone. Measure conversion vs. control group.</div><div class="note-meta">2026-04-19</div></div>
+            <div class="note"><div class="note-title">sales_deck_revisions</div><div class="note-body">Slide 4: replace generic savings chart with real EH customer median. Slide 7: cut, too long.</div><div class="note-meta">2026-04-18</div></div>
+            <div class="note"><div class="note-title">meeting_lukas</div><div class="note-body">Agreed on CRM field naming — prefix eh_, snake_case. Pushed backfill to next sprint.</div><div class="note-meta">2026-03-18</div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sidebar variants — 10 drafts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #1a1a1a; padding: 30px 20px;
+    color: #cccccc; font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { color: #f1f5f9; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .intro { color: #94a3b8; font-size: 13px; margin-bottom: 28px; max-width: 760px; line-height: 1.5; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 22px;
+    max-width: 1600px;
+  }
+  .card {
+    background: #232328;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2e2e34;
+    display: flex; flex-direction: column;
+  }
+  .card-head {
+    padding: 12px 16px;
+    background: #2a2a30;
+    border-bottom: 1px solid #2e2e34;
+  }
+  .card-head h3 {
+    font-size: 14px; font-weight: 600; color: #f1f5f9;
+  }
+  .card-head .num {
+    font-size: 11px; color: #fbbf24; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .card-body {
+    display: flex;
+    background: #1a1a1a;
+  }
+  .sb-frame {
+    width: 240px;
+    flex-shrink: 0;
+    height: 580px;
+    background: #0a0f1e;
+    border-right: 1px solid #1e293b;
+    overflow-y: auto;
+    color: #cbd5e1;
+  }
+  .desc {
+    padding: 14px 16px;
+    font-size: 12px; color: #94a3b8; line-height: 1.55;
+    flex: 1; min-width: 0;
+  }
+  .desc strong { color: #e2e8f0; display: block; margin-bottom: 4px; }
+  .desc ul { margin-top: 8px; padding-left: 16px; }
+  .desc li { padding: 1px 0; }
+  .desc li::marker { color: #fbbf24; }
+
+  /* ===== Shared sidebar primitives ===== */
+  .sb-section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #64748b;
+    padding: 12px 16px 4px;
+  }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 16px;
+    color: #cbd5e1; font-size: 13px;
+    cursor: pointer;
+  }
+  .sb-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .sb-item.active { background: rgba(245, 158, 11, 0.14); color: #fbbf24; border-left: 3px solid #f59e0b; padding-left: 13px; font-weight: 500; }
+  .sb-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: #f87171; font-weight: 700; }
+  .sb-ic { width: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  .sb-item.active .sb-ic { color: #fbbf24; }
+
+  /* ===== V1: Activity Bar (icon-only narrow strip) ===== */
+  .v1 .sb-frame { width: 60px; }
+  .v1 .ab-btn {
+    width: 60px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #94a3b8;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    font-size: 18px;
+    position: relative;
+  }
+  .v1 .ab-btn:hover { color: #fff; background: rgba(255,255,255,0.04); }
+  .v1 .ab-btn.active { color: #fbbf24; border-left-color: #f59e0b; }
+  .v1 .ab-btn .badge {
+    position: absolute; top: 6px; right: 8px;
+    background: #ef4444; color: white;
+    font-size: 9px; font-weight: 700;
+    width: 14px; height: 14px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v1 .ab-divider { height: 1px; background: #1e293b; margin: 4px 12px; }
+  .v1 .ab-spacer { flex: 1; }
+  .v1 .ab-proj-stripe { width: 6px; height: 30px; border-radius: 3px; }
+
+  /* ===== V2: Today Focus ===== */
+  .v2 .focus-card {
+    margin: 10px 12px;
+    background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(245,158,11,0.05));
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .v2 .fc-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: #fca5a5; text-transform: uppercase; margin-bottom: 6px; }
+  .v2 .fc-title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.35; margin-bottom: 8px; }
+  .v2 .fc-meta { font-size: 10px; color: #94a3b8; margin-bottom: 10px; }
+  .v2 .fc-actions { display: flex; gap: 4px; }
+  .v2 .fc-btn { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #e2e8f0; font-size: 10px; padding: 4px 6px; border-radius: 4px; font-family: inherit; cursor: pointer; }
+  .v2 .fc-btn.primary { background: #16a34a; border-color: #16a34a; }
+  .v2 .proj-row { display: flex; gap: 6px; padding: 0 14px 8px; flex-wrap: wrap; }
+  .v2 .proj-chip { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+  .v2 .proj-chip.active { border-color: rgba(255,255,255,0.5); }
+
+  /* ===== V3: Nested tree ===== */
+  .v3 .tree-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 16px;
+    cursor: pointer; font-size: 12px;
+    color: #cbd5e1;
+  }
+  .v3 .tree-row:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .v3 .tree-row.active { background: rgba(245,158,11,0.14); color: #fbbf24; font-weight: 500; }
+  .v3 .tree-caret { width: 12px; color: #64748b; font-size: 10px; }
+  .v3 .tree-indent-1 { padding-left: 28px; }
+  .v3 .tree-indent-2 { padding-left: 44px; font-size: 11px; color: #94a3b8; }
+  .v3 .tree-indent-2:hover { color: #cbd5e1; }
+  .v3 .tree-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .v3 .tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .v3 .tree-count { font-size: 10px; color: #64748b; }
+
+  /* ===== V4: Calendar rail ===== */
+  .v4 .cal-wrap { padding: 12px 14px 6px; }
+  .v4 .cal-month { font-size: 11px; font-weight: 700; color: #e2e8f0; text-align: center; margin-bottom: 8px; letter-spacing: 0.04em; }
+  .v4 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .v4 .cal-dow { font-size: 9px; color: #64748b; text-align: center; padding: 2px 0; font-weight: 600; }
+  .v4 .cal-day {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #94a3b8;
+    border-radius: 4px; cursor: pointer;
+    position: relative;
+  }
+  .v4 .cal-day:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .v4 .cal-day.today { background: #f59e0b; color: #1a1a1a; font-weight: 700; }
+  .v4 .cal-day.has-items::after { content: ''; position: absolute; bottom: 2px; width: 4px; height: 4px; border-radius: 50%; background: #fbbf24; }
+  .v4 .cal-day.has-overdue::after { background: #ef4444; }
+  .v4 .cal-day.muted { color: #475569; }
+
+  /* ===== V5: Search-first / smart lists ===== */
+  .v5 .ssearch {
+    margin: 12px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: #94a3b8; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .v5 .ssearch::before { content: '🔍'; font-size: 11px; }
+  .v5 .smart-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 16px;
+    color: #cbd5e1; font-size: 13px;
+    cursor: pointer;
+  }
+  .v5 .smart-row:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .v5 .smart-row .ic { width: 16px; font-size: 13px; color: #94a3b8; }
+  .v5 .smart-row.alert .count { color: #ef4444; }
+  .v5 .smart-row .count { margin-left: auto; font-size: 11px; color: #94a3b8; font-weight: 600; }
+
+  /* ===== V6: Stat cards ===== */
+  .v6 .pcard {
+    margin: 6px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-left: 3px solid var(--c, #f59e0b);
+  }
+  .v6 .pcard:hover { background: rgba(255,255,255,0.06); }
+  .v6 .pcard.active { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.4); border-left-color: #f59e0b; }
+  .v6 .pcard-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .v6 .pcard-name { font-size: 12px; font-weight: 600; color: #f1f5f9; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v6 .pcard-alert { font-size: 10px; color: #fca5a5; background: rgba(239,68,68,0.18); padding: 1px 6px; border-radius: 8px; font-weight: 700; }
+  .v6 .pcard-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; margin-bottom: 5px; }
+  .v6 .pcard-fill { height: 100%; background: var(--c, #f59e0b); border-radius: 2px; }
+  .v6 .pcard-meta { font-size: 10px; color: #64748b; }
+
+  /* ===== V7: Activity feed ===== */
+  .v7 .feed-section { padding: 10px 14px 6px; }
+  .v7 .feed-label { font-size: 9px; color: #64748b; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; }
+  .v7 .feed-row {
+    display: flex; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px; color: #94a3b8;
+  }
+  .v7 .feed-row:last-child { border: 0; }
+  .v7 .feed-time { color: #64748b; flex-shrink: 0; font-variant-numeric: tabular-nums; min-width: 36px; }
+  .v7 .feed-body { flex: 1; line-height: 1.35; }
+  .v7 .feed-body strong { color: #cbd5e1; font-weight: 500; }
+  .v7 .feed-icon { color: #16a34a; }
+  .v7 .feed-icon.add { color: #fbbf24; }
+  .v7 .feed-icon.focus { color: #c4b5fd; }
+
+  /* ===== V8: Pomodoro / focus dock ===== */
+  .v8 .pdock {
+    margin: 10px 12px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.1));
+    border: 1px solid rgba(139,92,246,0.35);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .v8 .pdock-state { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: #c4b5fd; text-transform: uppercase; margin-bottom: 8px; }
+  .v8 .pdock-time { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 4px; }
+  .v8 .pdock-task { font-size: 11px; color: #cbd5e1; line-height: 1.4; margin: 8px 0 10px; padding: 0 4px; }
+  .v8 .pdock-actions { display: flex; gap: 4px; }
+  .v8 .pdock-btn { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-size: 10px; padding: 4px; border-radius: 4px; font-family: inherit; cursor: pointer; }
+  .v8 .pdock-btn.primary { background: #8b5cf6; border-color: #8b5cf6; }
+
+  /* ===== V9: Pinned bookmarks ===== */
+  .v9 .pin-section { padding: 4px 12px 8px; }
+  .v9 .pin-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px; color: #cbd5e1;
+  }
+  .v9 .pin-row:hover { background: rgba(255,255,255,0.04); }
+  .v9 .pin-row .star { color: #fbbf24; font-size: 11px; }
+  .v9 .pin-row .ic { width: 14px; text-align: center; font-size: 11px; }
+  .v9 .pin-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v9 .pin-row.todo .ic { color: #16a34a; }
+  .v9 .pin-row.note .ic { color: #fbbf24; }
+  .v9 .pin-row.flow .ic { color: #c4b5fd; }
+  .v9 .pin-row.proj .ic { color: #f59e0b; }
+
+  /* ===== V10: Collapsible strips ===== */
+  .v10 .sb-frame { width: 64px; padding: 8px 0; }
+  .v10 .strip {
+    display: flex; align-items: center;
+    height: 36px;
+    cursor: pointer;
+    padding-right: 12px;
+    border-left: 4px solid transparent;
+    margin-left: -4px;
+  }
+  .v10 .strip:hover { background: rgba(255,255,255,0.04); }
+  .v10 .strip.active { border-left-color: var(--c); background: rgba(255,255,255,0.06); }
+  .v10 .strip-fill {
+    width: 8px;
+    height: 22px;
+    border-radius: 2px;
+    background: var(--c);
+    margin: 0 12px 0 16px;
+    box-shadow: 0 0 8px var(--c);
+  }
+  .v10 .strip-letter {
+    font-size: 11px; font-weight: 700; color: #cbd5e1;
+  }
+  .v10 .strip.active .strip-letter { color: #fff; }
+  .v10 .strip-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 8px 18px; }
+  .v10 .strip-icon {
+    margin: 0 auto;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 14px;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .v10 .strip-icon:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .v10 .strip-hint {
+    font-size: 8px; text-align: center;
+    color: #64748b;
+    padding: 6px 4px 0;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Sidebar variants — 10 drafts</h1>
+  <p class="intro">Each rendered at realistic 240px width (or narrower where the design calls for it). Same data: 5 projects (Energy Hero / AI5innovation / WorkspaceHub / Erasmus Buch / Memory Pix), 4 overdue items in EH, current view = Dashboard. Pick one or tell me to mix elements (e.g. "V2's focus card on top of V6's stat cards").</p>
+
+  <div class="grid">
+
+    <!-- V1 -->
+    <div class="card v1">
+      <div class="card-head"><div class="num">Variant 1</div><h3>Activity Bar — icon-only strip</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="ab-btn active" title="Energy Hero">
+            <div class="ab-proj-stripe" style="background:#f59e0b"></div>
+            <div class="badge">4</div>
+          </div>
+          <div class="ab-btn"><div class="ab-proj-stripe" style="background:#0ea5e9"></div><div class="badge">3</div></div>
+          <div class="ab-btn"><div class="ab-proj-stripe" style="background:#8b5cf6"></div></div>
+          <div class="ab-btn"><div class="ab-proj-stripe" style="background:#ec4899"></div></div>
+          <div class="ab-btn"><div class="ab-proj-stripe" style="background:#10b981"></div></div>
+          <div class="ab-divider"></div>
+          <div class="ab-btn">⊞</div>
+          <div class="ab-btn">📝</div>
+          <div class="ab-btn">✓<div class="badge">4</div></div>
+          <div class="ab-btn">🤝</div>
+          <div class="ab-btn">📤</div>
+          <div class="ab-btn">🔀</div>
+          <div class="ab-btn">📁</div>
+          <div class="ab-btn">✨</div>
+          <div class="ab-btn">🔔</div>
+        </div>
+        <div class="desc">
+          <strong>VSCode-style ultra-compact rail.</strong>
+          60px wide, all icons — projects as colored stripes, then nav as glyphs. Tooltips on hover show full names. Maximum content space (~75% more horizontal room than current).
+          <ul>
+            <li>Active project gets accent left-border glow</li>
+            <li>Red badges for overdue counts on projects + Todos icon</li>
+            <li>Best for power users with muscle memory</li>
+            <li>Risk: discoverability — new users need tooltips</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V2 -->
+    <div class="card v2">
+      <div class="card-head"><div class="num">Variant 2</div><h3>Today Focus — what's next prompts you</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="focus-card">
+            <div class="fc-eyebrow">⚠ Most urgent · 2 days overdue</div>
+            <div class="fc-title">KPI Felder in Accounts → Umsatz &amp; Ersparnis</div>
+            <div class="fc-meta">Energy Hero · Accounts</div>
+            <div class="fc-actions">
+              <button class="fc-btn primary">✓ Done</button>
+              <button class="fc-btn">⚡ Focus</button>
+              <button class="fc-btn">↷ Skip</button>
+            </div>
+          </div>
+          <div class="sb-section-label">Projects</div>
+          <div class="proj-row">
+            <div class="proj-chip active" style="background:#f59e0b" title="Energy Hero"></div>
+            <div class="proj-chip" style="background:#0ea5e9"></div>
+            <div class="proj-chip" style="background:#8b5cf6"></div>
+            <div class="proj-chip" style="background:#ec4899"></div>
+            <div class="proj-chip" style="background:#10b981"></div>
+          </div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item active"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+          <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+          <div class="sb-item"><span class="sb-ic">🔀</span>Flows</div>
+          <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+          <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+        </div>
+        <div class="desc">
+          <strong>Sidebar acts like a coach — top section always shows your single most pressing item.</strong>
+          You don't open the app and wonder what to do; the sidebar tells you. Done/Focus/Skip act on it directly. Projects compress to color chips since the prompt does the heavy lifting.
+          <ul>
+            <li>Solves "I don't know where to start" mornings</li>
+            <li>One-click focus session launch on the urgent item</li>
+            <li>Overdue-count math runs on every render</li>
+            <li>Project switcher becomes secondary — just chips</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V3 -->
+    <div class="card v3">
+      <div class="card-head"><div class="num">Variant 3</div><h3>Nested tree — file-explorer hierarchy</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="sb-section-label">Projects</div>
+          <div class="tree-row active"><span class="tree-caret">▾</span><span class="tree-dot" style="background:#f59e0b"></span><span class="tree-name">Energy Hero</span><span class="tree-count">!4</span></div>
+          <div class="tree-row tree-indent-1"><span class="tree-caret">▾</span>📁<span class="tree-name">Accounts</span><span class="tree-count">3</span></div>
+          <div class="tree-row tree-indent-2">⚠ <span class="tree-name">KPI Felder → Umsatz</span></div>
+          <div class="tree-row tree-indent-2">⚠ <span class="tree-name">Friendscode count</span></div>
+          <div class="tree-row tree-indent-1"><span class="tree-caret">▸</span>📁<span class="tree-name">Vollmachten</span><span class="tree-count">1</span></div>
+          <div class="tree-row tree-indent-1"><span class="tree-caret">▸</span>📁<span class="tree-name">Großkunden</span></div>
+          <div class="tree-row"><span class="tree-caret">▸</span><span class="tree-dot" style="background:#0ea5e9"></span><span class="tree-name">AI5innovation</span><span class="tree-count">!3</span></div>
+          <div class="tree-row"><span class="tree-caret">▸</span><span class="tree-dot" style="background:#8b5cf6"></span><span class="tree-name">WorkspaceHub</span></div>
+          <div class="tree-row"><span class="tree-caret">▸</span><span class="tree-dot" style="background:#ec4899"></span><span class="tree-name">Erasmus Buch</span></div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item active"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">🔀</span>Flows</div>
+          <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+          <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+        </div>
+        <div class="desc">
+          <strong>Browse projects → subprojects → urgent items in one tree.</strong>
+          Like VSCode's explorer or macOS Finder. Carets expand/collapse. Overdue todos are surfaced inline at indent-2 level. No drilling through views to see "what's actually inside this project."
+          <ul>
+            <li>Spatial mental model — "the KPI thing is in EH/Accounts"</li>
+            <li>Less view-hopping — see the urgent items in the rail itself</li>
+            <li>Drag-drop potential for moving items between subprojects</li>
+            <li>Risk: gets long with many subprojects, needs collapse memory</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V4 -->
+    <div class="card v4">
+      <div class="card-head"><div class="num">Variant 4</div><h3>Calendar rail — time-aware sidebar</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="cal-wrap">
+            <div class="cal-month">◂  APR 2026  ▸</div>
+            <div class="cal-grid">
+              <div class="cal-dow">M</div><div class="cal-dow">T</div><div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div><div class="cal-dow">S</div>
+              <div class="cal-day muted">31</div>
+              <div class="cal-day">1</div><div class="cal-day">2</div><div class="cal-day">3</div><div class="cal-day">4</div><div class="cal-day muted">5</div><div class="cal-day muted">6</div>
+              <div class="cal-day">7</div><div class="cal-day has-items">8</div><div class="cal-day">9</div><div class="cal-day has-items">10</div><div class="cal-day">11</div><div class="cal-day muted">12</div><div class="cal-day muted">13</div>
+              <div class="cal-day has-items">14</div><div class="cal-day">15</div><div class="cal-day has-overdue">16</div><div class="cal-day has-overdue">17</div><div class="cal-day has-overdue">18</div><div class="cal-day muted">19</div><div class="cal-day muted">20</div>
+              <div class="cal-day has-overdue">21</div><div class="cal-day has-overdue">22</div><div class="cal-day today">23</div><div class="cal-day has-items">24</div><div class="cal-day has-items">25</div><div class="cal-day muted">26</div><div class="cal-day muted">27</div>
+              <div class="cal-day">28</div><div class="cal-day">29</div><div class="cal-day">30</div>
+            </div>
+          </div>
+          <div class="sb-section-label">Projects</div>
+          <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+          <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+        </div>
+        <div class="desc">
+          <strong>Mini month at top — colored dots show which days have things.</strong>
+          Today highlighted in accent color. Red dots = overdue/due-today. Yellow dots = upcoming items. Click any date → content view filters to items due that day.
+          <ul>
+            <li>Visual pulse of how loaded the upcoming weeks are</li>
+            <li>"Weekend off" obvious at a glance</li>
+            <li>Click 22 Apr → see only that day's items in main view</li>
+            <li>Risk: takes vertical space; only works if you're date-driven</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V5 -->
+    <div class="card v5">
+      <div class="card-head"><div class="num">Variant 5</div><h3>Search-first — smart lists, no project list</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="ssearch">Search or capture…</div>
+          <div class="sb-section-label">Smart lists</div>
+          <div class="smart-row alert"><span class="ic">⚠</span>Overdue<span class="count">4</span></div>
+          <div class="smart-row"><span class="ic">📅</span>Today<span class="count">5</span></div>
+          <div class="smart-row"><span class="ic">📆</span>This week<span class="count">12</span></div>
+          <div class="smart-row"><span class="ic">📤</span>Waiting on<span class="count">2</span></div>
+          <div class="smart-row"><span class="ic">⭐</span>Starred<span class="count">7</span></div>
+          <div class="smart-row"><span class="ic">🔥</span>In focus<span class="count">1</span></div>
+          <div class="sb-section-label">Filter by project</div>
+          <div class="proj-row" style="padding: 0 14px 8px; display:flex; gap:6px; flex-wrap:wrap">
+            <div class="proj-chip active" style="background:#f59e0b; width:20px; height:20px; border-radius:50%; cursor:pointer"></div>
+            <div class="proj-chip" style="background:#0ea5e9; width:20px; height:20px; border-radius:50%; cursor:pointer"></div>
+            <div class="proj-chip" style="background:#8b5cf6; width:20px; height:20px; border-radius:50%; cursor:pointer"></div>
+            <div class="proj-chip" style="background:#ec4899; width:20px; height:20px; border-radius:50%; cursor:pointer"></div>
+            <div class="proj-chip" style="background:#10b981; width:20px; height:20px; border-radius:50%; cursor:pointer"></div>
+          </div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+          <div class="sb-item"><span class="sb-ic">🔀</span>Flows</div>
+          <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+        </div>
+        <div class="desc">
+          <strong>Search bar replaces the nav-by-clicking model.</strong>
+          Inverts the metaphor: don't navigate to find things, search/filter. Smart lists are pre-built filters (Overdue, Today, Waiting on, Starred, In focus). Project chips are filters layered on top, not destinations.
+          <ul>
+            <li>Cross-project workflow — see all overdue regardless of project</li>
+            <li>Less view hopping; every list has the same shape</li>
+            <li>Closer to Linear / GitHub Issues' filter-driven model</li>
+            <li>Risk: demands a mental shift from project-first to list-first</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V6 -->
+    <div class="card v6">
+      <div class="card-head"><div class="num">Variant 6</div><h3>Stat cards — mini dashboards per project</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="sb-section-label">Projects</div>
+          <div class="pcard active" style="--c:#f59e0b">
+            <div class="pcard-head"><span class="pcard-name">Energy Hero</span><span class="pcard-alert">!4</span></div>
+            <div class="pcard-bar"><div class="pcard-fill" style="width:42%"></div></div>
+            <div class="pcard-meta">17/41 todos · 14 notes</div>
+          </div>
+          <div class="pcard" style="--c:#0ea5e9">
+            <div class="pcard-head"><span class="pcard-name">AI5innovation</span><span class="pcard-alert">!3</span></div>
+            <div class="pcard-bar"><div class="pcard-fill" style="width:80%"></div></div>
+            <div class="pcard-meta">8/10 todos · 4 notes</div>
+          </div>
+          <div class="pcard" style="--c:#8b5cf6">
+            <div class="pcard-head"><span class="pcard-name">WorkspaceHub</span></div>
+            <div class="pcard-bar"><div class="pcard-fill" style="width:86%"></div></div>
+            <div class="pcard-meta">25/29 todos · 5 notes</div>
+          </div>
+          <div class="pcard" style="--c:#ec4899">
+            <div class="pcard-head"><span class="pcard-name">Erasmus Buch</span></div>
+            <div class="pcard-bar"><div class="pcard-fill" style="width:0%"></div></div>
+            <div class="pcard-meta">0/1 todos</div>
+          </div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item active"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-ic">🔀</span>Flows</div>
+        </div>
+        <div class="desc">
+          <strong>Each project is a mini dashboard right in the sidebar.</strong>
+          Progress bar in project color, todos done/total, notes count, overdue badge. You see the state of every project at a glance without clicking in.
+          <ul>
+            <li>Helps spot stagnation — "I haven't moved Erasmus Buch in weeks"</li>
+            <li>Visual progress bars create momentum/satisfaction loops</li>
+            <li>Each card is taller (~60px) so fewer projects fit before scrolling</li>
+            <li>Best for 3-6 active projects (you have 5)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V7 -->
+    <div class="card v7">
+      <div class="card-head"><div class="num">Variant 7</div><h3>Activity feed — what just happened</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="feed-section">
+            <div class="feed-label">Today</div>
+            <div class="feed-row"><span class="feed-time">14:07</span><span class="feed-icon focus">🔥</span><div class="feed-body">Started focus on <strong>KPI Felder</strong></div></div>
+            <div class="feed-row"><span class="feed-time">13:42</span><span class="feed-icon">✓</span><div class="feed-body">Closed <strong>Vorlage Email GK</strong></div></div>
+            <div class="feed-row"><span class="feed-time">11:15</span><span class="feed-icon add">+</span><div class="feed-body">Added todo <strong>Anrufen GK</strong></div></div>
+            <div class="feed-row"><span class="feed-time">09:30</span><span class="feed-icon">✓</span><div class="feed-body">Closed <strong>Rückbucher inaktiv</strong></div></div>
+            <div class="feed-label" style="margin-top: 10px">Yesterday</div>
+            <div class="feed-row"><span class="feed-time">17:22</span><span class="feed-icon add">📝</span><div class="feed-body">Added note <strong>Friendscode rollout plan</strong></div></div>
+            <div class="feed-row"><span class="feed-time">15:05</span><span class="feed-icon">✓</span><div class="feed-body">Closed <strong>Newsletter draft</strong></div></div>
+          </div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item active"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">✓</span>Todos</div>
+          <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+        </div>
+        <div class="desc">
+          <strong>Sidebar shows your recent moves like a Slack feed.</strong>
+          Closed items, new captures, focus sessions started/ended — all timestamped. You always remember "wait, when did I close that?" — answer is right there.
+          <ul>
+            <li>Implicit win-tracking — visible progress builds momentum</li>
+            <li>Useful for end-of-day "what did I actually do" reflection</li>
+            <li>Doubles as undo/redo discovery</li>
+            <li>Risk: requires a real activity log to be stored (currently isn't)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V8 -->
+    <div class="card v8">
+      <div class="card-head"><div class="num">Variant 8</div><h3>Pomodoro dock — focus timer in sidebar</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="pdock">
+            <div class="pdock-state">🔥 Deep work</div>
+            <div class="pdock-time">18:47</div>
+            <div class="pdock-task">KPI Felder → Umsatz pro Account</div>
+            <div class="pdock-actions">
+              <button class="pdock-btn primary">⏸</button>
+              <button class="pdock-btn">+5m</button>
+              <button class="pdock-btn">End</button>
+            </div>
+          </div>
+          <div class="sb-section-label">Projects</div>
+          <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+          <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+        </div>
+        <div class="desc">
+          <strong>Persistent focus timer at the top of the sidebar.</strong>
+          When you start a focus session (any way), it lives here visibly. Pause/extend/end without changing views. The current task title shows so context never gets lost when you tab away.
+          <ul>
+            <li>Makes focus sessions feel real and important, not hidden behind a button</li>
+            <li>Guards against accidentally context-switching mid-session</li>
+            <li>Hides when no active session (drops back to normal sidebar)</li>
+            <li>Pairs perfectly with pinned mode — same mental model</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V9 -->
+    <div class="card v9">
+      <div class="card-head"><div class="num">Variant 9</div><h3>Pinned bookmarks — your hand-picked rail</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="sb-section-label">⭐ Pinned</div>
+          <div class="pin-section">
+            <div class="pin-row todo"><span class="ic">✓</span><span class="name">KPI Felder Accounts</span><span class="star">★</span></div>
+            <div class="pin-row note"><span class="ic">📝</span><span class="name">Friendscode rollout plan</span><span class="star">★</span></div>
+            <div class="pin-row flow"><span class="ic">🔀</span><span class="name">Discovery script</span><span class="star">★</span></div>
+            <div class="pin-row proj"><span class="ic">●</span><span class="name">Energy Hero</span><span class="star">★</span></div>
+            <div class="pin-row note"><span class="ic">📝</span><span class="name">Sales deck v3</span><span class="star">★</span></div>
+            <div class="pin-row todo"><span class="ic">✓</span><span class="name">Anrufen GK · hufnagl</span><span class="star">★</span></div>
+          </div>
+          <div class="sb-section-label">Projects</div>
+          <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+          <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation</div>
+          <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+          <div class="sb-section-label">Workspace</div>
+          <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+          <div class="sb-item"><span class="sb-ic">🔀</span>Flows</div>
+        </div>
+        <div class="desc">
+          <strong>Star anything — todo, note, flow, project — and it lives in the rail forever.</strong>
+          Like browser bookmarks. Drag to reorder. Cross-type — your most-touched playbook sits next to your most-checked todo. Bypass nav for the 5-10 items you actually use daily.
+          <ul>
+            <li>Bypasses the nav-and-search dance for daily-use items</li>
+            <li>One-click access to that one flow you run on every call</li>
+            <li>Project + items mixed — your hand-curated control panel</li>
+            <li>Right-click any item anywhere → "Pin to sidebar"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- V10 -->
+    <div class="card v10">
+      <div class="card-head"><div class="num">Variant 10</div><h3>Collapsible strips — minimal until you hover</h3></div>
+      <div class="card-body">
+        <div class="sb-frame">
+          <div class="strip active" style="--c:#f59e0b" title="Energy Hero">
+            <div class="strip-fill"></div>
+          </div>
+          <div class="strip" style="--c:#0ea5e9" title="AI5innovation">
+            <div class="strip-fill"></div>
+          </div>
+          <div class="strip" style="--c:#8b5cf6" title="WorkspaceHub">
+            <div class="strip-fill"></div>
+          </div>
+          <div class="strip" style="--c:#ec4899" title="Erasmus Buch">
+            <div class="strip-fill"></div>
+          </div>
+          <div class="strip" style="--c:#10b981" title="Memory Pix">
+            <div class="strip-fill"></div>
+          </div>
+          <div class="strip-divider"></div>
+          <div class="strip-icon" title="Dashboard">⊞</div>
+          <div class="strip-icon" title="Notes">📝</div>
+          <div class="strip-icon" title="Todos">✓</div>
+          <div class="strip-icon" title="Commitments">🤝</div>
+          <div class="strip-icon" title="Flows">🔀</div>
+          <div class="strip-icon" title="Reminders">🔔</div>
+          <div class="strip-hint">hover to expand</div>
+        </div>
+        <div class="desc">
+          <strong>Sidebar shrinks to a 64px rail of color stripes + icons.</strong>
+          Hover-out animates back to the 240px full sidebar (CSS-only, no JS state). Minimal UI when you're focused, full sidebar when you need to navigate.
+          <ul>
+            <li>Maximum content space — gains 180px of horizontal real estate</li>
+            <li>Color stripes still convey project identity at a glance</li>
+            <li>Hover-to-expand feels native, no "Toggle sidebar" buttons</li>
+            <li>Risk: hover-only on Windows trackpads can be twitchy; pin option needed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

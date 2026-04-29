@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned Mode A — Focus</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0f172a; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 30px 20px;
+    color: #e2e8f0; font-size: 13px;
+  }
+  .window {
+    width: 420px;
+    background: #0b0f1e;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid #1e293b;
+  }
+  .titlebar {
+    height: 32px; background: #050914; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #1e293b;
+    font-size: 11px; color: #64748b;
+  }
+  .titlebar .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+  .titlebar .name { font-weight: 600; color: #94a3b8; }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .close { color: #475569; cursor: pointer; }
+  .titlebar .close:hover { color: #e2e8f0; }
+
+  .hero {
+    padding: 18px 20px 14px;
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+  }
+  .hero-proj { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #f59e0b; display: flex; align-items: center; gap: 6px; }
+  .hero-proj::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .hero-title { font-size: 16px; font-weight: 600; line-height: 1.35; margin-top: 6px; color: #f8fafc; }
+  .hero-meta { font-size: 11px; color: #94a3b8; margin-top: 6px; display: flex; gap: 12px; }
+
+  .timer-section {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    border-top: 1px solid #1e293b;
+    background: #0a0f1e;
+  }
+  .timer-ring {
+    width: 72px; height: 72px; flex-shrink: 0;
+    position: relative;
+  }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke-width: 5; }
+  .timer-ring .bg { stroke: #1e293b; }
+  .timer-ring .fg {
+    stroke: #8b5cf6;
+    stroke-dasharray: 201;
+    stroke-dashoffset: 50;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px #8b5cf6);
+  }
+  .timer-time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #f8fafc; }
+  .timer-info { flex: 1; min-width: 0; }
+  .timer-state { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a78bfa; }
+  .timer-label { font-size: 12px; color: #cbd5e1; margin-top: 3px; }
+  .timer-controls { display: flex; gap: 6px; margin-top: 8px; }
+  .tmr-btn {
+    background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+    padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+    font-family: inherit;
+  }
+  .tmr-btn.primary { background: #8b5cf6; border-color: #8b5cf6; color: white; }
+  .tmr-btn:hover { background: #334155; }
+  .tmr-btn.primary:hover { background: #7c3aed; }
+
+  .steps {
+    padding: 14px 20px;
+    border-top: 1px solid #1e293b;
+  }
+  .steps-header { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; display: flex; justify-content: space-between; }
+  .step-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid #162036;
+    font-size: 13px;
+  }
+  .step-row:last-child { border: 0; }
+  .step-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #475569; flex-shrink: 0; }
+  .step-check.done { background: #16a34a; border-color: #16a34a; position: relative; }
+  .step-check.done::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; font-weight: 700; }
+  .step-row.done .step-label { text-decoration: line-through; color: #64748b; }
+  .step-label { flex: 1; color: #cbd5e1; }
+
+  .quick-note {
+    padding: 10px 20px 14px;
+    border-top: 1px solid #1e293b;
+    background: #080c17;
+  }
+  .quick-note textarea {
+    width: 100%; resize: none; background: transparent; border: 0;
+    color: #e2e8f0; font-family: inherit; font-size: 12px; outline: none;
+    min-height: 40px;
+  }
+  .quick-note textarea::placeholder { color: #475569; }
+
+  .footer-cta {
+    display: flex; gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid #1e293b;
+    background: #050914;
+  }
+  .cta-primary {
+    flex: 1;
+    background: #16a34a; color: white; border: 0;
+    padding: 10px; border-radius: 8px;
+    font-weight: 600; font-size: 13px; cursor: pointer;
+    font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .cta-primary:hover { background: #15803d; }
+  .cta-secondary {
+    background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+    padding: 10px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    font-family: inherit;
+  }
+  .cta-secondary:hover { background: #334155; color: #e2e8f0; }
+
+  .callout {
+    padding: 30px 20px;
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    max-width: 420px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #e2e8f0; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="dot"></div>
+        <span class="name">Focus — Energy Hero</span>
+        <span class="spacer"></span>
+        <span class="close">✕</span>
+      </div>
+
+      <div class="hero">
+        <div class="hero-proj">Energy Hero</div>
+        <div class="hero-title">KPI Felder in Accounts — Umsatz pro Account &amp; Gesamte Ersparnis</div>
+        <div class="hero-meta">
+          <span>⚠ 1 day overdue</span>
+          <span>·</span>
+          <span>2 of 4 steps done</span>
+        </div>
+      </div>
+
+      <div class="timer-section">
+        <div class="timer-ring">
+          <svg width="72" height="72">
+            <circle class="bg" cx="36" cy="36" r="32"></circle>
+            <circle class="fg" cx="36" cy="36" r="32"></circle>
+          </svg>
+          <div class="timer-time">18:47</div>
+        </div>
+        <div class="timer-info">
+          <div class="timer-state">Deep Work</div>
+          <div class="timer-label">25-minute focus block</div>
+          <div class="timer-controls">
+            <button class="tmr-btn primary">⏸ Pause</button>
+            <button class="tmr-btn">Skip</button>
+            <button class="tmr-btn">+5m</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="steps-header"><span>Sub-steps</span><span>2/4</span></div>
+        <div class="step-row done">
+          <div class="step-check done"></div>
+          <div class="step-label">Umsatz pro Account feld anlegen</div>
+        </div>
+        <div class="step-row done">
+          <div class="step-check done"></div>
+          <div class="step-label">Gesamte Ersparnis feld anlegen</div>
+        </div>
+        <div class="step-row">
+          <div class="step-check"></div>
+          <div class="step-label">Friendscode count feld anlegen</div>
+        </div>
+        <div class="step-row">
+          <div class="step-check"></div>
+          <div class="step-label">Webforms count feld anlegen</div>
+        </div>
+      </div>
+
+      <div class="quick-note">
+        <textarea placeholder="Jot down a thought while focused…"></textarea>
+      </div>
+
+      <div class="footer-cta">
+        <button class="cta-primary">✓ Done → Next</button>
+        <button class="cta-secondary" title="Defer this task">⏭</button>
+        <button class="cta-secondary" title="Exit focus">⬜</button>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Concept A — Focus</strong>
+      One task, full-screen. Built-in Pomodoro, sub-step checklist, jot-a-thought note that autosaves to the task. Completing the task auto-advances to the next most urgent item.
+      <ul>
+        <li>Fights tab-hell: hides everything except the one thing that matters</li>
+        <li>Windows DND toggles on with the timer</li>
+        <li>Done → Next never leaves you wondering what's up after finishing</li>
+        <li>Natural home for sub-steps that already exist in your todos</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

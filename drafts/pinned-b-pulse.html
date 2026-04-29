@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned Mode B — Pulse</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0f172a; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 30px 20px;
+    color: #f1f5ff; font-size: 13px;
+  }
+  .window {
+    width: 360px;
+    background:
+      radial-gradient(at 20% 10%, rgba(76, 29, 149, 0.4) 0%, transparent 55%),
+      radial-gradient(at 80% 90%, rgba(14, 165, 233, 0.3) 0%, transparent 55%),
+      #0a0f1e;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .titlebar {
+    height: 30px; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.25); backdrop-filter: blur(8px);
+  }
+  .titlebar .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+  .titlebar .name { font-weight: 600; color: rgba(255,255,255,0.75); }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .close { color: rgba(255,255,255,0.3); cursor: pointer; }
+  .titlebar .close:hover { color: #fff; }
+
+  .header-time {
+    padding: 18px 22px 8px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .time {
+    font-size: 30px; font-weight: 300; letter-spacing: -0.02em; color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .date { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  .ring-section {
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px 0 14px;
+    position: relative;
+  }
+  .ring-wrap { width: 180px; height: 180px; position: relative; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-wrap circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+  .ring-bg { stroke: rgba(255,255,255,0.07); }
+  .ring-overdue { stroke: #ef4444; stroke-dasharray: 502; stroke-dashoffset: 430; filter: drop-shadow(0 0 8px #ef4444); }
+  .ring-today   { stroke: #f59e0b; stroke-dasharray: 502; stroke-dashoffset: 370; filter: drop-shadow(0 0 8px #f59e0b); transform: rotate(0deg); transform-origin: center; }
+  .ring-upcoming { stroke: #8b5cf6; stroke-dasharray: 502; stroke-dashoffset: 280; filter: drop-shadow(0 0 8px #8b5cf6); }
+  .ring-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .ring-num { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; color: #fff; line-height: 1; }
+  .ring-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 4px; }
+
+  .legend {
+    display: flex; justify-content: center; gap: 14px; padding: 0 22px 14px;
+    font-size: 11px; color: rgba(255,255,255,0.7);
+  }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+  .next-up {
+    margin: 0 14px 12px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .next-up:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); }
+  .next-up-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #a5b4fc; }
+  .next-up-title { font-size: 14px; font-weight: 600; margin-top: 4px; color: #fff; }
+  .next-up-meta { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 4px; display: flex; gap: 8px; }
+  .next-up-meta .chip { background: rgba(251, 146, 60, 0.2); color: #fed7aa; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+
+  .tiles {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; padding: 0 14px 14px;
+  }
+  .tile {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .tile:hover { background: rgba(255,255,255,0.08); }
+  .tile-icon { font-size: 16px; }
+  .tile-data { display: flex; flex-direction: column; gap: 1px; }
+  .tile-num { font-size: 16px; font-weight: 700; color: #fff; line-height: 1; }
+  .tile-lbl { font-size: 10px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile.alert { border-color: rgba(239, 68, 68, 0.4); }
+  .tile.alert .tile-num { color: #fda4af; }
+
+  .capture-bar {
+    margin: 0 14px 14px;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .capture-bar input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: #fff; font-family: inherit; font-size: 12px;
+  }
+  .capture-bar input::placeholder { color: rgba(255,255,255,0.4); }
+  .mic-btn {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 0; background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    color: white; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+  }
+
+  .callout {
+    padding: 30px 20px;
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #e2e8f0; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="dot"></div>
+        <span class="name">Pulse</span>
+        <span class="spacer"></span>
+        <span class="close">✕</span>
+      </div>
+
+      <div class="header-time">
+        <div class="time">14:07</div>
+        <div class="date">Wed, 22 Apr</div>
+      </div>
+
+      <div class="ring-section">
+        <div class="ring-wrap">
+          <svg width="180" height="180">
+            <circle class="ring-bg" cx="90" cy="90" r="80"></circle>
+            <circle class="ring-overdue" cx="90" cy="90" r="80"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num">8</div>
+            <div class="ring-lbl">Need attention</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><span class="leg-dot" style="background:#ef4444"></span> 3 overdue</span>
+        <span><span class="leg-dot" style="background:#f59e0b"></span> 5 today</span>
+      </div>
+
+      <div class="next-up">
+        <div class="next-up-lbl">⚡ Next up</div>
+        <div class="next-up-title">KPI Felder in Accounts</div>
+        <div class="next-up-meta">
+          <span class="chip">Energy Hero</span>
+          <span>⚠ 1 day overdue</span>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile alert"><span class="tile-icon">⚠</span><div class="tile-data"><span class="tile-num">3</span><span class="tile-lbl">Overdue</span></div></div>
+        <div class="tile"><span class="tile-icon">📅</span><div class="tile-data"><span class="tile-num">5</span><span class="tile-lbl">Today</span></div></div>
+        <div class="tile"><span class="tile-icon">📤</span><div class="tile-data"><span class="tile-num">2</span><span class="tile-lbl">Waiting on</span></div></div>
+        <div class="tile"><span class="tile-icon">🔔</span><div class="tile-data"><span class="tile-num">1</span><span class="tile-lbl">Today's reminder</span></div></div>
+      </div>
+
+      <div class="capture-bar">
+        <span style="color:rgba(255,255,255,0.4); font-size: 12px">＋</span>
+        <input placeholder="Quick capture…">
+        <button class="mic-btn" title="Voice dump">🎙</button>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Concept B — Pulse</strong>
+      A glanceable dashboard. Single ring visualizes your urgency state (overdue + due-today stacked). Big "Next up" card surfaces the single most pressing item. Tiles tap-expand.
+      <ul>
+        <li>Glance, don't scroll — the ring tells you the "weather"</li>
+        <li>Quick-capture + voice-dump always one keystroke away</li>
+        <li>"Next up" is opinionated: picks the most urgent thing, not a list</li>
+        <li>Fits the Glass aesthetic you liked — blurred, translucent tiles</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

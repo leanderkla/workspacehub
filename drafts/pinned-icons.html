@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned Mode — Icon drafts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0a0f1e; color: #e2e8f0;
+    padding: 40px 24px; min-height: 100vh;
+    font-size: 13px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 30px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+  }
+  .card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 20px 16px 14px;
+    text-align: center;
+  }
+  .card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1; }
+  .card p { font-size: 11px; color: #64748b; line-height: 1.4; }
+  .previews {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; padding: 16px 0 12px;
+  }
+  .preview-box {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .preview-box.dark { background: #0a0f1e; color: #94a3b8; border: 1px solid #1e293b; }
+  .preview-box.dark:hover { background: #1e293b; color: #f8fafc; }
+  .preview-box.light { background: #ffffff; color: #475569; border: 1px solid #e4e4e4; }
+  .preview-box.accent { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+  .preview-box svg { width: 18px; height: 18px; }
+  .number { font-size: 10px; color: #475569; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+  <h1>Pinned-mode button icons</h1>
+  <p class="sub">10 drafts. Each shown on the current titlebar (dark), on a light theme, and as the active/accent state. Pick one and tell me the number.</p>
+
+  <div class="grid">
+
+    <!-- 1 -->
+    <div class="card">
+      <div class="number">Option 1</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="10" rx="2"/><circle cx="20.5" cy="3.5" r="2" fill="currentColor"/><line x1="17" y1="5" x2="19" y2="5"/><line x1="17" y1="9" x2="19" y2="9"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="10" rx="2"/><circle cx="20.5" cy="3.5" r="2" fill="currentColor"/><line x1="17" y1="5" x2="19" y2="5"/><line x1="17" y1="9" x2="19" y2="9"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="10" rx="2"/><circle cx="20.5" cy="3.5" r="2" fill="currentColor"/><line x1="17" y1="5" x2="19" y2="5"/><line x1="17" y1="9" x2="19" y2="9"/></svg></div>
+      </div>
+      <h3>Pinned window</h3>
+      <p>A small floating window with a notification dot. Literal.</p>
+    </div>
+
+    <!-- 2 -->
+    <div class="card">
+      <div class="number">Option 2</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M5 12a7 7 0 0 1 14 0"/><path d="M2 12a10 10 0 0 1 20 0"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M5 12a7 7 0 0 1 14 0"/><path d="M2 12a10 10 0 0 1 20 0"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M5 12a7 7 0 0 1 14 0"/><path d="M2 12a10 10 0 0 1 20 0"/></svg></div>
+      </div>
+      <h3>Pulse rings</h3>
+      <p>Concentric pulse arcs — matches the "Pulse" band at top.</p>
+    </div>
+
+    <!-- 3 -->
+    <div class="card">
+      <div class="number">Option 3</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-5 4 10 3-7 2 4h6"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-5 4 10 3-7 2 4h6"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-5 4 10 3-7 2 4h6"/></svg></div>
+      </div>
+      <h3>Heartbeat</h3>
+      <p>EKG pulse line. Evokes vitals / at-a-glance monitoring.</p>
+    </div>
+
+    <!-- 4 -->
+    <div class="card">
+      <div class="number">Option 4</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></div>
+      </div>
+      <h3>Bullseye</h3>
+      <p>Target / focus — what's important right now.</p>
+    </div>
+
+    <!-- 5 -->
+    <div class="card">
+      <div class="number">Option 5</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,2 4,14 12,14 11,22 20,10 12,10"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,2 4,14 12,14 11,22 20,10 12,10"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,2 4,14 12,14 11,22 20,10 12,10"/></svg></div>
+      </div>
+      <h3>Lightning bolt</h3>
+      <p>Quick action / focus / jump in.</p>
+    </div>
+
+    <!-- 6 -->
+    <div class="card">
+      <div class="number">Option 6</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 12 L17 7" stroke-width="1.5"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 12 L17 7" stroke-width="1.5"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 12 L17 7" stroke-width="1.5"/></svg></div>
+      </div>
+      <h3>Radar sweep</h3>
+      <p>Actively scanning for what needs attention.</p>
+    </div>
+
+    <!-- 7 -->
+    <div class="card">
+      <div class="number">Option 7</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="14" height="10" rx="2"/><rect x="4" y="6" width="14" height="10" rx="2" fill="#0f172a"/><rect x="1" y="9" width="14" height="10" rx="2" fill="#0f172a"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="14" height="10" rx="2"/><rect x="4" y="6" width="14" height="10" rx="2" fill="#ffffff"/><rect x="1" y="9" width="14" height="10" rx="2" fill="#ffffff"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="14" height="10" rx="2"/><rect x="4" y="6" width="14" height="10" rx="2" fill="url(#acc)"/><rect x="1" y="9" width="14" height="10" rx="2" fill="url(#acc)"/><defs><linearGradient id="acc" x1="0" x2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs></svg></div>
+      </div>
+      <h3>Stacked cards</h3>
+      <p>Queue / layered tasks — nods to the Triage list.</p>
+    </div>
+
+    <!-- 8 -->
+    <div class="card">
+      <div class="number">Option 8</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg></div>
+      </div>
+      <h3>Beacon / sun</h3>
+      <p>Radiating attention. Warm, active.</p>
+    </div>
+
+    <!-- 9 -->
+    <div class="card">
+      <div class="number">Option 9</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div>
+      </div>
+      <h3>Clock / timer</h3>
+      <p>Focus timer. Straight-forward, recognizable.</p>
+    </div>
+
+    <!-- 10 -->
+    <div class="card">
+      <div class="number">Option 10</div>
+      <div class="previews">
+        <div class="preview-box dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="3" x2="12" y2="21"/><rect x="15" y="7" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="15" y="13" width="4" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.5"/></svg></div>
+        <div class="preview-box light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="3" x2="12" y2="21"/><rect x="15" y="7" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="15" y="13" width="4" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.5"/></svg></div>
+        <div class="preview-box accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="3" x2="12" y2="21"/><rect x="15" y="7" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="15" y="13" width="4" height="4" rx="1" fill="currentColor" stroke="none" opacity="0.5"/></svg></div>
+      </div>
+      <h3>Side dock</h3>
+      <p>A panel docked on the right. Literal, very clean.</p>
+    </div>
+
+  </div>
+</body>
+</html>

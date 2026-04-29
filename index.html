@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:;">
+  <title>WorkspaceHub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-project="energy-hero">
+
+  <div id="titlebar">
+    <div id="titlebar-drag">
+      <div id="app-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <rect width="24" height="24" rx="5" fill="#4c1d95"/>
+          <g fill="#ffffff">
+            <rect x="4" y="4" width="7" height="7" rx="1.8"/>
+            <rect x="13" y="4" width="7" height="7" rx="1.8" opacity="0.55"/>
+            <rect x="4" y="13" width="7" height="7" rx="1.8" opacity="0.55"/>
+            <rect x="13" y="13" width="7" height="7" rx="1.8"/>
+          </g>
+        </svg>
+      </div>
+      <span id="titlebar-title">WorkspaceHub</span>
+    </div>
+    <div id="titlebar-center">
+      <div class="tb-center-name">
+        <span class="tb-proj-dot" id="tb-proj-dot"></span>
+        <span id="tb-proj-name">—</span>
+      </div>
+      <div class="tb-center-sub" id="tb-proj-sub"></div>
+    </div>
+    <div id="titlebar-right">
+      <button id="palette-trigger" title="Search or capture (Ctrl+K)">
+        <span class="palette-trigger-icon">&#128269;</span>
+        <span class="palette-trigger-text">Search or capture…</span>
+        <span class="palette-trigger-kbd">Ctrl&nbsp;K</span>
+      </button>
+      <div id="titlebar-controls">
+      <button id="btn-sticky" title="Pinned mode — always on top, focus + triage">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="12" cy="12" r="5"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <button id="btn-shortcuts" title="Keyboard shortcuts (?)">?</button>
+      <button id="btn-settings" title="Settings">&#9881;</button>
+      <button id="btn-refresh" title="Refresh (Ctrl+R)">&#8635;</button>
+      <button id="btn-minimize" title="Minimize">&#8722;</button>
+      <button id="btn-maximize" title="Maximize">&#9633;</button>
+      <button id="btn-close" title="Close">&#10005;</button>
+    </div>
+    </div>
+  </div>
+
+  <div id="app">
+    <aside id="sidebar"></aside>
+    <main id="content"></main>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="modal-overlay" class="hidden"></div>
+
+  <script src="vendor/three.bundle.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

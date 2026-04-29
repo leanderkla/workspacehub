@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#f5f3ff"/>
+  <g fill="#7c3aed">
+    <!-- top-left mini grid -->
+    <rect x="80" y="80" width="70" height="70" rx="16"/>
+    <rect x="160" y="80" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="80" y="160" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="160" y="160" width="70" height="70" rx="16"/>
+
+    <!-- top-right mini grid -->
+    <rect x="282" y="80" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="362" y="80" width="70" height="70" rx="16"/>
+    <rect x="282" y="160" width="70" height="70" rx="16"/>
+    <rect x="362" y="160" width="70" height="70" rx="16" opacity="0.6"/>
+
+    <!-- bottom-left mini grid -->
+    <rect x="80" y="282" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="160" y="282" width="70" height="70" rx="16"/>
+    <rect x="80" y="362" width="70" height="70" rx="16"/>
+    <rect x="160" y="362" width="70" height="70" rx="16" opacity="0.6"/>
+
+    <!-- bottom-right mini grid -->
+    <rect x="282" y="282" width="70" height="70" rx="16"/>
+    <rect x="362" y="282" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="282" y="362" width="70" height="70" rx="16" opacity="0.6"/>
+    <rect x="362" y="362" width="70" height="70" rx="16"/>
+  </g>
+</svg>

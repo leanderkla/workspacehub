@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell B — Pro tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0a0a0a;
+    color: #cccccc;
+    font-size: 12.5px;
+    min-height: 100vh;
+    padding: 30px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #1a1a1a;
+    border-radius: 4px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 48px 250px 1fr;
+    grid-template-rows: 34px 36px 1fr 22px;
+    min-height: 720px;
+    border: 1px solid #2a2a2a;
+  }
+
+  /* Top window bar — integrated, not browser-like */
+  .winbar {
+    grid-column: 1 / -1;
+    background: #0f0f0f;
+    display: flex; align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #1e1e1e;
+    gap: 10px;
+    -webkit-user-select: none;
+  }
+  .winbar-logo { color: #e4e4e4; font-weight: 600; font-size: 11px; letter-spacing: 0.05em; }
+  .winbar-breadcrumb { font-size: 11px; color: #6a6a6a; flex: 1; text-align: center; }
+  .winbar-breadcrumb span { color: #a0a0a0; }
+  .winbar-ctls { display: flex; gap: 0; }
+  .wb-btn {
+    width: 32px; height: 24px;
+    border: 0;
+    background: transparent;
+    color: #8a8a8a;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px;
+  }
+  .wb-btn:hover { background: #2a2a2a; color: #e4e4e4; }
+  .wb-close:hover { background: #e81123 !important; color: white; }
+
+  /* Tab bar */
+  .tabbar {
+    grid-column: 2 / -1;
+    background: #151515;
+    display: flex; align-items: end;
+    padding: 0 8px;
+    border-bottom: 1px solid #2a2a2a;
+    gap: 1px;
+  }
+  .tab {
+    padding: 6px 14px 7px;
+    font-size: 11px;
+    color: #8a8a8a;
+    cursor: pointer;
+    border-top: 1px solid transparent;
+    border-left: 1px solid transparent;
+    border-right: 1px solid transparent;
+    background: transparent;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .tab:hover { color: #cccccc; }
+  .tab.active { background: #1a1a1a; color: #e4e4e4; border-color: #2a2a2a; border-bottom-color: #1a1a1a; margin-bottom: -1px; border-radius: 4px 4px 0 0; }
+  .tab .x { color: #5a5a5a; font-size: 14px; }
+  .tab .x:hover { color: #cccccc; }
+
+  /* Activity bar */
+  .activitybar {
+    grid-row: 2 / 4;
+    background: #121212;
+    border-right: 1px solid #1e1e1e;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 0;
+    gap: 2px;
+  }
+  .ab-btn {
+    width: 40px; height: 40px;
+    border: 0;
+    background: transparent;
+    color: #7a7a7a;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    margin-left: -2px;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ab-btn:hover { color: #e4e4e4; }
+  .ab-btn.active { color: #e4e4e4; border-left-color: #ff9500; }
+  .ab-spacer { flex: 1; }
+
+  /* Explorer sidebar */
+  .explorer {
+    grid-row: 3 / 4;
+    background: #1a1a1a;
+    border-right: 1px solid #1e1e1e;
+    padding: 0;
+    overflow-y: auto;
+  }
+  .ex-section {
+    padding: 4px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10px;
+    color: #7a7a7a;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ex-section .caret { width: 10px; display: inline-block; color: #5a5a5a; }
+  .ex-section:hover { color: #cccccc; }
+  .ex-tree { padding: 2px 0; border-bottom: 1px solid #1e1e1e; }
+  .ex-item {
+    padding: 3px 8px 3px 24px;
+    font-size: 12px;
+    color: #bbbbbb;
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer;
+    position: relative;
+  }
+  .ex-item:hover { background: #232323; }
+  .ex-item.active { background: #2e2e2e; color: #ffffff; }
+  .ex-item::before {
+    content: '';
+    position: absolute; left: 14px; top: 0; bottom: 0; width: 1px; background: #2a2a2a;
+  }
+  .ex-item.file::before { display: none; }
+  .ex-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ex-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ex-badge { font-size: 10px; color: #ff5a5a; font-weight: 600; }
+
+  /* Content */
+  .content {
+    grid-row: 3 / 4;
+    overflow-y: auto;
+    padding: 20px 28px 28px;
+    background: #1a1a1a;
+  }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+  .page-title {
+    font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: #ffffff;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .page-title .badge { width: 8px; height: 8px; border-radius: 2px; background: #ff9500; }
+  .page-meta { font-size: 11px; color: #7a7a7a; margin-top: 4px; }
+  .toolbar-actions { display: flex; gap: 4px; }
+  .ta-btn { background: transparent; border: 1px solid #2e2e2e; color: #bbbbbb; padding: 4px 10px; font-size: 11px; border-radius: 3px; cursor: pointer; font-family: inherit; }
+  .ta-btn:hover { background: #2e2e2e; border-color: #3a3a3a; color: #e4e4e4; }
+  .ta-btn.primary { background: #ff9500; border-color: #ff9500; color: #1a1a1a; font-weight: 500; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+    background: #2a2a2a; border: 1px solid #2a2a2a; border-radius: 3px;
+    margin-bottom: 22px;
+  }
+  .stat { padding: 10px 14px; background: #1a1a1a; }
+  .stat-lbl { font-size: 10px; color: #7a7a7a; text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-val { font-size: 20px; font-weight: 600; margin-top: 4px; color: #ffffff; font-variant-numeric: tabular-nums; }
+  .stat.alert .stat-val { color: #ff5a5a; }
+
+  .panel {
+    border: 1px solid #2a2a2a;
+    border-radius: 3px;
+    margin-bottom: 14px;
+    background: #151515;
+  }
+  .panel-hdr {
+    padding: 6px 12px;
+    display: flex; align-items: center; gap: 10px;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 10px;
+    color: #8a8a8a;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .panel-hdr .count { background: #2a2a2a; color: #cccccc; padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+  .panel-hdr.alert { color: #ff9a7a; }
+  .panel-hdr.alert .count { background: #3a1a1a; color: #ff9a7a; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 18px 8px 1fr auto auto;
+    gap: 10px;
+    padding: 6px 12px;
+    align-items: center;
+    border-bottom: 1px solid #1e1e1e;
+    font-size: 12px;
+    cursor: default;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #1e1e1e; }
+  .row .check { width: 12px; height: 12px; border: 1px solid #4a4a4a; border-radius: 2px; }
+  .row .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .row .title { color: #dcdcdc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .badge-chip {
+    font-size: 9px; padding: 1px 6px; background: #2a1a0a; color: #ff9a5a; border: 1px solid #3a2a1a;
+    border-radius: 2px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .row .due { font-size: 10px; color: #7a7a7a; font-variant-numeric: tabular-nums; }
+  .row.overdue .due { color: #ff5a5a; font-weight: 600; }
+
+  /* Status bar */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: #ff9500;
+    color: #1a1a1a;
+    display: flex; align-items: center;
+    font-size: 11px;
+    padding: 0 12px;
+    font-weight: 500;
+    gap: 14px;
+  }
+  .statusbar .item { display: flex; align-items: center; gap: 5px; }
+  .statusbar .spacer { flex: 1; }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #8a8a8a; font-size: 13px; line-height: 1.6; }
+  .callout strong { color: #e4e4e4; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #ff9500; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="winbar">
+      <div class="winbar-logo">WORKSPACEHUB</div>
+      <div class="winbar-breadcrumb"><span>energy-hero</span> / <span>dashboard</span></div>
+      <div class="winbar-ctls">
+        <button class="wb-btn" title="Minimize">─</button>
+        <button class="wb-btn" title="Maximize">□</button>
+        <button class="wb-btn wb-close" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <button class="tab active"><span style="color:#ff9500">●</span> Energy Hero <span class="x">✕</span></button>
+      <button class="tab">AI5innovation <span class="x">✕</span></button>
+      <button class="tab">WorkspaceHub <span class="x">✕</span></button>
+      <button class="tab" style="color:#5a5a5a">+</button>
+    </div>
+
+    <div class="activitybar">
+      <button class="ab-btn active" title="Projects">⊞</button>
+      <button class="ab-btn" title="Search">🔍</button>
+      <button class="ab-btn" title="Spark Map">✨</button>
+      <button class="ab-btn" title="Reminders">🔔</button>
+      <div class="ab-spacer"></div>
+      <button class="ab-btn" title="Pinned mode">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="ab-btn" title="Settings">⚙</button>
+    </div>
+
+    <div class="explorer">
+      <div class="ex-section"><span><span class="caret">▾</span> ENERGY HERO</span></div>
+      <div class="ex-tree">
+        <div class="ex-item file active"><span>⊞</span><span class="ex-name">dashboard</span></div>
+        <div class="ex-item file"><span>🧠</span><span class="ex-name">dump_zone</span></div>
+        <div class="ex-item file"><span>📝</span><span class="ex-name">notes</span><span class="ex-badge">14</span></div>
+        <div class="ex-item file"><span>✓</span><span class="ex-name">todos</span><span class="ex-badge">!4</span></div>
+        <div class="ex-item file"><span>🤝</span><span class="ex-name">commitments</span></div>
+        <div class="ex-item file"><span>📤</span><span class="ex-name">delegations</span></div>
+      </div>
+      <div class="ex-section"><span><span class="caret">▾</span> SUBPROJECTS</span></div>
+      <div class="ex-tree">
+        <div class="ex-item file"><span>📁</span><span class="ex-name">Accounts</span></div>
+        <div class="ex-item file"><span>📁</span><span class="ex-name">Vollmachten</span></div>
+        <div class="ex-item file"><span>📁</span><span class="ex-name">Großkunden</span></div>
+        <div class="ex-item file"><span>📁</span><span class="ex-name">Friendscode</span></div>
+      </div>
+      <div class="ex-section"><span><span class="caret">▾</span> QUICK</span></div>
+      <div class="ex-tree">
+        <div class="ex-item file"><span>✨</span><span class="ex-name">Spark Map</span></div>
+        <div class="ex-item file"><span>🔔</span><span class="ex-name">Reminders</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <div class="page-title"><span class="badge"></span>Energy Hero</div>
+          <div class="page-meta">dashboard · 4 overdue · last activity 12m</div>
+        </div>
+        <div class="toolbar-actions">
+          <button class="ta-btn">+30d</button>
+          <button class="ta-btn">Filter</button>
+          <button class="ta-btn primary">+ New todo</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Open</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Done</div><div class="stat-val">17</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subproj.</div><div class="stat-val">10</div></div>
+        <div class="stat"><div class="stat-lbl">Reminders</div><div class="stat-val">2</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hdr alert">!! overdue <span class="count">04</span></div>
+        <div class="row overdue"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="badge-chip">accounts</div><div class="due">21-Apr</div></div>
+        <div class="row overdue"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="badge-chip">vollmachten</div><div class="due">22-Apr</div></div>
+        <div class="row overdue"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">Vorlage Email GK</div><div class="badge-chip">großkunden</div><div class="due">22-Apr</div></div>
+        <div class="row overdue"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">Rückbucher inaktiv stellen</div><div class="badge-chip">ops</div><div class="due">22-Apr</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hdr">upcoming <span class="count">05</span></div>
+        <div class="row"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">Review Q2 onboarding script</div><div class="badge-chip">crm</div><div class="due">22-Apr</div></div>
+        <div class="row"><div class="check"></div><div class="dot" style="background:#ff9500"></div><div class="title">Ping Lukas about friendscode rollout</div><div class="badge-chip">friendscode</div><div class="due">23-Apr</div></div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="item">⚡ Energy Hero</div>
+      <div class="item">● 21 open</div>
+      <div class="item">⚠ 4 overdue</div>
+      <div class="spacer"></div>
+      <div class="item">🔥 Focus: 18:47</div>
+      <div class="item">Ctrl+K Search</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>B — Pro tool</strong>
+    Activity bar (48px icon strip) + explorer sidebar + tabs across the top + persistent status bar at the bottom showing counts, focus timer, and shortcut hints. Feels like VSCode / Linear / Figma — a serious productivity tool meant for heavy daily use.
+    <ul>
+      <li>Tabs let you have multiple projects open at once — matches the "workspace hub" name</li>
+      <li>Status bar shows live data (open, overdue, active focus) without stealing focus</li>
+      <li>Activity bar separates "modes" (projects view, search, spark map, reminders) from "files" (the tree)</li>
+      <li>Dense, precise, monospace-ish — rewards daily muscle memory</li>
+    </ul>
+  </div>
+</body>
+</html>

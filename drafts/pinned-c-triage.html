@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned Mode C — Triage</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #fafafa; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 30px 20px;
+    color: #1a1a1a; font-size: 13px;
+  }
+  .window {
+    width: 400px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .titlebar {
+    height: 34px; background: #fafafa; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #ececec;
+    font-size: 11px; color: #888;
+  }
+  .titlebar .dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+  .titlebar .name { font-weight: 600; color: #444; }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .close { color: #bbb; cursor: pointer; }
+  .titlebar .close:hover { color: #222; }
+
+  .progress {
+    padding: 12px 18px 8px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #f4f4f4;
+  }
+  .progress-label { font-size: 11px; color: #888; font-weight: 500; }
+  .progress-bar {
+    flex: 1; height: 4px; background: #ececec; border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; background: #1a1a1a; width: 42%; border-radius: 2px; }
+  .progress-count { font-size: 11px; color: #555; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .card-stack {
+    position: relative;
+    padding: 20px;
+    min-height: 240px;
+  }
+  .card-stack::before, .card-stack::after {
+    content: ''; position: absolute;
+    left: 32px; right: 32px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #ececec;
+    pointer-events: none;
+  }
+  .card-stack::before {
+    top: 12px; bottom: -8px;
+    transform: rotate(0.8deg); opacity: 0.6;
+    z-index: 0;
+  }
+  .card-stack::after {
+    top: 6px; bottom: -4px;
+    transform: rotate(-0.4deg); opacity: 0.8;
+    z-index: 1;
+  }
+  .card {
+    position: relative; z-index: 2;
+    background: #fff;
+    border: 1px solid #e4e4e4;
+    border-left: 4px solid #dc2626;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+  }
+  .card-type {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #dc2626;
+    padding: 2px 8px; border-radius: 10px;
+    background: #fef2f2; border: 1px solid #fecaca;
+  }
+  .card-title {
+    font-size: 15px; font-weight: 600; line-height: 1.4;
+    margin: 10px 0 6px;
+    color: #1a1a1a;
+  }
+  .card-meta {
+    font-size: 11px; color: #888; display: flex; align-items: center; gap: 10px;
+  }
+  .card-meta .proj-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;
+    display: inline-block; margin-right: 4px;
+  }
+  .card-context {
+    margin-top: 12px; padding: 10px;
+    background: #fafafa; border-radius: 6px;
+    font-size: 12px; color: #555; line-height: 1.5;
+    font-style: italic;
+  }
+  .card-context::before { content: '💭 '; font-style: normal; }
+
+  .actions {
+    padding: 12px 20px 16px;
+    border-top: 1px solid #f4f4f4;
+    background: #fcfcfc;
+  }
+  .action-row {
+    display: flex; gap: 6px;
+  }
+  .act {
+    flex: 1;
+    padding: 10px 6px; border-radius: 8px;
+    border: 1px solid #e4e4e4;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .act:hover { background: #f4f4f4; border-color: #ccc; }
+  .act-icon { font-size: 16px; }
+  .act-kbd {
+    font-size: 9px; color: #aaa;
+    background: #f4f4f4; border: 1px solid #e4e4e4;
+    border-radius: 3px; padding: 0 4px;
+    margin-top: 2px;
+  }
+  .act.done { border-color: #16a34a; color: #15803d; background: #f0fdf4; }
+  .act.done:hover { background: #dcfce7; }
+  .act.snooze { color: #7c3aed; }
+  .act.skip { color: #888; }
+
+  .snooze-row {
+    display: flex; gap: 5px; margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px dashed #ececec;
+  }
+  .snz {
+    flex: 1;
+    padding: 6px 4px; border-radius: 6px;
+    border: 1px solid #ececec;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    font-family: inherit; font-size: 10px;
+    font-weight: 500;
+  }
+  .snz:hover { background: #f4f4f4; border-color: #d4d4d4; }
+
+  .hint {
+    padding: 10px 20px;
+    font-size: 10px; color: #aaa;
+    text-align: center;
+    background: #fff;
+    border-top: 1px solid #f4f4f4;
+  }
+  .hint kbd {
+    background: #f4f4f4; border: 1px solid #e4e4e4;
+    border-radius: 3px; padding: 1px 5px;
+    font-family: inherit; font-size: 10px; margin: 0 2px;
+  }
+
+  .callout {
+    padding: 30px 20px;
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    max-width: 400px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #1a1a1a; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; padding-left: 14px; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="dot"></div>
+        <span class="name">Triage</span>
+        <span class="spacer"></span>
+        <span class="close">✕</span>
+      </div>
+
+      <div class="progress">
+        <span class="progress-label">Triaging</span>
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <span class="progress-count">3 of 7</span>
+      </div>
+
+      <div class="card-stack">
+        <div class="card">
+          <span class="card-type">⚠ Overdue — 1 day</span>
+          <div class="card-title">KPI Felder in Accounts — Umsatz pro Account, Gesamte Ersparnis</div>
+          <div class="card-meta">
+            <span><span class="proj-dot"></span>Energy Hero</span>
+            <span>·</span>
+            <span>Subproject: Accounts</span>
+            <span>·</span>
+            <span>Due 21 Apr</span>
+          </div>
+          <div class="card-context">
+            Remember: needs Friendscode count too — blocked on webforms schema. Ping Lukas if still stuck tomorrow.
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="action-row">
+          <button class="act done" title="Mark done">
+            <span class="act-icon">✓</span>
+            <span>Done</span>
+            <span class="act-kbd">D</span>
+          </button>
+          <button class="act" title="Work on this now (focus mode)">
+            <span class="act-icon">⚡</span>
+            <span>Now</span>
+            <span class="act-kbd">N</span>
+          </button>
+          <button class="act snooze" title="Defer">
+            <span class="act-icon">⏰</span>
+            <span>Snooze</span>
+            <span class="act-kbd">S</span>
+          </button>
+          <button class="act" title="Delegate">
+            <span class="act-icon">📤</span>
+            <span>Delegate</span>
+            <span class="act-kbd">G</span>
+          </button>
+          <button class="act skip" title="Next item">
+            <span class="act-icon">→</span>
+            <span>Skip</span>
+            <span class="act-kbd">↵</span>
+          </button>
+        </div>
+        <div class="snooze-row">
+          <button class="snz">Tomorrow</button>
+          <button class="snz">Next Mon</button>
+          <button class="snz">Next week</button>
+          <button class="snz">Pick…</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        <kbd>D</kbd> done · <kbd>N</kbd> focus · <kbd>S</kbd> snooze · <kbd>↑↓</kbd> browse
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Concept C — Triage</strong>
+      Inbox-style card stack. One item at a time, decide and advance. Shows context (why this matters, last update, stuck-on) to enable fast decisions without switching to the main app.
+      <ul>
+        <li>Closes the "drop ball" problem — every waiting item gets a look</li>
+        <li>Keyboard-first: D/N/S/G/↵ turns a messy backlog into a 5-min ritual</li>
+        <li>Queue is smart: overdue → stale delegations → dumps → upcoming</li>
+        <li>"Now" button launches Focus Mode on that item</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

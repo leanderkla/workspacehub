@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skin 3 — Type-forward</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #f59e0b;
+    --sidebar-bg: #0f172a;
+    --content-bg: #fafaf9;
+    --card-bg: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --border: #e8e6e2;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #2a2a2a; padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 13.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--content-bg);
+    border-radius: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.3);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    grid-template-rows: 40px 1fr;
+    min-height: 780px;
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: #0a0f1e;
+    color: #94a3b8;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+  }
+  .logo { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); }
+  .tb-title { font-size: 13px; font-weight: 600; color: #e2e8f0; font-family: "Charter", Georgia, serif; font-style: italic; letter-spacing: -0.01em; }
+  .spacer { flex: 1; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 28px; width: 380px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5); border-radius: 6px; font-size: 12px;
+  }
+  .tb-btns { display: flex; gap: 2px; }
+  .tb-btn { width: 34px; height: 30px; background: transparent; border: 0; color: rgba(255,255,255,0.55); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tb-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Sidebar */
+  .sidebar { background: var(--sidebar-bg); color: #cbd5e1; padding: 14px 8px; overflow-y: auto; }
+  .sb-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; padding: 14px 12px 6px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px; margin: 1px 4px; border-radius: 6px;
+    color: #cbd5e1; font-size: 13.5px; cursor: pointer;
+  }
+  .sb-item:hover { background: rgba(255,255,255,0.05); color: white; }
+  .sb-item.active { background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-weight: 500; border-left: 3px solid var(--accent); padding-left: 9px; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: #fca5a5; font-weight: 700; }
+  .sb-ic { width: 16px; text-align: center; font-size: 12px; }
+
+  /* Content — editorial typographic hierarchy */
+  .content { overflow-y: auto; padding: 44px 54px 48px; }
+  .page-head { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .page-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .page-title {
+    font-family: "Charter", "Iowan Old Style", "Palatino Linotype", "Georgia", serif;
+    font-size: 38px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.1;
+    color: var(--text-primary);
+  }
+  .page-meta { font-size: 13px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
+  .page-meta strong { color: #b84a4a; font-weight: 500; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 36px; }
+  .stat {
+    background: transparent;
+    padding: 0;
+  }
+  .stat-val {
+    font-family: "Charter", "Iowan Old Style", Georgia, serif;
+    font-size: 34px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1;
+  }
+  .stat.alert .stat-val { color: #b84a4a; }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-top: 6px; }
+
+  .sec-title {
+    font-family: "Charter", "Iowan Old Style", Georgia, serif;
+    font-size: 22px; font-weight: 500; letter-spacing: -0.01em;
+    color: var(--text-primary);
+    margin: 10px 0 16px; display: flex; align-items: baseline; gap: 10px;
+  }
+  .sec-title .count {
+    font-family: -apple-system, "Inter", sans-serif;
+    font-size: 12px; color: var(--text-muted); font-weight: 500;
+  }
+
+  .list { margin-bottom: 40px; }
+  .item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .item:last-child { border: 0; }
+  .item .ck { width: 16px; height: 16px; border: 1.5px solid #c0bcb2; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+  .item .body { flex: 1; min-width: 0; }
+  .item .title { font-size: 14px; color: var(--text-primary); font-weight: 400; line-height: 1.45; }
+  .item.overdue .title { font-weight: 500; }
+  .item .meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; align-items: center; }
+  .item.overdue .meta .date { color: #b84a4a; font-weight: 600; }
+  .item .chip {
+    font-size: 10px; padding: 2px 8px; background: #fdf6ec; color: #92400e;
+    border-radius: 10px; font-weight: 500; letter-spacing: 0.02em;
+  }
+
+  .callout { max-width: 680px; margin: 28px auto 0; text-align: center; color: #a0a0a0; font-size: 12.5px; line-height: 1.6; }
+  .callout strong { display: block; color: #f5e8cf; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="logo"></div>
+      <div class="tb-title">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <div class="search">🔍 Search or capture… <span style="margin-left:auto; font-size:10px; opacity:0.6">Ctrl K</span></div>
+      <div class="tb-btns">
+        <button class="tb-btn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></button>
+        <button class="tb-btn">⚙</button>
+        <button class="tb-btn">↻</button>
+        <button class="tb-btn">─</button>
+        <button class="tb-btn">□</button>
+        <button class="tb-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div class="page-eyebrow">Wednesday · 22 April · 4 items overdue</div>
+        <div class="page-title">Energy Hero</div>
+        <div class="page-meta"><strong>Four tasks need attention today.</strong> Twenty-one open, fourteen notes, two commitments waiting on replies.</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-val">4</div><div class="stat-lbl">Overdue</div></div>
+        <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">Open todos</div></div>
+        <div class="stat"><div class="stat-val">14</div><div class="stat-lbl">Notes</div></div>
+        <div class="stat"><div class="stat-val">10</div><div class="stat-lbl">Subprojects</div></div>
+      </div>
+
+      <h2 class="sec-title">Overdue <span class="count">4 items</span></h2>
+      <div class="list">
+        <div class="item overdue"><div class="ck"></div><div class="body"><div class="title">KPI Felder in Accounts — Umsatz pro Account &amp; Gesamte Ersparnis</div><div class="meta"><span class="chip">Accounts</span><span class="date">21 April · 1 day overdue</span></div></div></div>
+        <div class="item overdue"><div class="ck"></div><div class="body"><div class="title">Kontaktformular EDA Vollmacht</div><div class="meta"><span class="chip">Vollmachten</span><span class="date">22 April · due today</span></div></div></div>
+        <div class="item overdue"><div class="ck"></div><div class="body"><div class="title">Vorlage Email GK für Großkunden-Outreach</div><div class="meta"><span class="chip">Großkunden</span><span class="date">22 April · due today</span></div></div></div>
+      </div>
+
+      <h2 class="sec-title">Due this week</h2>
+      <div class="list">
+        <div class="item"><div class="ck"></div><div class="body"><div class="title">Rückbucher inaktiv stellen</div><div class="meta"><span class="chip">Operations</span><span class="date">24 April</span></div></div></div>
+        <div class="item"><div class="ck"></div><div class="body"><div class="title">Anrufen GK · hufnagl leads abgleichen mit Salesforce</div><div class="meta"><span class="chip">Sales</span><span class="date">24 April</span></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>3 — Type-forward</strong>
+    Same layout + sidebar. The difference is in the headline typography: serif display for the page title, stat numbers, and section headers; sans-serif for body + UI. Lists have more leading, no card boxes around them. Light cream paper background. Feels composed rather than dashboard-y.
+    <ul>
+      <li>Headline serif does all the "personality" work — structure unchanged</li>
+      <li>Stat values as serif numerals feel like typeset figures in a report</li>
+      <li>Great for reading longer titles (your todo titles are long!)</li>
+      <li>Works on any existing theme by swapping fonts only</li>
+    </ul>
+  </div>
+</body>
+</html>

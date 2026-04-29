@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WorkspaceHub Icon Previews</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #7c3aed;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px 80px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  p.sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 28px;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 32px 0 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .big {
+    width: 160px;
+    height: 160px;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+  .big img { width: 100%; height: 100%; display: block; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .mini { width: 32px; height: 32px; border-radius: 6px; }
+  .mini img { width: 100%; height: 100%; display: block; }
+  .meta { flex: 1; }
+  .name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .file {
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .tiny {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .tiny img { width: 16px; height: 16px; display: block; }
+</style>
+</head>
+<body>
+  <h1>WorkspaceHub icon candidates</h1>
+  <p class="sub">Each tile shows the icon at 160 px, a 32 px sidebar size, and a 16 px titlebar size, so you can judge how it scales.</p>
+
+  <h2>Variations of the current 2×2 grid</h2>
+  <div class="grid" id="group-main"></div>
+
+  <h2>Alternative designs</h2>
+  <div class="grid" id="group-alt"></div>
+
+<script>
+  const icons = [
+    { file: '01-classic.svg',  name: 'Classic',   desc: '2×2 rounded squares with diagonal opacity. Faithful to the existing titlebar logo.', group: 'main' },
+    { file: '02-pinwheel.svg', name: 'Pinwheel',  desc: 'Same grid but the tiles stretch outward — subtly kinetic, still reads as a grid.', group: 'main' },
+    { file: '03-active.svg',   name: 'Active',    desc: 'Three light tiles + one solid accent tile with a center dot — highlights the current workspace.', group: 'main' },
+    { file: '04-inverted.svg', name: 'Inverted',  desc: 'Dark purple background with white tiles. High contrast, looks great pinned to the taskbar.', group: 'main' },
+    { file: '05-overlap.svg',  name: 'Nexus',     desc: 'Tiles overlap at the center with a dot — reads as four workspaces converging.', group: 'main' },
+    { file: '06-monogram.svg', name: 'Monogram',  desc: 'Bold WH lettering on a gradient purple background.', group: 'alt' },
+    { file: '07-hub.svg',      name: 'Hub',       desc: 'Central node with four spokes reaching out to corner dots — literal hub metaphor.', group: 'alt' },
+    { file: '08-stack.svg',    name: 'Stack',     desc: 'Stacked tilted cards with note lines — evokes projects + notes.', group: 'alt' },
+    { file: '09-spark.svg',    name: 'Spark',     desc: 'Radial gradient with eight rays around a central circle — references the Spark Map feature.', group: 'alt' },
+    { file: '10-fractal.svg',  name: 'Fractal',   desc: '2×2 grid where each tile is itself a 2×2 grid. Playful and on-brand.', group: 'alt' },
+  ];
+
+  const mkCard = (icon) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="big"><img src="${icon.file}" alt="${icon.name}"></div>
+      <div class="row">
+        <div class="mini"><img src="${icon.file}" alt=""></div>
+        <div class="meta">
+          <div class="name">${icon.name}</div>
+          <div class="desc">${icon.desc}</div>
+          <div class="file">${icon.file}</div>
+        </div>
+      </div>
+      <div class="tiny"><img src="${icon.file}" alt=""> <span>16 px titlebar size</span></div>
+    `;
+    return card;
+  };
+
+  const main = document.getElementById('group-main');
+  const alt  = document.getElementById('group-alt');
+  icons.forEach(i => (i.group === 'main' ? main : alt).appendChild(mkCard(i)));
+</script>
+</body>
+</html>

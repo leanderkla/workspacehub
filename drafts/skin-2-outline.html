@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skin 2 — Outline (no shadows, no fills)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #f59e0b;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #1a1a1a; padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.3);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    grid-template-rows: 40px 1fr;
+    min-height: 760px;
+  }
+  .titlebar {
+    grid-column: 1 / -1;
+    background: #0a0f1e;
+    color: #94a3b8;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+  }
+  .logo { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); }
+  .tb-title { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+  .spacer { flex: 1; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 28px; width: 380px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5); border-radius: 6px; font-size: 12px;
+  }
+  .tb-btns { display: flex; gap: 2px; }
+  .tb-btn { width: 34px; height: 30px; background: transparent; border: 0; color: rgba(255,255,255,0.55); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tb-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Sidebar — light, matches content — divider only */
+  .sidebar {
+    background: #ffffff;
+    border-right: 1px solid var(--border);
+    padding: 12px 0;
+    overflow-y: auto;
+  }
+  .sb-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 14px 18px 6px; }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 18px;
+    color: var(--text-secondary); font-size: 13px; cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .sb-item:hover { color: var(--text-primary); background: #fafafa; }
+  .sb-item.active { color: var(--text-primary); border-left-color: var(--accent); font-weight: 500; background: #fafafa; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: #dc2626; font-weight: 600; }
+  .sb-ic { width: 16px; text-align: center; font-size: 12px; color: var(--text-muted); }
+  .sb-item.active .sb-ic { color: var(--text-primary); }
+
+  /* Content — no fills, no shadows, 1px outlines only */
+  .content { overflow-y: auto; padding: 32px 40px 40px; }
+  .page-head { margin-bottom: 32px; }
+  .page-title { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+  .page-title .b { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .page-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0; margin-bottom: 32px;
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .stat {
+    padding: 16px 20px;
+    border-right: 1px solid var(--border);
+  }
+  .stat:last-child { border-right: 0; }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .stat-val { font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; }
+  .stat.alert .stat-val { color: #dc2626; }
+
+  .sec-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 10px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  .list { margin-bottom: 32px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #fafafa; margin: 0 -12px; padding-left: 12px; padding-right: 12px; }
+  .row .ck { width: 15px; height: 15px; border: 1.5px solid var(--border-strong); border-radius: 50%; flex-shrink: 0; }
+  .row .title { flex: 1; }
+  .row .chip {
+    font-size: 10px; padding: 2px 9px; border-radius: 10px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border-strong); font-weight: 500;
+  }
+  .row .due { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+  .row.overdue .title { color: #dc2626; font-weight: 500; }
+  .row.overdue .due { color: #dc2626; font-weight: 600; }
+
+  .callout { max-width: 680px; margin: 28px auto 0; text-align: center; color: #94a3b8; font-size: 12.5px; line-height: 1.6; }
+  .callout strong { display: block; color: #e2e8f0; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="logo"></div>
+      <div class="tb-title">WorkspaceHub</div>
+      <div class="spacer"></div>
+      <div class="search">🔍 Search or capture… <span style="margin-left:auto; font-size:10px; opacity:0.6">Ctrl K</span></div>
+      <div class="tb-btns">
+        <button class="tb-btn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></button>
+        <button class="tb-btn">⚙</button>
+        <button class="tb-btn">↻</button>
+        <button class="tb-btn">─</button>
+        <button class="tb-btn">□</button>
+        <button class="tb-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#f59e0b"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div class="page-title"><span class="b"></span>Energy Hero</div>
+        <div class="page-meta">Dashboard · Wednesday, 22 April · 4 overdue</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert"><div class="stat-lbl">Overdue</div><div class="stat-val">4</div></div>
+        <div class="stat"><div class="stat-lbl">Open todos</div><div class="stat-val">21</div></div>
+        <div class="stat"><div class="stat-lbl">Notes</div><div class="stat-val">14</div></div>
+        <div class="stat"><div class="stat-lbl">Subprojects</div><div class="stat-val">10</div></div>
+      </div>
+
+      <div class="sec-title">Overdue — 4 items</div>
+      <div class="list">
+        <div class="row overdue"><div class="ck"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="chip">Accounts</div><div class="due">21 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="chip">Vollmachten</div><div class="due">22 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Vorlage Email GK</div><div class="chip">Großkunden</div><div class="due">22 Apr</div></div>
+        <div class="row overdue"><div class="ck"></div><div class="title">Rückbucher inaktiv stellen</div><div class="chip">Operations</div><div class="due">22 Apr</div></div>
+      </div>
+
+      <div class="sec-title">Due this week</div>
+      <div class="list">
+        <div class="row"><div class="ck"></div><div class="title">Anrufen GK · hufnagl leads abgleichen</div><div class="chip">Sales</div><div class="due">24 Apr</div></div>
+        <div class="row"><div class="ck"></div><div class="title">Claude wordpress integration</div><div class="chip">Tech</div><div class="due">24 Apr</div></div>
+        <div class="row"><div class="ck"></div><div class="title">Review Q2 onboarding script</div><div class="chip">CRM</div><div class="due">25 Apr</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>2 — Outline (flat, no shadows)</strong>
+    Same layout. Zero card shadows, zero filled backgrounds on cards — everything defined by thin 1px borders and spacing. Sidebar is the same color as content with a 1px separator. Very flat, architectural, almost-wireframe — but still warm. Linear / Notion / Things 3 vibe.
+    <ul>
+      <li>Hardware-efficient — no shadow rasterization, crisper at any scale</li>
+      <li>Lets the content shine, not the chrome</li>
+      <li>Hierarchy lives in typography + spacing, not decoration</li>
+      <li>Risk: can feel "skeletal" to eyes used to depth</li>
+    </ul>
+  </div>
+</body>
+</html>

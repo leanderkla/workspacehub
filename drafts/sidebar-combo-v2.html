@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sidebar combo v2 — match the dot/icon look you have</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #1a1a1a; padding: 30px 20px;
+    color: #cccccc; font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { color: #f1f5f9; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .intro { color: #94a3b8; font-size: 13px; margin-bottom: 24px; max-width: 760px; line-height: 1.55; }
+  .intro strong { color: #fbbf24; }
+
+  .row { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; margin-bottom: 32px; }
+  .col {
+    background: #232328;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2e2e34;
+    display: flex; flex-direction: column;
+  }
+  .col-head {
+    padding: 10px 14px;
+    background: #2a2a30;
+    border-bottom: 1px solid #2e2e34;
+    font-size: 12px; color: #cbd5e1; font-weight: 600;
+  }
+  .col-head .label { font-size: 10px; color: #fbbf24; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 2px; }
+  .col-body {
+    background: #1a1a1a;
+    padding: 0;
+    display: flex;
+    height: 700px;
+  }
+
+  .sb {
+    background: #0a0f1e;
+    border-right: 1px solid #1e293b;
+    overflow-y: auto;
+    color: #cbd5e1;
+    flex-shrink: 0;
+    transition: width 0.18s ease;
+  }
+  .sb-full { width: 250px; }
+  .sb-compact { width: 56px; }
+
+  .resizer {
+    width: 4px; background: #1a1f2e; cursor: col-resize; flex-shrink: 0; position: relative;
+  }
+  .resizer::after {
+    content: ''; position: absolute; left: 1px; right: 1px; top: 50%; transform: translateY(-50%);
+    height: 30px; background: #475569; opacity: 0.4; border-radius: 1px;
+  }
+  .resizer:hover::after { opacity: 0.8; background: #f59e0b; }
+
+  .content-fake {
+    flex: 1; padding: 20px;
+    color: #64748b; font-size: 13px; font-style: italic;
+  }
+  .content-fake h2 { color: #cbd5e1; font-size: 16px; font-weight: 600; margin-bottom: 6px; font-style: normal; }
+
+  /* ===== FULL state ===== */
+  .ov-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: calc(100% - 12px);
+    margin: 8px 6px;
+    padding: 8px 12px;
+    background: rgba(245, 158, 11, 0.14);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+    border-radius: 7px;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+  }
+  .ov-btn .ov-icon {
+    width: 18px; height: 18px; border-radius: 4px;
+    background: linear-gradient(135deg, #fbbf24, #d97706);
+    display: flex; align-items: center; justify-content: center;
+    color: #1a1a1a; font-size: 12px; font-weight: 700;
+  }
+  .ov-btn:hover { background: rgba(245, 158, 11, 0.2); }
+
+  .sb-section { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .sb-section:last-child { border-bottom: 0; }
+  .sb-section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #64748b;
+    padding: 12px 14px 4px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sb-section-label .add-btn {
+    background: transparent; border: 0; color: #64748b; font-size: 14px; cursor: pointer;
+    padding: 0 4px; border-radius: 3px; line-height: 1;
+  }
+  .sb-section-label .add-btn:hover { color: #fbbf24; background: rgba(255,255,255,0.04); }
+
+  .pin-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 14px;
+    margin: 1px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #cbd5e1;
+    font-size: 13px;
+  }
+  .pin-row:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .pin-row .ic { width: 14px; text-align: center; font-size: 12px; flex-shrink: 0; }
+  .pin-row.todo .ic { color: #16a34a; }
+  .pin-row.note .ic { color: #fbbf24; }
+  .pin-row.flow .ic { color: #c4b5fd; }
+  .pin-row.proj .ic { color: var(--proj-c, #f59e0b); }
+  .pin-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+
+  /* Lean project rows (keeping current dot+name design) */
+  .proj-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 14px;
+    margin: 1px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #cbd5e1; font-size: 13px;
+    border-left: 3px solid transparent;
+  }
+  .proj-row:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .proj-row.active {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf24;
+    font-weight: 500;
+    border-left-color: var(--c, #f59e0b);
+    padding-left: 11px;
+  }
+  .proj-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--c, #f59e0b);
+    flex-shrink: 0;
+  }
+  .proj-name {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .proj-alert {
+    font-size: 10px; font-weight: 700;
+    padding: 1px 7px; border-radius: 10px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    flex-shrink: 0;
+  }
+  .proj-alert.warn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 14px;
+    margin: 1px 6px;
+    border-radius: 5px;
+    color: #cbd5e1; font-size: 13px;
+    cursor: pointer;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .nav-item.active {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf24;
+    font-weight: 500;
+    border-left: 3px solid #f59e0b;
+    padding-left: 11px;
+  }
+  .nav-item .nav-ic { width: 16px; text-align: center; font-size: 14px; flex-shrink: 0; }
+  .nav-item .nav-count { margin-left: auto; font-size: 11px; color: #f87171; font-weight: 700; }
+
+  /* ===== COMPACT state — matches the dot/icon look ===== */
+  .sb-compact .sb-section-label { display: none; }
+  .sb-compact .sb-section { padding: 6px 0; }
+
+  .sb-compact .ov-btn {
+    width: 36px; height: 36px;
+    margin: 6px auto;
+    padding: 0;
+    border-radius: 7px;
+    justify-content: center;
+  }
+  .sb-compact .ov-btn span:not(.ov-icon) { display: none; }
+
+  .sb-compact .pin-row,
+  .sb-compact .proj-row,
+  .sb-compact .nav-item {
+    width: 36px; height: 36px;
+    margin: 2px auto;
+    padding: 0;
+    border-radius: 7px;
+    justify-content: center;
+    border-left: 0 !important;
+    position: relative;
+  }
+  .sb-compact .pin-row .name,
+  .sb-compact .proj-row .proj-name,
+  .sb-compact .nav-item span:not(.nav-ic):not(.nav-count) {
+    display: none;
+  }
+  .sb-compact .pin-row .ic { font-size: 14px; width: auto; }
+  .sb-compact .nav-item .nav-ic { font-size: 16px; width: auto; }
+
+  /* Project = just the colored dot, scaled up & centered */
+  .sb-compact .proj-row .proj-dot {
+    width: 16px; height: 16px;
+    box-shadow: 0 0 0 0 transparent;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .sb-compact .proj-row:hover .proj-dot { transform: scale(1.1); }
+  .sb-compact .proj-row.active {
+    background: rgba(255,255,255,0.06);
+  }
+  .sb-compact .proj-row.active .proj-dot {
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.18);
+  }
+
+  /* Tiny corner badge for overdue/today on project + Todos nav */
+  .sb-compact .proj-row .proj-alert {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 14px; height: 14px;
+    padding: 0;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    border: 2px solid #0a0f1e;
+    font-size: 8px;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .sb-compact .proj-row .proj-alert.warn { background: #f59e0b; color: #1a1a1a; }
+  .sb-compact .nav-item .nav-count {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 14px; height: 14px;
+    background: #ef4444; color: #fff;
+    font-size: 8px;
+    border-radius: 50%;
+    border: 2px solid #0a0f1e;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+    margin-left: 0;
+  }
+
+  .sb-compact .nav-item.active {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+  }
+  .sb-compact .nav-item.active::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 3px; background: #f59e0b; border-radius: 0 2px 2px 0;
+  }
+
+  /* ===== Callout ===== */
+  .callout {
+    margin-top: 18px; padding: 18px 22px;
+    background: #2a2a30;
+    border-radius: 10px;
+    border: 1px solid #3e3e44;
+    max-width: 1080px;
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .callout strong { color: #fbbf24; display: block; margin-bottom: 6px; font-size: 15px; }
+  .callout ul { padding-left: 20px; margin-top: 10px; }
+  .callout li { padding: 3px 0; }
+  .callout li::marker { color: #fbbf24; }
+</style>
+</head>
+<body>
+
+  <h1>Sidebar combo v2 — keep the dot+icon look on collapse</h1>
+  <p class="intro">
+    Same combo as before (<strong>Pinned</strong> on top, <strong>lean project rows</strong>, <strong>workspace nav</strong>) but the compact mode now mirrors what you have today: <strong>colored dots for projects, the workspace icons centered, no boxes around things</strong>. Tiny red/amber bubble in the corner for overdue/today counts. The current "active project" highlight becomes a bright outer ring on the dot. Drag the resizer below ~110px to enter compact.
+  </p>
+
+  <div class="row">
+    <div class="col" style="flex: 1 1 600px">
+      <div class="col-head"><div class="label">Drag width: 250px</div>Full mode</div>
+      <div class="col-body">
+
+        <aside class="sb sb-full">
+          <button class="ov-btn"><span class="ov-icon">◈</span><span>Overview</span></button>
+
+          <div class="sb-section">
+            <div class="sb-section-label"><span>⭐ Pinned</span><button class="add-btn" title="Pin something">+</button></div>
+            <div class="pin-row todo"><span class="ic">✓</span><span class="name">KPI Felder Accounts</span></div>
+            <div class="pin-row note"><span class="ic">📝</span><span class="name">Friendscode rollout plan</span></div>
+            <div class="pin-row flow"><span class="ic">🔀</span><span class="name">Discovery script</span></div>
+            <div class="pin-row proj" style="--proj-c:#f59e0b"><span class="ic">●</span><span class="name">Energy Hero</span></div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-label"><span>Projects</span></div>
+            <div class="proj-row active" style="--c:#f59e0b">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Energy Hero</span>
+              <span class="proj-alert" title="4 overdue">4</span>
+            </div>
+            <div class="proj-row" style="--c:#0ea5e9">
+              <span class="proj-dot"></span>
+              <span class="proj-name">AI5innovation</span>
+              <span class="proj-alert" title="3 overdue">3</span>
+            </div>
+            <div class="proj-row" style="--c:#8b5cf6">
+              <span class="proj-dot"></span>
+              <span class="proj-name">WorkspaceHub</span>
+              <span class="proj-alert warn" title="1 today">1</span>
+            </div>
+            <div class="proj-row" style="--c:#ec4899">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Erasmus Buch</span>
+            </div>
+            <div class="proj-row" style="--c:#10b981">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Memory Pix</span>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-label"><span>Workspace</span></div>
+            <div class="nav-item active"><span class="nav-ic">⊞</span><span>Dashboard</span></div>
+            <div class="nav-item"><span class="nav-ic">📁</span><span>Subprojects</span></div>
+            <div class="nav-item"><span class="nav-ic">🧠</span><span>Dump Zone</span></div>
+            <div class="nav-item"><span class="nav-ic">✅</span><span>Todos</span><span class="nav-count">4</span></div>
+            <div class="nav-item"><span class="nav-ic">🤝</span><span>Commitments</span></div>
+            <div class="nav-item"><span class="nav-ic">📝</span><span>Notes</span></div>
+            <div class="nav-item"><span class="nav-ic">✨</span><span>Spark Map</span></div>
+            <div class="nav-item"><span class="nav-ic">🔔</span><span>Reminders</span></div>
+            <div class="nav-item"><span class="nav-ic">📤</span><span>Delegations</span></div>
+            <div class="nav-item"><span class="nav-ic">🔀</span><span>Flows</span></div>
+          </div>
+        </aside>
+        <div class="resizer"></div>
+        <div class="content-fake"><h2>Energy Hero · Dashboard</h2>full content panel</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col" style="flex: 1 1 600px">
+      <div class="col-head"><div class="label">Drag width: 56px (below 110px threshold)</div>Compact — dots & icons only, centered</div>
+      <div class="col-body">
+
+        <aside class="sb sb-compact">
+          <button class="ov-btn" title="Overview"><span class="ov-icon">◈</span><span>Overview</span></button>
+
+          <div class="sb-section">
+            <div class="pin-row todo" title="KPI Felder Accounts"><span class="ic">✓</span></div>
+            <div class="pin-row note" title="Friendscode rollout plan"><span class="ic">📝</span></div>
+            <div class="pin-row flow" title="Discovery script"><span class="ic">🔀</span></div>
+            <div class="pin-row proj" style="--proj-c:#f59e0b" title="Energy Hero"><span class="ic">●</span></div>
+          </div>
+
+          <div class="sb-section">
+            <div class="proj-row active" style="--c:#f59e0b" title="Energy Hero · 4 overdue">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Energy Hero</span>
+              <span class="proj-alert">4</span>
+            </div>
+            <div class="proj-row" style="--c:#0ea5e9" title="AI5innovation · 3 overdue">
+              <span class="proj-dot"></span>
+              <span class="proj-name">AI5innovation</span>
+              <span class="proj-alert">3</span>
+            </div>
+            <div class="proj-row" style="--c:#8b5cf6" title="WorkspaceHub · 1 today">
+              <span class="proj-dot"></span>
+              <span class="proj-name">WorkspaceHub</span>
+              <span class="proj-alert warn">1</span>
+            </div>
+            <div class="proj-row" style="--c:#ec4899" title="Erasmus Buch">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Erasmus Buch</span>
+            </div>
+            <div class="proj-row" style="--c:#10b981" title="Memory Pix">
+              <span class="proj-dot"></span>
+              <span class="proj-name">Memory Pix</span>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="nav-item active" title="Dashboard"><span class="nav-ic">⊞</span></div>
+            <div class="nav-item" title="Subprojects"><span class="nav-ic">📁</span></div>
+            <div class="nav-item" title="Dump Zone"><span class="nav-ic">🧠</span></div>
+            <div class="nav-item" title="Todos · 4 overdue"><span class="nav-ic">✅</span><span class="nav-count">4</span></div>
+            <div class="nav-item" title="Commitments"><span class="nav-ic">🤝</span></div>
+            <div class="nav-item" title="Notes"><span class="nav-ic">📝</span></div>
+            <div class="nav-item" title="Spark Map"><span class="nav-ic">✨</span></div>
+            <div class="nav-item" title="Reminders"><span class="nav-ic">🔔</span></div>
+            <div class="nav-item" title="Delegations"><span class="nav-ic">📤</span></div>
+            <div class="nav-item" title="Flows"><span class="nav-ic">🔀</span></div>
+          </div>
+        </aside>
+        <div class="resizer"></div>
+        <div class="content-fake"><h2>Energy Hero · Dashboard</h2>more horizontal real estate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>What changes vs. v1</strong>
+    <ul>
+      <li><strong>Compact projects = just the colored dot</strong>, not a full filled circle. Matches the look you already have in the full sidebar — same dot, just centered on its own row.</li>
+      <li><strong>Active project</strong> in compact mode: dot gets a soft white outer ring (instead of becoming a filled disc). Subtle background tint behind it.</li>
+      <li><strong>Workspace icons</strong> stay as their existing colorful glyphs (✅🤝📝✨🔔📤🔀…), centered. No restyling.</li>
+      <li><strong>Overdue / today badges</strong>: tiny 14px red/amber bubble in the top-right corner of the project's slot — only when there's actually something. Same for Todos nav item (4 overdue → red bubble).</li>
+      <li><strong>Active nav item</strong>: 3px accent stripe on the left edge of the slot, plus light tinted background. No box, no fill — keeps the rail visually quiet.</li>
+      <li><strong>Pinned items</strong> in compact: just the type icon (✓ 📝 🔀 ●) centered. Hover tooltip shows the full title.</li>
+      <li><strong>Overview button</strong> shrinks to a 36px square with just the ◈ glyph.</li>
+    </ul>
+    <strong style="margin-top:10px">Drag mechanics</strong>
+    Reuse <code>setupSidebarResizer</code>: when computed width drops below ~110px, add <code>body.sidebar-compact</code>. The CSS class flip swaps to compact rules. No animation needed (the resize itself is the animation). Width is persisted in localStorage as today.
+  </div>
+
+</body>
+</html>

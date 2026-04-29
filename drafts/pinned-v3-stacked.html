@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned V3 — All-in-one scroll</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0f172a; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 30px 20px;
+    color: #f1f5ff; font-size: 13px;
+  }
+  .window {
+    width: 400px;
+    background:
+      radial-gradient(at 20% 10%, rgba(76, 29, 149, 0.4) 0%, transparent 55%),
+      radial-gradient(at 80% 90%, rgba(14, 165, 233, 0.3) 0%, transparent 55%),
+      #0a0f1e;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    max-height: 820px;
+    display: flex; flex-direction: column;
+  }
+  .titlebar {
+    height: 30px; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.25); backdrop-filter: blur(8px);
+    flex-shrink: 0;
+  }
+  .titlebar .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+  .titlebar .name { font-weight: 600; color: rgba(255,255,255,0.75); }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .close { color: rgba(255,255,255,0.3); cursor: pointer; }
+
+  .scroll { flex: 1; overflow-y: auto; }
+
+  /* === PULSE BAND === */
+  .pulse-band {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .ring-wrap { width: 90px; height: 90px; position: relative; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-wrap circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+  .ring-bg { stroke: rgba(255,255,255,0.07); }
+  .ring-fg { stroke: #ef4444; stroke-dasharray: 252; stroke-dashoffset: 95; filter: drop-shadow(0 0 6px #ef4444); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-num { font-size: 22px; font-weight: 700; color: #fff; line-height: 1; }
+  .ring-lbl { font-size: 8px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 2px; }
+  .pulse-right { flex: 1; min-width: 0; }
+  .pulse-title { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .pulse-sub { font-size: 13px; color: #fff; margin-top: 4px; }
+  .pulse-sub strong { color: #fda4af; }
+  .pulse-tiny-tiles { display: flex; gap: 6px; margin-top: 8px; }
+  .tiny-tile {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px; padding: 4px 8px;
+    font-size: 10px; color: rgba(255,255,255,0.75);
+    display: flex; align-items: center; gap: 4px;
+    cursor: pointer;
+  }
+  .tiny-tile:hover { background: rgba(255,255,255,0.08); }
+  .tiny-tile strong { color: #fff; font-weight: 700; }
+
+  /* === FOCUS BAND (when active) === */
+  .focus-band {
+    margin: 12px 14px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18) 0%, rgba(236, 72, 153, 0.1) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .focus-band-header {
+    display: flex; align-items: center; gap: 8px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #c4b5fd;
+  }
+  .focus-band-header::before { content: '🔥'; font-size: 10px; }
+  .focus-band-title { font-size: 13px; font-weight: 600; color: #fff; margin-top: 6px; line-height: 1.35; }
+  .focus-band-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .timer-ring { width: 52px; height: 52px; flex-shrink: 0; position: relative; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke-width: 4; stroke-linecap: round; }
+  .timer-ring .bg { stroke: rgba(255,255,255,0.08); }
+  .timer-ring .fg { stroke: #a78bfa; stroke-dasharray: 138; stroke-dashoffset: 32; filter: drop-shadow(0 0 6px #a78bfa); }
+  .timer-time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .timer-info { flex: 1; min-width: 0; }
+  .timer-state { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a78bfa; }
+  .timer-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .timer-controls { display: flex; gap: 5px; margin-top: 5px; }
+  .tmr-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #e2e8f0; padding: 2px 7px; border-radius: 4px; font-size: 9px; cursor: pointer; font-family: inherit; }
+  .tmr-btn.primary { background: #8b5cf6; border-color: #8b5cf6; }
+  .focus-steps { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .focus-steps-header { font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .fs-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 11px; color: rgba(255,255,255,0.85); }
+  .fs-check { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+  .fs-check.done { background: #16a34a; border-color: #16a34a; position: relative; }
+  .fs-check.done::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; font-weight: 700; }
+  .fs-row.done .fs-label { text-decoration: line-through; color: rgba(255,255,255,0.4); }
+
+  /* === TRIAGE BAND === */
+  .triage-band {
+    padding: 10px 14px 8px;
+  }
+  .triage-header { display: flex; align-items: center; gap: 8px; padding: 0 6px 8px; }
+  .triage-title { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+  .triage-count { flex: 1; font-size: 10px; color: rgba(255,255,255,0.5); }
+  .kbd-hint { font-size: 9px; color: rgba(255,255,255,0.4); }
+  .kbd-hint kbd {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px; padding: 0 4px; font-family: inherit; color: rgba(255,255,255,0.75);
+    margin: 0 1px;
+  }
+
+  .tri-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .tri-item:hover { background: rgba(255,255,255,0.07); }
+  .tri-item.selected {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+  }
+  .tri-caret {
+    color: transparent;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .tri-item.selected .tri-caret { color: #a78bfa; }
+  .tri-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .tri-dot.overdue { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .tri-dot.today { background: #f59e0b; }
+  .tri-dot.wait { background: #0ea5e9; }
+  .tri-txt { flex: 1; min-width: 0; font-size: 12px; color: rgba(255,255,255,0.9); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tri-item.selected .tri-txt { color: #fff; font-weight: 600; }
+  .tri-proj { font-size: 9px; padding: 1px 6px; border-radius: 8px; background: rgba(251,146,60,0.18); color: #fed7aa; font-weight: 600; flex-shrink: 0; }
+  .tri-proj.ai5 { background: rgba(14,165,233,0.18); color: #bae6fd; }
+  .tri-due { font-size: 10px; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tri-due.overdue { color: #fda4af; font-weight: 600; }
+
+  /* === BOTTOM: actions + capture === */
+  .bottom-dock {
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .actions-row { display: flex; gap: 3px; padding: 8px 12px 0; }
+  .act {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.8);
+    padding: 6px 4px; border-radius: 6px;
+    cursor: pointer; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    font-size: 10px;
+  }
+  .act:hover { background: rgba(255,255,255,0.1); }
+  .act-kbd { font-size: 8px; color: rgba(255,255,255,0.4); }
+  .act.done { color: #86efac; }
+  .act.now { color: #c4b5fd; background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); }
+
+  .capture-bar {
+    margin: 8px 12px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 9px;
+    padding: 6px 9px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .capture-bar input { flex: 1; background: transparent; border: 0; outline: 0; color: #fff; font-family: inherit; font-size: 11px; }
+  .capture-bar input::placeholder { color: rgba(255,255,255,0.4); }
+  .mic-btn { width: 22px; height: 22px; border-radius: 50%; border: 0; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; cursor: pointer; font-size: 10px; }
+
+  .callout { padding: 30px 20px; text-align: center; color: #64748b; font-size: 12px; max-width: 400px; line-height: 1.6; margin: 20px auto 0; }
+  .callout strong { color: #e2e8f0; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="window">
+      <div class="titlebar"><div class="dot"></div><span class="name">Pinned · 8 need attention</span><span class="spacer"></span><span class="close">✕</span></div>
+
+      <div class="scroll">
+        <!-- Pulse band -->
+        <div class="pulse-band">
+          <div class="ring-wrap">
+            <svg width="90" height="90"><circle class="ring-bg" cx="45" cy="45" r="40"></circle><circle class="ring-fg" cx="45" cy="45" r="40"></circle></svg>
+            <div class="ring-center"><div class="ring-num">8</div><div class="ring-lbl">Due</div></div>
+          </div>
+          <div class="pulse-right">
+            <div class="pulse-title">Wed, 22 Apr · 14:07</div>
+            <div class="pulse-sub"><strong>3 overdue</strong> · 5 today · 2 waiting</div>
+            <div class="pulse-tiny-tiles">
+              <div class="tiny-tile"><strong>3</strong> overdue</div>
+              <div class="tiny-tile"><strong>5</strong> today</div>
+              <div class="tiny-tile"><strong>2</strong> delegs</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Focus band (active session) -->
+        <div class="focus-band">
+          <div class="focus-band-header">Focus · in session</div>
+          <div class="focus-band-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+          <div class="focus-band-row">
+            <div class="timer-ring">
+              <svg width="52" height="52"><circle class="bg" cx="26" cy="26" r="22"></circle><circle class="fg" cx="26" cy="26" r="22"></circle></svg>
+              <div class="timer-time">18:47</div>
+            </div>
+            <div class="timer-info">
+              <div class="timer-state">Deep Work</div>
+              <div class="timer-label">25-min focus · 2 of 4 steps</div>
+              <div class="timer-controls">
+                <button class="tmr-btn primary">⏸ Pause</button>
+                <button class="tmr-btn">+5m</button>
+                <button class="tmr-btn">End</button>
+              </div>
+            </div>
+          </div>
+          <div class="focus-steps">
+            <div class="focus-steps-header"><span>Sub-steps</span><span>2/4</span></div>
+            <div class="fs-row done"><div class="fs-check done"></div><div class="fs-label">Umsatz feld anlegen</div></div>
+            <div class="fs-row done"><div class="fs-check done"></div><div class="fs-label">Gesamte Ersparnis</div></div>
+            <div class="fs-row"><div class="fs-check"></div><div class="fs-label">Friendscode count</div></div>
+            <div class="fs-row"><div class="fs-check"></div><div class="fs-label">Webforms count</div></div>
+          </div>
+        </div>
+
+        <!-- Triage band -->
+        <div class="triage-band">
+          <div class="triage-header">
+            <span class="triage-title">Queue</span>
+            <span class="triage-count">8 items</span>
+            <span class="kbd-hint"><kbd>↑↓</kbd> pick · <kbd>N</kbd> focus</span>
+          </div>
+          <div class="tri-item selected">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot overdue"></span>
+            <span class="tri-txt">KPI Felder in Accounts — Umsatz &amp; Ersparnis</span>
+            <span class="tri-proj">EH</span>
+            <span class="tri-due overdue">21 Apr</span>
+          </div>
+          <div class="tri-item">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot overdue"></span>
+            <span class="tri-txt">Kontaktformular EDA Vollmacht</span>
+            <span class="tri-proj">EH</span>
+            <span class="tri-due overdue">22 Apr</span>
+          </div>
+          <div class="tri-item">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot overdue"></span>
+            <span class="tri-txt">Vorlage Email GK</span>
+            <span class="tri-proj">EH</span>
+            <span class="tri-due overdue">22 Apr</span>
+          </div>
+          <div class="tri-item">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot today"></span>
+            <span class="tri-txt">tally feedbackformular einrichten</span>
+            <span class="tri-proj ai5">AI5</span>
+            <span class="tri-due">22 Apr</span>
+          </div>
+          <div class="tri-item">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot today"></span>
+            <span class="tri-txt">teilnehmerliste drucken</span>
+            <span class="tri-proj ai5">AI5</span>
+            <span class="tri-due">22 Apr</span>
+          </div>
+          <div class="tri-item">
+            <span class="tri-caret">▸</span>
+            <span class="tri-dot wait"></span>
+            <span class="tri-txt">← Akropolis — Vollmachten 5 Firmen</span>
+            <span class="tri-proj">EH</span>
+            <span class="tri-due">24 Apr</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-dock">
+        <div class="actions-row">
+          <button class="act done"><span>✓</span><span>Done</span><span class="act-kbd">D</span></button>
+          <button class="act now"><span>⚡</span><span>Focus</span><span class="act-kbd">N</span></button>
+          <button class="act"><span>⏰</span><span>Snooze</span><span class="act-kbd">S</span></button>
+          <button class="act"><span>📤</span><span>Delegate</span><span class="act-kbd">G</span></button>
+          <button class="act"><span>→</span><span>Skip</span><span class="act-kbd">↵</span></button>
+        </div>
+        <div class="capture-bar">
+          <span style="font-size:11px; color:rgba(255,255,255,0.4)">＋</span>
+          <input placeholder="Quick capture — 'call Lukas tomorrow @eh'">
+          <button class="mic-btn">🎙</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>V3 — All-in-one scroll</strong>
+      Everything visible at once in one scrollable column: Pulse band at top (glance), Focus session card in the middle (active work, only shown when a session is live), Triage list below (full queue). Arrow keys move the highlight in the triage list; D/N/S/G/↵ act on the selected item. Focus band disappears when no session is active — replaced by an empty "Start focus on selected" CTA.
+      <ul>
+        <li>No mode-switching — you see everything relevant at all times</li>
+        <li>Focus session is inline, not a separate view — never "lost in focus"</li>
+        <li>Keyboard drives the list; mouse still works everywhere</li>
+        <li>Best when pinned tall — scales down gracefully to ~500px tall</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

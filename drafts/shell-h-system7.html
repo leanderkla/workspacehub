@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell H — System 7 / Chunky Retro</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+  body {
+    font-family: "Chicago", "Monaco", "Lucida Grande", -apple-system, sans-serif;
+    background: #8a8a8a;
+    background-image:
+      linear-gradient(45deg, #7a7a7a 25%, transparent 25%),
+      linear-gradient(-45deg, #7a7a7a 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #7a7a7a 75%),
+      linear-gradient(-45deg, transparent 75%, #7a7a7a 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+    color: #000;
+    font-size: 12px;
+    min-height: 100vh; padding: 20px;
+    -webkit-font-smoothing: none;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #dcdcdc;
+    border: 1px solid #000;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+    overflow: hidden;
+    min-height: 800px;
+  }
+
+  /* Chunky titlebar with parallel-line hatching */
+  .titlebar {
+    height: 20px;
+    background:
+      repeating-linear-gradient(0deg, #000 0, #000 1px, #fff 1px, #fff 3px);
+    display: flex; align-items: center;
+    padding: 0 4px;
+    border-bottom: 1px solid #000;
+    position: relative;
+  }
+  .close-box {
+    width: 14px; height: 12px;
+    background: #fff;
+    border: 1px solid #000;
+    cursor: pointer;
+  }
+  .close-box:hover { background: #000; }
+  .title-center {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    background: #dcdcdc;
+    padding: 0 12px;
+    font-size: 11px; font-weight: 700;
+    font-family: "Chicago", "Lucida Grande", sans-serif;
+    letter-spacing: 0.03em;
+  }
+  .zoom-box {
+    width: 14px; height: 12px; margin-left: auto;
+    background: #fff; border: 1px solid #000; cursor: pointer;
+    position: relative;
+  }
+  .zoom-box::after {
+    content: ''; position: absolute; top: 1px; left: 1px; right: 1px; bottom: 1px;
+    border: 1px solid #000;
+  }
+
+  /* Menu bar */
+  .menubar {
+    height: 20px;
+    background: #dcdcdc;
+    border-bottom: 1px solid #000;
+    display: flex;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+  .menu {
+    padding: 3px 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .menu:hover { background: #000; color: #fff; }
+
+  .content-wrap {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 760px;
+    border-top: 2px solid #000;
+  }
+
+  /* Sidebar as a classic file-browser panel */
+  .sidebar {
+    background: #b8b8b8;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px);
+    border-right: 2px solid #000;
+    padding: 8px 0;
+    overflow-y: auto;
+  }
+  .sb-section {
+    padding: 4px 10px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+    background: #dcdcdc;
+    margin: 8px 0 4px;
+  }
+  .sb-section:first-child { margin-top: 0; border-top: 0; }
+  .sb-item {
+    padding: 3px 10px 3px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    font-family: "Chicago", sans-serif;
+  }
+  .sb-item:hover { background: #000; color: #fff; }
+  .sb-item.active { background: #000; color: #fff; font-weight: 700; }
+  .sb-item .ic { width: 14px; height: 12px; background: #fff; border: 1px solid #000; flex-shrink: 0; position: relative; }
+  .sb-item.active .ic { background: #fff; }
+  .sb-item .ic::before {
+    content: ''; position: absolute; inset: 2px;
+    background: repeating-linear-gradient(0deg, transparent 0, transparent 1px, rgba(0,0,0,0.3) 1px, rgba(0,0,0,0.3) 2px);
+  }
+  .sb-dot {
+    width: 8px; height: 8px;
+    border: 1px solid #000;
+    flex-shrink: 0;
+  }
+  .sb-count { margin-left: auto; font-size: 10px; font-weight: 700; }
+
+  /* Content — inner window */
+  .content { padding: 12px; overflow-y: auto; background: #dcdcdc; }
+
+  .inner-window {
+    background: #fff;
+    border: 1px solid #000;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+    margin-bottom: 12px;
+  }
+  .inner-title {
+    background: repeating-linear-gradient(0deg, #000 0, #000 1px, #fff 1px, #fff 3px);
+    height: 18px;
+    border-bottom: 1px solid #000;
+    display: flex; align-items: center; padding: 0 6px;
+    position: relative;
+  }
+  .inner-title-text {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    background: #fff;
+    padding: 0 10px;
+    font-size: 11px; font-weight: 700;
+    font-family: "Chicago", sans-serif;
+  }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 8px; background: #000; }
+  .stat { background: #dcdcdc; padding: 10px; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 700; font-family: "Chicago", sans-serif; }
+  .stat.alert .stat-val { color: #000; }
+  .stat.alert { background: #fff; background-image: repeating-linear-gradient(0deg, transparent 0, transparent 1px, #000 1px, #000 2px); }
+  .stat.alert .stat-val, .stat.alert .stat-lbl { background: #fff; display: inline-block; padding: 2px 6px; }
+  .stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-top: 3px; }
+
+  .list-pane { padding: 0; }
+  .list-head {
+    display: grid; grid-template-columns: 30px 1fr 100px 80px;
+    padding: 4px 8px;
+    background: #dcdcdc;
+    border-bottom: 1px solid #000;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .list-row {
+    display: grid; grid-template-columns: 30px 1fr 100px 80px;
+    padding: 4px 8px;
+    border-bottom: 1px dashed #aaa;
+    font-size: 12px;
+    cursor: default;
+    align-items: center;
+  }
+  .list-row:last-child { border: 0; }
+  .list-row:hover { background: #000; color: #fff; }
+  .list-row .check { width: 11px; height: 11px; border: 1px solid #000; background: #fff; }
+  .list-row .check.done { background: #000; }
+  .list-row .check.done::after { content: '✓'; color: #fff; font-size: 9px; display: block; text-align: center; line-height: 11px; }
+  .list-row.overdue .title { font-weight: 700; }
+  .list-row.overdue::before {
+    content: '!'; display: inline-block; width: 14px; height: 14px;
+    background: #000; color: #fff; text-align: center; font-weight: 700;
+    font-family: "Chicago", sans-serif; font-size: 11px;
+    line-height: 14px; margin-right: 4px;
+  }
+  .list-row .due { font-family: "Monaco", monospace; font-size: 11px; }
+  .list-row .tag {
+    background: #dcdcdc; border: 1px solid #000;
+    padding: 0 4px; font-size: 9px; font-weight: 700; text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* Bottom status bar */
+  .statusbar {
+    grid-column: 1 / -1;
+    background: #dcdcdc;
+    border-top: 2px solid #000;
+    padding: 4px 10px;
+    font-size: 11px; font-family: "Chicago", sans-serif;
+    display: flex; align-items: center; gap: 14px;
+    height: 22px;
+  }
+  .sb-spacer { flex: 1; }
+
+  button.chunky {
+    background: #dcdcdc;
+    border: 1px solid #000;
+    box-shadow: 1px 1px 0 #000;
+    padding: 2px 10px;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    cursor: pointer;
+  }
+  button.chunky:hover { background: #000; color: #fff; }
+  button.chunky:active { box-shadow: none; transform: translate(1px, 1px); }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #ccc; font-size: 13px; line-height: 1.6; font-family: -apple-system, sans-serif; }
+  .callout strong { color: #fff; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #fff; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="close-box"></div>
+      <div class="title-center">WorkspaceHub — Energy Hero</div>
+      <div class="zoom-box"></div>
+    </div>
+
+    <div class="menubar">
+      <div class="menu">File</div>
+      <div class="menu">Edit</div>
+      <div class="menu">View</div>
+      <div class="menu">Project</div>
+      <div class="menu">Todo</div>
+      <div class="menu">Focus</div>
+      <div class="menu">Window</div>
+      <div class="menu">Help</div>
+    </div>
+
+    <div class="content-wrap">
+      <div class="sidebar">
+        <div class="sb-section">Projects</div>
+        <div class="sb-item active"><div class="sb-dot" style="background:#000"></div>Energy Hero<span class="sb-count">!4</span></div>
+        <div class="sb-item"><div class="sb-dot" style="background:#fff"></div>AI5innovation<span class="sb-count">!3</span></div>
+        <div class="sb-item"><div class="sb-dot" style="background:#888"></div>WorkspaceHub</div>
+        <div class="sb-item"><div class="sb-dot" style="background:#ccc"></div>Erasmus Buch</div>
+        <div class="sb-item"><div class="sb-dot" style="background:#444"></div>Memory Pix</div>
+
+        <div class="sb-section">Energy Hero</div>
+        <div class="sb-item"><div class="ic"></div>Dashboard</div>
+        <div class="sb-item"><div class="ic"></div>Dump Zone</div>
+        <div class="sb-item"><div class="ic"></div>Notes</div>
+        <div class="sb-item"><div class="ic"></div>Todos<span class="sb-count">!4</span></div>
+        <div class="sb-item"><div class="ic"></div>Commitments</div>
+        <div class="sb-item"><div class="ic"></div>Delegations</div>
+        <div class="sb-item"><div class="ic"></div>Subprojects</div>
+        <div class="sb-item"><div class="ic"></div>Spark Map</div>
+        <div class="sb-item"><div class="ic"></div>Reminders</div>
+      </div>
+
+      <div class="content">
+        <!-- Stats inner window -->
+        <div class="inner-window">
+          <div class="inner-title"><div class="inner-title-text">At a glance</div></div>
+          <div class="stats-grid">
+            <div class="stat alert"><div class="stat-val">4</div><div class="stat-lbl">Overdue</div></div>
+            <div class="stat"><div class="stat-val">5</div><div class="stat-lbl">Today</div></div>
+            <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">Open</div></div>
+            <div class="stat"><div class="stat-val">14</div><div class="stat-lbl">Notes</div></div>
+          </div>
+        </div>
+
+        <!-- List -->
+        <div class="inner-window">
+          <div class="inner-title"><div class="inner-title-text">Queue · 8 items</div></div>
+          <div class="list-pane">
+            <div class="list-head">
+              <div></div>
+              <div>Title</div>
+              <div>Category</div>
+              <div>Due</div>
+            </div>
+            <div class="list-row overdue">
+              <div class="check"></div>
+              <div class="title">KPI Felder in Accounts → Umsatz &amp; Ersparnis</div>
+              <div class="tag">Accounts</div>
+              <div class="due">21-APR</div>
+            </div>
+            <div class="list-row overdue">
+              <div class="check"></div>
+              <div class="title">Kontaktformular EDA Vollmacht</div>
+              <div class="tag">Vollmacht</div>
+              <div class="due">22-APR</div>
+            </div>
+            <div class="list-row overdue">
+              <div class="check"></div>
+              <div class="title">Vorlage Email GK</div>
+              <div class="tag">Großkund</div>
+              <div class="due">22-APR</div>
+            </div>
+            <div class="list-row overdue">
+              <div class="check"></div>
+              <div class="title">Rückbucher inaktiv stellen</div>
+              <div class="tag">Ops</div>
+              <div class="due">22-APR</div>
+            </div>
+            <div class="list-row">
+              <div class="check"></div>
+              <div class="title">Anrufen GK · hufnagl leads</div>
+              <div class="tag">Sales</div>
+              <div class="due">24-APR</div>
+            </div>
+            <div class="list-row">
+              <div class="check"></div>
+              <div class="title">Claude wordpress integration</div>
+              <div class="tag">Tech</div>
+              <div class="due">24-APR</div>
+            </div>
+            <div class="list-row">
+              <div class="check"></div>
+              <div class="title">Review Q2 onboarding script</div>
+              <div class="tag">CRM</div>
+              <div class="due">25-APR</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:6px; padding: 0 2px">
+          <button class="chunky">+ New Todo</button>
+          <button class="chunky">Focus Next</button>
+          <button class="chunky">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+            Pinned
+          </button>
+          <div style="flex:1"></div>
+          <button class="chunky">Settings...</button>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <div>▸ 4 overdue</div>
+        <div>▸ 21 open</div>
+        <div class="sb-spacer"></div>
+        <div>Focus: 18:47</div>
+        <div>⌘K Find</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>H — System 7 / Chunky Retro</strong>
+    Classic Macintosh desktop aesthetic. Hatched titlebars, pixelated icons, chunky buttons with black 1px borders and offset drop shadows, dithered window backgrounds, "Chicago"-style typography. Menu bar up top. File-browser-style sidebar. Nested windows within windows. Fully functional — just wearing old clothes.
+    <ul>
+      <li>Completely uncategorizable in 2026 — will stand out hard</li>
+      <li>Extremely legible at low zoom — pixel aesthetic is inherently crisp</li>
+      <li>Nostalgia factor bonds power users who spent time in System 6/7/Win 3.1</li>
+      <li>Risk: too kitsch for serious daily work? Only you can judge</li>
+    </ul>
+  </div>
+</body>
+</html>

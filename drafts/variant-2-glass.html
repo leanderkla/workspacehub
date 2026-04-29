@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Draft 2 — Glass / Vibrant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    font-size: 13px; color: #f1f5ff;
+    background: radial-gradient(at 20% 10%, #4c1d95 0%, transparent 50%),
+                radial-gradient(at 80% 0%, #db2777 0%, transparent 45%),
+                radial-gradient(at 60% 100%, #0ea5e9 0%, transparent 50%),
+                #0b0f1e;
+    min-height: 100%; overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .titlebar {
+    height: 40px; background: rgba(15, 20, 40, 0.5); backdrop-filter: blur(20px);
+    display: flex; align-items: center; padding: 0 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px; color: rgba(255,255,255,0.7);
+  }
+  .titlebar .logo-box { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg,#8b5cf6,#ec4899); margin-right: 10px; }
+  .app { display: flex; height: calc(100vh - 40px); }
+  .sidebar {
+    width: 240px; padding: 18px 14px; overflow-y: auto;
+    background: rgba(15, 20, 40, 0.35); backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .proj-switcher {
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;
+  }
+  .proj-chip {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: 10px; cursor: pointer; transition: background 0.15s;
+    color: rgba(255,255,255,0.75);
+  }
+  .proj-chip:hover { background: rgba(255,255,255,0.04); }
+  .proj-chip.active {
+    background: linear-gradient(135deg, rgba(251,146,60,0.22), rgba(234,88,12,0.1));
+    border: 1px solid rgba(251,146,60,0.35); color: #fff;
+  }
+  .proj-chip .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+  .sidebar-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); padding: 14px 10px 6px; }
+  .nav-item {
+    padding: 7px 12px; border-radius: 8px; color: rgba(255,255,255,0.7);
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; backdrop-filter: blur(10px); }
+  .pill { background: rgba(239,68,68,0.25); color: #fecaca; font-size: 10px; padding: 1px 7px; border-radius: 10px; }
+  .main { flex: 1; padding: 28px 40px; overflow-y: auto; }
+  .hero {
+    position: relative; padding: 24px 28px; border-radius: 18px;
+    background: linear-gradient(135deg, rgba(251,146,60,0.22), rgba(192,38,211,0.12));
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px); margin-bottom: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  }
+  .hero h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+  .hero h1 .glow { width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 20px #f59e0b; }
+  .hero-sub { color: rgba(255,255,255,0.65); margin-top: 6px; font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
+  .stat {
+    padding: 16px 18px; border-radius: 14px;
+    background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .stat:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); }
+  .stat-value { font-size: 28px; font-weight: 700; margin: 6px 0 2px; }
+  .stat-delta { font-size: 11px; color: #fda4af; }
+  .stat-delta.ok { color: #86efac; }
+  .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  .panel {
+    background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden;
+  }
+  .panel-header { padding: 16px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .panel-title { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+  .panel-title.danger { color: #fca5a5; }
+  .panel-count { margin-left: auto; background: rgba(239,68,68,0.2); color: #fecaca; font-size: 11px; padding: 2px 8px; border-radius: 12px; }
+  .panel-count.neutral { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+  .row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: rgba(255,255,255,0.03); }
+  .check { width: 16px; height: 16px; border: 1.5px solid rgba(255,255,255,0.25); border-radius: 50%; flex-shrink: 0; }
+  .row.overdue { background: linear-gradient(90deg, rgba(239,68,68,0.08), transparent); }
+  .title-text { flex: 1; }
+  .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(251,146,60,0.2); color: #fed7aa; border: 1px solid rgba(251,146,60,0.3); font-weight: 500;
+  }
+  .due { font-size: 11px; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+  .overdue .due { color: #fda4af; font-weight: 600; }
+  .note { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .note:last-child { border-bottom: 0; }
+  .note-title { font-weight: 600; margin-bottom: 4px; }
+  .note-body { color: rgba(255,255,255,0.65); font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.5; }
+  .note-meta { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="logo-box"></div>
+    <span>WorkspaceHub</span>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-label">Projects</div>
+      <div class="proj-switcher">
+        <div class="proj-chip active"><span class="dot" style="background:#f59e0b;color:#f59e0b"></span> Energy Hero</div>
+        <div class="proj-chip"><span class="dot" style="background:#8b5cf6;color:#8b5cf6"></span> AI5innovation</div>
+        <div class="proj-chip"><span class="dot" style="background:#0ea5e9;color:#0ea5e9"></span> WorkspaceHub</div>
+      </div>
+      <div class="sidebar-label">Energy Hero</div>
+      <div class="nav-item">Overview</div>
+      <div class="nav-item active">Dashboard</div>
+      <div class="nav-item">Dump Zone</div>
+      <div class="nav-item">Notes</div>
+      <div class="nav-item">Todos <span class="pill">3</span></div>
+      <div class="nav-item">Commitments</div>
+      <div class="nav-item">Delegations</div>
+      <div class="nav-item">Subprojects</div>
+      <div class="nav-item">Spark Map</div>
+      <div class="nav-item">Reminders</div>
+    </aside>
+    <main class="main">
+      <div class="hero">
+        <h1><span class="glow"></span> Energy Hero</h1>
+        <div class="hero-sub">Your energy consulting workspace · 3 overdue tasks need attention</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Open todos</div><div class="stat-value">12</div><div class="stat-delta">3 overdue</div></div>
+        <div class="stat"><div class="stat-label">Notes</div><div class="stat-value">8</div><div class="stat-delta ok">+2 this week</div></div>
+        <div class="stat"><div class="stat-label">Commitments</div><div class="stat-value">5</div><div class="stat-delta">1 overdue</div></div>
+        <div class="stat"><div class="stat-label">Subprojects</div><div class="stat-value">4</div><div class="stat-delta ok">all on track</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="panel" style="margin-bottom:18px">
+            <div class="panel-header">
+              <span style="font-size:16px">⚠</span>
+              <span class="panel-title danger">Overdue</span>
+              <span class="panel-count">3</span>
+            </div>
+            <div class="row overdue"><div class="check"></div><div class="title-text">KPI Felder in Accounts → Umsatz pro Account…</div><div class="badge">CRM</div><div class="due">17 Apr</div></div>
+            <div class="row overdue"><div class="check"></div><div class="title-text">Ask Claude how to set up the agents</div><div class="badge">Research</div><div class="due">17 Apr</div></div>
+            <div class="row overdue"><div class="check"></div><div class="title-text">Connect Claude to energy hero github</div><div class="badge">DevOps</div><div class="due">20 Apr</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span style="font-size:16px">📅</span>
+              <span class="panel-title">Upcoming</span>
+              <span class="panel-count neutral">5</span>
+            </div>
+            <div class="row"><div class="check"></div><div class="title-text">Review Q2 onboarding script</div><div class="badge">CRM</div><div class="due">22 Apr</div></div>
+            <div class="row"><div class="check"></div><div class="title-text">Ping Lukas about friendscode rollout</div><div class="badge">Marketing</div><div class="due">23 Apr</div></div>
+            <div class="row"><div class="check"></div><div class="title-text">Finalize webforms v2 design</div><div class="badge">Product</div><div class="due">25 Apr</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-header">
+              <span style="font-size:16px">📝</span>
+              <span class="panel-title">Recent notes</span>
+              <span class="panel-count neutral">8</span>
+            </div>
+            <div class="note"><div class="note-title">Friendscode rollout plan</div><div class="note-body">3-phase rollout — pilot with top-10 partners, then tier-2, then everyone. Measure conversion vs. control group.</div><div class="note-meta">Yesterday</div></div>
+            <div class="note"><div class="note-title">Sales deck revisions</div><div class="note-body">Slide 4: replace generic savings chart with real EH customer median. Slide 7: cut, too long.</div><div class="note-meta">2 days ago</div></div>
+            <div class="note"><div class="note-title">Meeting · Lukas</div><div class="note-body">Agreed on CRM field naming — prefix eh_, snake_case. Pushed backfill to next sprint.</div><div class="note-meta">Mar 18</div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

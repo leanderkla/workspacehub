@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pinned V1 — Pulse Home + Slide-over Focus</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0f172a; min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 40px; padding: 30px 20px; flex-wrap: wrap;
+    color: #f1f5ff; font-size: 13px;
+  }
+  .label { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .window {
+    width: 380px;
+    background:
+      radial-gradient(at 20% 10%, rgba(76, 29, 149, 0.4) 0%, transparent 55%),
+      radial-gradient(at 80% 90%, rgba(14, 165, 233, 0.3) 0%, transparent 55%),
+      #0a0f1e;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+  }
+  .titlebar {
+    height: 30px; padding: 0 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.25); backdrop-filter: blur(8px);
+  }
+  .titlebar .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+  .titlebar .name { font-weight: 600; color: rgba(255,255,255,0.75); }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .back { color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; margin-right: 4px; }
+  .titlebar .close { color: rgba(255,255,255,0.3); cursor: pointer; }
+
+  /* ===== PULSE HOME ===== */
+  .header-time { padding: 16px 20px 6px; display: flex; align-items: baseline; gap: 10px; }
+  .time { font-size: 26px; font-weight: 300; letter-spacing: -0.02em; color: #fff; font-variant-numeric: tabular-nums; }
+  .date { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+  .ring-section { display: flex; align-items: center; justify-content: center; padding: 4px 0 8px; position: relative; }
+  .ring-wrap { width: 150px; height: 150px; position: relative; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-wrap circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+  .ring-bg { stroke: rgba(255,255,255,0.07); }
+  .ring-fg { stroke: #ef4444; stroke-dasharray: 420; stroke-dashoffset: 180; filter: drop-shadow(0 0 8px #ef4444); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-num { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; }
+  .ring-lbl { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 4px; }
+
+  .legend { display: flex; justify-content: center; gap: 14px; padding: 0 20px 12px; font-size: 11px; color: rgba(255,255,255,0.7); }
+  .leg-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+  .next-up-card {
+    margin: 0 14px 10px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-left: 3px solid #ef4444;
+    border-radius: 12px;
+    padding: 12px 14px 10px;
+  }
+  .next-up-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #fca5a5; }
+  .next-up-title { font-size: 14px; font-weight: 600; margin-top: 4px; color: #fff; line-height: 1.35; }
+  .next-up-meta { font-size: 10px; color: rgba(255,255,255,0.55); margin-top: 4px; display: flex; gap: 8px; }
+  .chip-proj { background: rgba(251, 146, 60, 0.2); color: #fed7aa; padding: 1px 7px; border-radius: 10px; font-size: 9px; font-weight: 600; }
+
+  .action-strip {
+    display: flex; gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .act {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.8);
+    padding: 6px 4px; border-radius: 6px;
+    cursor: pointer; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 10px;
+  }
+  .act:hover { background: rgba(255,255,255,0.1); }
+  .act-kbd { font-size: 8px; color: rgba(255,255,255,0.4); }
+  .act.done { color: #86efac; border-color: rgba(22,163,74,0.3); }
+  .act.now { color: #c4b5fd; border-color: rgba(139,92,246,0.3); background: rgba(139,92,246,0.1); }
+
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 14px 10px; }
+  .tile {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tile:hover { background: rgba(255,255,255,0.06); }
+  .tile-icon { font-size: 13px; }
+  .tile-num { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
+  .tile-lbl { font-size: 9px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.04em; }
+  .tile.alert .tile-num { color: #fda4af; }
+
+  .capture-bar {
+    margin: 0 14px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 7px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .capture-bar input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: #fff; font-family: inherit; font-size: 11px;
+  }
+  .capture-bar input::placeholder { color: rgba(255,255,255,0.4); }
+  .mic-btn {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 0; background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    color: white; cursor: pointer; font-size: 10px;
+  }
+
+  .hint-bar {
+    padding: 6px 14px 10px;
+    font-size: 9px; color: rgba(255,255,255,0.4);
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .hint-bar kbd {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px; padding: 0 4px;
+    font-family: inherit; margin: 0 2px;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* ===== FOCUS SLIDE-OVER ===== */
+  .focus-pane {
+    background: linear-gradient(180deg, rgba(139, 92, 246, 0.18) 0%, transparent 80%), #0a0f1e;
+  }
+  .focus-hero { padding: 14px 20px 12px; }
+  .focus-proj { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #f59e0b; display: flex; align-items: center; gap: 6px; }
+  .focus-proj::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .focus-title { font-size: 15px; font-weight: 600; line-height: 1.35; margin-top: 5px; color: #f8fafc; }
+
+  .timer-section {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+  }
+  .timer-ring { width: 64px; height: 64px; flex-shrink: 0; position: relative; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke-width: 4; stroke-linecap: round; }
+  .timer-ring .bg { stroke: rgba(255,255,255,0.08); }
+  .timer-ring .fg { stroke: #8b5cf6; stroke-dasharray: 176; stroke-dashoffset: 44; filter: drop-shadow(0 0 6px #8b5cf6); }
+  .timer-time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+  .timer-info { flex: 1; }
+  .timer-state { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a78bfa; }
+  .timer-label { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .timer-controls { display: flex; gap: 5px; margin-top: 6px; }
+  .tmr-btn {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    color: #e2e8f0; padding: 3px 8px; border-radius: 5px; font-size: 10px;
+    cursor: pointer; font-family: inherit;
+  }
+  .tmr-btn.primary { background: #8b5cf6; border-color: #8b5cf6; }
+
+  .steps { padding: 12px 20px; }
+  .steps-header { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.4); display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .step-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+  .step-row:last-child { border: 0; }
+  .step-check { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+  .step-check.done { background: #16a34a; border-color: #16a34a; position: relative; }
+  .step-check.done::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; font-weight: 700; }
+  .step-row.done .step-label { text-decoration: line-through; color: rgba(255,255,255,0.4); }
+  .step-label { flex: 1; color: rgba(255,255,255,0.85); }
+
+  .callout { padding: 30px 20px; text-align: center; color: #64748b; font-size: 12px; max-width: 380px; line-height: 1.6; margin: 0 auto; }
+  .callout strong { color: #e2e8f0; display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: #8b5cf6; }
+</style>
+</head>
+<body>
+  <!-- PULSE HOME -->
+  <div>
+    <div class="label">State 1 · Home</div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="dot"></div><span class="name">Pulse</span><span class="spacer"></span><span class="close">✕</span>
+      </div>
+      <div class="header-time"><div class="time">14:07</div><div class="date">Wed, 22 Apr</div></div>
+      <div class="ring-section">
+        <div class="ring-wrap">
+          <svg width="150" height="150">
+            <circle class="ring-bg" cx="75" cy="75" r="67"></circle>
+            <circle class="ring-fg" cx="75" cy="75" r="67"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num">8</div>
+            <div class="ring-lbl">Need attention</div>
+          </div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><span class="leg-dot" style="background:#ef4444"></span>3 overdue</span>
+        <span><span class="leg-dot" style="background:#f59e0b"></span>5 today</span>
+      </div>
+
+      <div class="next-up-card">
+        <div class="next-up-lbl">⚡ Next up · 1 day overdue</div>
+        <div class="next-up-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+        <div class="next-up-meta"><span class="chip-proj">Energy Hero</span><span>Subproject: Accounts</span></div>
+        <div class="action-strip">
+          <button class="act done"><span>✓</span><span>Done</span><span class="act-kbd">D</span></button>
+          <button class="act now"><span>⚡</span><span>Now</span><span class="act-kbd">N</span></button>
+          <button class="act"><span>⏰</span><span>Snooze</span><span class="act-kbd">S</span></button>
+          <button class="act"><span>📤</span><span>Delegate</span><span class="act-kbd">G</span></button>
+          <button class="act"><span>→</span><span>Skip</span><span class="act-kbd">↵</span></button>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile alert"><span class="tile-icon">⚠</span><div><div class="tile-num">3</div><div class="tile-lbl">Overdue</div></div></div>
+        <div class="tile"><span class="tile-icon">📅</span><div><div class="tile-num">5</div><div class="tile-lbl">Today</div></div></div>
+        <div class="tile"><span class="tile-icon">📤</span><div><div class="tile-num">2</div><div class="tile-lbl">Waiting on</div></div></div>
+        <div class="tile"><span class="tile-icon">🔔</span><div><div class="tile-num">1</div><div class="tile-lbl">Reminder</div></div></div>
+      </div>
+
+      <div class="capture-bar">
+        <span style="color:rgba(255,255,255,0.4); font-size:12px">＋</span>
+        <input placeholder="Quick capture — try 'call Lukas tomorrow @eh'">
+        <button class="mic-btn">🎙</button>
+      </div>
+      <div class="hint-bar"><kbd>D</kbd><kbd>N</kbd><kbd>S</kbd><kbd>G</kbd><kbd>↵</kbd> act on Next up · <kbd>Ctrl+K</kbd> search</div>
+    </div>
+  </div>
+
+  <!-- FOCUS SLIDE-OVER -->
+  <div>
+    <div class="label">State 2 · After pressing N</div>
+    <div class="window focus-pane">
+      <div class="titlebar">
+        <span class="back">←</span>
+        <div class="dot" style="background:#8b5cf6"></div>
+        <span class="name">Focus</span><span class="spacer"></span><span class="close">✕</span>
+      </div>
+      <div class="focus-hero">
+        <div class="focus-proj">Energy Hero</div>
+        <div class="focus-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+      </div>
+      <div class="timer-section">
+        <div class="timer-ring">
+          <svg width="64" height="64">
+            <circle class="bg" cx="32" cy="32" r="28"></circle>
+            <circle class="fg" cx="32" cy="32" r="28"></circle>
+          </svg>
+          <div class="timer-time">18:47</div>
+        </div>
+        <div class="timer-info">
+          <div class="timer-state">Deep Work</div>
+          <div class="timer-label">25-min focus block</div>
+          <div class="timer-controls">
+            <button class="tmr-btn primary">⏸ Pause</button>
+            <button class="tmr-btn">Skip</button>
+            <button class="tmr-btn">+5m</button>
+          </div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="steps-header"><span>Sub-steps</span><span>2/4</span></div>
+        <div class="step-row done"><div class="step-check done"></div><div class="step-label">Umsatz pro Account feld anlegen</div></div>
+        <div class="step-row done"><div class="step-check done"></div><div class="step-label">Gesamte Ersparnis feld anlegen</div></div>
+        <div class="step-row"><div class="step-check"></div><div class="step-label">Friendscode count feld anlegen</div></div>
+        <div class="step-row"><div class="step-check"></div><div class="step-label">Webforms count feld anlegen</div></div>
+      </div>
+      <div class="hint-bar" style="padding: 10px 14px 14px"><kbd>Esc</kbd> back to Pulse · <kbd>D</kbd> done → next · <kbd>Space</kbd> pause</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>V1 — Pulse Home + Slide-over Focus</strong>
+    Pulse IS the pinned home — ring, tiles, capture always visible. The "Next up" card has inline D/N/S/G/↵ actions with visible kbd hints. Press <kbd>N</kbd> or click Now → Focus pane slides over (same window, not a separate one), showing Focus timer + sub-steps. <kbd>Esc</kbd> slides back.
+    <ul>
+      <li>Home is always Pulse — familiar, glanceable</li>
+      <li>Keyboard shortcuts live on the Next up card, not hidden in menus</li>
+      <li>Focus is a layer you enter + exit, never "lost in"</li>
+      <li>Tiles at bottom give one-click drill-in to the full list</li>
+    </ul>
+  </div>
+</body>
+</html>

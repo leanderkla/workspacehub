@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tests/run.js)",
+      "Bash(npm test *)",
+      "Bash(npm audit *)",
+      "Bash(node -e ' *)",
+      "Bash(mkdir -p vendor)",
+      "Bash(./node_modules/.bin/esbuild vendor-three-loader.js --bundle --format=iife --outfile=vendor/three.bundle.js --minify)",
+      "Bash(git branch *)",
+      "Bash(git add *)"
+    ]
+  }
+}

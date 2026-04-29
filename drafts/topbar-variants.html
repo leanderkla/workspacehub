@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Top-bar adaptations — 3 versions</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #d97706;
+    --accent-deep: #92400e;
+    --accent-soft: #fdf4e2;
+    --text-primary: #2a2520;
+    --text-secondary: #6a5f52;
+    --text-muted: #9a9085;
+  }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #2e2a26; padding: 36px 24px;
+    min-height: 100vh;
+    color: #e2dccb; font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a89d88; margin: 28px 0 10px; }
+  h2:first-child { margin-top: 0; }
+  .tb-shell {
+    max-width: 1280px; margin: 0 auto 6px;
+    background: #faf7f1;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  }
+  .tb-shell.dark { background: #141418; }
+  .caption {
+    max-width: 1280px; margin: 0 auto 8px;
+    font-size: 12px; color: #c5bba6; padding-left: 14px;
+  }
+  .caption strong { color: #fef3c7; }
+
+  /* === Common titlebar chrome === */
+  .titlebar {
+    height: 44px;
+    display: flex; align-items: center;
+    padding: 0 0 0 12px;
+    gap: 10px;
+  }
+  .logo-area {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo {
+    width: 22px; height: 22px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent), #92400e);
+    flex-shrink: 0;
+  }
+  .tb-name {
+    font-size: 13px; font-weight: 600; letter-spacing: -0.005em;
+    color: var(--text-primary);
+  }
+  .tb-divider { width: 1px; height: 22px; background: rgba(0,0,0,0.1); margin: 0 4px; }
+
+  .tb-btn {
+    width: 32px; height: 28px;
+    border: 0;
+    background: transparent;
+    color: #5a5040;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+  }
+  .tb-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-primary); }
+  .tb-btn.active { background: rgba(217, 119, 6, 0.12); color: var(--accent-deep); }
+
+  .tb-segment {
+    display: flex; align-items: center;
+    background: rgba(0,0,0,0.05);
+    border-radius: 7px;
+    padding: 2px; gap: 1px;
+  }
+  .tb-seg-btn {
+    padding: 4px 11px; font-size: 12px;
+    background: transparent; border: 0;
+    color: #5a5040; border-radius: 5px;
+    cursor: pointer; font-family: inherit;
+    font-weight: 500;
+  }
+  .tb-seg-btn.active {
+    background: #fffdf8;
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.12), 0 0 0 0.5px rgba(0,0,0,0.06);
+    font-weight: 600;
+  }
+
+  .title-center {
+    flex: 1;
+    text-align: center;
+    padding: 0 16px;
+  }
+  .title-center .name {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary); letter-spacing: -0.01em;
+  }
+  .title-center .sub {
+    font-size: 11px; color: var(--text-muted); margin-top: 1px;
+    letter-spacing: 0.02em;
+  }
+
+  .search-mini {
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    padding: 5px 10px 5px 30px;
+    font-size: 12px;
+    width: 240px;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a5f52' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='16' y1='16' x2='21' y2='21'/></svg>");
+    background-repeat: no-repeat;
+    background-position: 9px center;
+    background-size: 13px;
+  }
+  .search-mini::placeholder { color: var(--text-muted); }
+  .search-mini:focus { background-color: #fffdf8; border-color: rgba(0,0,0,0.15); box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15); }
+
+  .search-with-kbd {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    padding: 0 8px 0 0;
+  }
+  .search-with-kbd .search-mini {
+    width: 240px;
+    border: 0;
+    background-color: transparent;
+    padding-right: 6px;
+  }
+  .search-with-kbd .search-mini:focus { box-shadow: none; background-color: transparent; }
+  .search-with-kbd:focus-within { border-color: rgba(0,0,0,0.15); box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15); background-color: #fffdf8; }
+  .kbd-chip {
+    font-size: 10px; color: var(--text-muted);
+    background: rgba(0,0,0,0.05);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 3px; padding: 1px 5px;
+    letter-spacing: 0.04em; font-weight: 500;
+  }
+
+  /* Project pill in center (v2/v3) */
+  .proj-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 12px;
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .proj-pill:hover { background: rgba(0,0,0,0.06); }
+  .proj-pill .pd { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .proj-pill .caret { color: var(--text-muted); font-size: 9px; }
+
+  /* Windows-style window controls (required for your app) */
+  .win-ctls { display: flex; height: 100%; margin-left: 4px; }
+  .win-ctls button {
+    width: 44px; height: 44px;
+    border: 0; background: transparent;
+    color: #5a5040; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-family: inherit;
+  }
+  .win-ctls button:hover { background: rgba(0,0,0,0.06); }
+  .win-ctls button.close:hover { background: #dc2626; color: white; }
+
+  /* ===== V1 — Parchment Minimal ===== */
+  .v1 { background: linear-gradient(180deg, #efe9d9 0%, #e6e0cf 100%); border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+
+  /* ===== V2 — Parchment + segmented filters ===== */
+  .v2 { background: linear-gradient(180deg, #efe9d9 0%, #e6e0cf 100%); border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+
+  /* ===== V3 — Dark parchment (warm dark variant) ===== */
+  .v3 {
+    background: linear-gradient(180deg, #1f1b17 0%, #181511 100%);
+    border-bottom: 0.5px solid rgba(0,0,0,0.4);
+    color: #d5c8a8;
+  }
+  .v3 .tb-name { color: #f0e6cf; }
+  .v3 .tb-btn { color: #a89d88; }
+  .v3 .tb-btn:hover { background: rgba(255, 220, 140, 0.08); color: #fef3c7; }
+  .v3 .tb-btn.active { background: rgba(217, 119, 6, 0.2); color: #fbbf24; }
+  .v3 .tb-divider { background: rgba(255, 220, 140, 0.1); }
+  .v3 .title-center .name { color: #f0e6cf; }
+  .v3 .title-center .sub { color: #a89d88; }
+  .v3 .search-with-kbd {
+    background: rgba(255, 220, 140, 0.04);
+    border-color: rgba(255, 220, 140, 0.1);
+  }
+  .v3 .search-with-kbd:focus-within { background: rgba(255, 220, 140, 0.08); border-color: rgba(251, 191, 36, 0.4); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15); }
+  .v3 .search-mini { color: #f0e6cf; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a89d88' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='16' y1='16' x2='21' y2='21'/></svg>"); }
+  .v3 .search-mini::placeholder { color: #7a6f5a; }
+  .v3 .kbd-chip { background: rgba(255, 220, 140, 0.06); border-color: rgba(255, 220, 140, 0.1); color: #a89d88; }
+  .v3 .win-ctls button { color: #a89d88; }
+  .v3 .win-ctls button:hover { background: rgba(255, 220, 140, 0.08); color: #fef3c7; }
+  .v3 .win-ctls button.close:hover { background: #dc2626; color: white; }
+
+  /* Content preview behind top bar (just to show contrast) */
+  .content-preview {
+    max-width: 1280px; margin: 0 auto;
+    background: #f5f1e8;
+    border-radius: 0 0 10px 10px;
+    height: 70px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+  }
+  .content-preview.dark { background: #0a0910; }
+</style>
+</head>
+<body>
+
+  <h2>V1 — Parchment Minimal</h2>
+  <div class="caption">Logo + name on left · centered project title with date/overdue subtitle · mini-search with Ctrl K kbd · action icons · Windows controls. <strong>Closest to the combo draft you liked.</strong></div>
+  <div class="tb-shell">
+    <div class="titlebar v1">
+      <div class="logo-area">
+        <div class="logo"></div>
+        <span class="tb-name">WorkspaceHub</span>
+      </div>
+      <div class="title-center">
+        <div class="name">Energy Hero</div>
+        <div class="sub">Wed · 22 Apr · 4 overdue</div>
+      </div>
+      <div class="search-with-kbd">
+        <input class="search-mini" placeholder="Search or capture…">
+        <span class="kbd-chip">Ctrl K</span>
+      </div>
+      <div class="tb-divider"></div>
+      <button class="tb-btn active" title="Pinned">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" title="Settings">⚙</button>
+      <button class="tb-btn" title="Refresh">↻</button>
+      <div class="win-ctls">
+        <button>─</button>
+        <button>□</button>
+        <button class="close">✕</button>
+      </div>
+    </div>
+  </div>
+  <div class="content-preview"></div>
+
+  <h2>V2 — With segmented filters</h2>
+  <div class="caption">Adds a segmented control <strong>All · Today · Overdue · Focus</strong> between the logo and the centered title. Acts as a global filter/state switcher that works from any view.</div>
+  <div class="tb-shell">
+    <div class="titlebar v2">
+      <div class="logo-area">
+        <div class="logo"></div>
+        <span class="tb-name">WorkspaceHub</span>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-segment">
+        <button class="tb-seg-btn active">All</button>
+        <button class="tb-seg-btn">Today</button>
+        <button class="tb-seg-btn">Overdue <span style="color:#b5442a; font-weight:700">4</span></button>
+        <button class="tb-seg-btn">Focus</button>
+      </div>
+      <div class="title-center">
+        <div class="name">Energy Hero</div>
+        <div class="sub">Wed · 22 Apr · 4 overdue</div>
+      </div>
+      <div class="search-with-kbd">
+        <input class="search-mini" placeholder="Search or capture…">
+        <span class="kbd-chip">Ctrl K</span>
+      </div>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" title="Pinned">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" title="Settings">⚙</button>
+      <button class="tb-btn" title="Refresh">↻</button>
+      <div class="win-ctls">
+        <button>─</button>
+        <button>□</button>
+        <button class="close">✕</button>
+      </div>
+    </div>
+  </div>
+  <div class="content-preview"></div>
+
+  <h2>V3 — Dark parchment (warm dark variant)</h2>
+  <div class="caption">Same layout as V1 but in <strong>warm-dark</strong> tones — so users on dark/midnight themes still get the combo feel without switching to light. Deep brown-black, amber accent glow, muted cream text.</div>
+  <div class="tb-shell dark">
+    <div class="titlebar v3">
+      <div class="logo-area">
+        <div class="logo"></div>
+        <span class="tb-name">WorkspaceHub</span>
+      </div>
+      <div class="title-center">
+        <div class="name">Energy Hero</div>
+        <div class="sub">Wed · 22 Apr · 4 overdue</div>
+      </div>
+      <div class="search-with-kbd">
+        <input class="search-mini" placeholder="Search or capture…">
+        <span class="kbd-chip">Ctrl K</span>
+      </div>
+      <div class="tb-divider"></div>
+      <button class="tb-btn active" title="Pinned">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" title="Settings">⚙</button>
+      <button class="tb-btn" title="Refresh">↻</button>
+      <div class="win-ctls">
+        <button>─</button>
+        <button>□</button>
+        <button class="close">✕</button>
+      </div>
+    </div>
+  </div>
+  <div class="content-preview dark"></div>
+
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shell F — Infinite Canvas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #0c0e12;
+    color: #e4e4e4; font-size: 13px;
+    min-height: 100vh; padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: #14171c;
+    border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    border: 1px solid #1f242c;
+    position: relative;
+    min-height: 800px;
+  }
+
+  /* Floating chrome */
+  .chrome {
+    position: absolute; top: 14px; left: 14px; right: 14px; z-index: 10;
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(20, 23, 28, 0.7);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 7px 12px;
+  }
+  .tl-wrap { display: flex; gap: 7px; }
+  .tl { width: 10px; height: 10px; border-radius: 50%; border: 0.5px solid rgba(0,0,0,0.2); }
+  .tl.red { background: #ff5f57; } .tl.yellow { background: #febc2e; } .tl.green { background: #28c840; }
+
+  .proj-switcher { display: flex; align-items: center; gap: 8px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.08); }
+  .proj-dot-btn {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer; padding: 0;
+    background: transparent;
+  }
+  .proj-dot-btn.active { border-color: rgba(255,255,255,0.5); box-shadow: 0 0 0 2px rgba(0,0,0,0.5); }
+  .proj-dot-btn .inner { width: 100%; height: 100%; border-radius: 50%; display: block; }
+
+  .zoom-group {
+    display: flex; align-items: center; gap: 2px;
+    background: rgba(0,0,0,0.2); border-radius: 6px; padding: 2px;
+    margin-left: auto;
+  }
+  .zoom-btn { background: transparent; border: 0; color: rgba(255,255,255,0.7); font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .zoom-btn:hover { color: white; background: rgba(255,255,255,0.06); }
+  .zoom-level { font-size: 11px; color: rgba(255,255,255,0.7); padding: 0 6px; font-variant-numeric: tabular-nums; }
+
+  .chrome-btn {
+    background: transparent; border: 0; color: rgba(255,255,255,0.7);
+    width: 28px; height: 24px; border-radius: 5px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chrome-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Dotted canvas */
+  .canvas {
+    width: 100%; height: 800px;
+    position: relative; overflow: hidden;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 10px 10px;
+  }
+
+  /* Project "zones" — large area labels */
+  .zone-label {
+    position: absolute;
+    font-size: 68px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: rgba(255,255,255,0.03);
+    text-transform: uppercase;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Cards floating on canvas */
+  .ccard {
+    position: absolute;
+    background: #1e232b;
+    border: 1px solid #2a3038;
+    border-radius: 10px;
+    padding: 12px 14px;
+    width: 240px;
+    cursor: grab;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .ccard:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08); }
+  .ccard-head { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
+  .ccard-head .cc-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .ccard-title { font-size: 13px; color: #f1f5f9; line-height: 1.35; font-weight: 500; }
+  .ccard-meta { font-size: 10px; color: #64748b; margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+  .ccard-meta .chip { background: rgba(245, 158, 11, 0.2); color: #fed7aa; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+  .ccard.overdue { border-color: rgba(239, 68, 68, 0.4); background: #1f1719; }
+  .ccard.overdue .ccard-meta .date { color: #fca5a5; font-weight: 600; }
+
+  .ccard.note { background: #2b2418; border-color: #3a3024; }
+  .ccard.note .ccard-head { color: #fbbf24; }
+
+  .ccard.commit { background: #1a2432; border-color: #253040; }
+  .ccard.commit .ccard-head { color: #7dd3fc; }
+
+  .ccard.focus {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.15));
+    border-color: rgba(139, 92, 246, 0.5);
+    width: 280px;
+  }
+  .ccard.focus .ccard-head { color: #d8b4fe; }
+  .focus-timer {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .focus-ring { width: 40px; height: 40px; position: relative; }
+  .focus-ring svg { transform: rotate(-90deg); }
+  .focus-ring circle { fill: none; stroke-width: 3; stroke-linecap: round; }
+  .focus-ring .bg { stroke: rgba(255,255,255,0.1); }
+  .focus-ring .fg { stroke: #c4b5fd; stroke-dasharray: 113; stroke-dashoffset: 30; }
+  .focus-time { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; }
+  .focus-controls { display: flex; gap: 4px; flex: 1; }
+  .focus-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: white; padding: 3px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+
+  /* Connections (decorative lines) */
+  .connections { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+
+  /* Minimap */
+  .minimap {
+    position: absolute; bottom: 14px; right: 14px;
+    width: 140px; height: 100px;
+    background: rgba(20, 23, 28, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px;
+    z-index: 5;
+  }
+  .minimap-inner { width: 100%; height: 100%; position: relative; }
+  .mm-dot { position: absolute; width: 5px; height: 5px; border-radius: 50%; }
+  .mm-viewport { position: absolute; border: 1px solid rgba(255,255,255,0.4); border-radius: 2px; }
+
+  /* Floating toolbar */
+  .toolbar {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px;
+    background: rgba(20, 23, 28, 0.8);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 30px;
+    padding: 5px;
+    z-index: 5;
+  }
+  .tb-btn {
+    width: 34px; height: 34px;
+    border: 0; background: transparent; color: rgba(255,255,255,0.75);
+    border-radius: 25px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .tb-btn:hover { background: rgba(255,255,255,0.08); color: white; }
+  .tb-btn.active { background: rgba(255,255,255,0.1); color: white; }
+  .tb-btn svg { width: 16px; height: 16px; }
+  .tb-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.1); margin: 0 2px; }
+
+  .callout { margin: 30px auto 0; padding: 24px; max-width: 680px; text-align: center; color: #8a8a8a; font-size: 13px; line-height: 1.6; }
+  .callout strong { color: #c4b5fd; display: block; margin-bottom: 6px; font-size: 15px; font-weight: 600; }
+  .callout ul { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 3px 0; }
+  .callout li::before { content: '▸ '; color: #c4b5fd; }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="chrome">
+      <div class="tl-wrap"><div class="tl red"></div><div class="tl yellow"></div><div class="tl green"></div></div>
+      <div class="proj-switcher">
+        <button class="proj-dot-btn active" title="Energy Hero"><span class="inner" style="background:#f59e0b"></span></button>
+        <button class="proj-dot-btn" title="AI5innovation"><span class="inner" style="background:#0ea5e9"></span></button>
+        <button class="proj-dot-btn" title="WorkspaceHub"><span class="inner" style="background:#8b5cf6"></span></button>
+        <button class="proj-dot-btn" title="Erasmus Buch"><span class="inner" style="background:#ec4899"></span></button>
+        <button class="proj-dot-btn" title="Memory Pix"><span class="inner" style="background:#10b981"></span></button>
+      </div>
+      <div class="zoom-group">
+        <button class="zoom-btn">−</button>
+        <span class="zoom-level">100%</span>
+        <button class="zoom-btn">+</button>
+      </div>
+      <button class="chrome-btn" title="Pinned">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="chrome-btn" title="Settings">⚙</button>
+    </div>
+
+    <div class="canvas">
+      <div class="zone-label" style="top: 130px; left: 60px;">ENERGY<br>HERO</div>
+
+      <svg class="connections">
+        <line x1="350" y1="320" x2="540" y2="220" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="350" y1="420" x2="540" y2="440" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="640" y1="260" x2="820" y2="180" stroke="rgba(139, 92, 246, 0.25)" stroke-width="1.5"/>
+      </svg>
+
+      <!-- Todos -->
+      <div class="ccard overdue" style="top: 180px; left: 360px;">
+        <div class="ccard-head"><span class="cc-dot" style="background:#ef4444"></span>⚠ Overdue · Todo</div>
+        <div class="ccard-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+        <div class="ccard-meta"><span class="chip">Accounts</span><span class="date">1 day overdue</span></div>
+      </div>
+      <div class="ccard overdue" style="top: 320px; left: 140px;">
+        <div class="ccard-head"><span class="cc-dot" style="background:#ef4444"></span>Overdue · Todo</div>
+        <div class="ccard-title">Kontaktformular EDA Vollmacht</div>
+        <div class="ccard-meta"><span class="chip">Vollmachten</span><span class="date">due today</span></div>
+      </div>
+      <div class="ccard" style="top: 400px; left: 360px;">
+        <div class="ccard-head"><span class="cc-dot" style="background:#f59e0b"></span>Today · Todo</div>
+        <div class="ccard-title">Vorlage Email GK</div>
+        <div class="ccard-meta"><span class="chip">Großkunden</span><span>today</span></div>
+      </div>
+      <div class="ccard" style="top: 540px; left: 240px;">
+        <div class="ccard-head"><span class="cc-dot" style="background:#f59e0b"></span>Today · Todo</div>
+        <div class="ccard-title">Rückbucher inaktiv stellen</div>
+        <div class="ccard-meta"><span class="chip">Operations</span><span>today</span></div>
+      </div>
+
+      <!-- Notes -->
+      <div class="ccard note" style="top: 540px; left: 520px;">
+        <div class="ccard-head">📝 Note · Yesterday</div>
+        <div class="ccard-title">Friendscode rollout plan</div>
+        <div class="ccard-meta">3-phase · 320 words</div>
+      </div>
+
+      <!-- Commitments -->
+      <div class="ccard commit" style="top: 420px; left: 620px;">
+        <div class="ccard-head">🤝 Commitment · Stale</div>
+        <div class="ccard-title">← Akropolis — Vollmachten 5 Firmen</div>
+        <div class="ccard-meta">they owe · 1d stale</div>
+      </div>
+
+      <!-- Focus session card -->
+      <div class="ccard focus" style="top: 180px; left: 680px;">
+        <div class="ccard-head">🔥 Focus · in session</div>
+        <div class="ccard-title">KPI Felder in Accounts — Umsatz &amp; Ersparnis</div>
+        <div class="focus-timer">
+          <div class="focus-ring">
+            <svg width="40" height="40"><circle class="bg" cx="20" cy="20" r="18"/><circle class="fg" cx="20" cy="20" r="18"/></svg>
+            <div class="focus-time">18:47</div>
+          </div>
+          <div class="focus-controls">
+            <button class="focus-btn">⏸ Pause</button>
+            <button class="focus-btn">+5m</button>
+            <button class="focus-btn">End</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="minimap">
+      <div class="minimap-inner">
+        <div class="mm-dot" style="top: 20%; left: 30%; background: #ef4444"></div>
+        <div class="mm-dot" style="top: 35%; left: 14%; background: #ef4444"></div>
+        <div class="mm-dot" style="top: 48%; left: 30%; background: #f59e0b"></div>
+        <div class="mm-dot" style="top: 68%; left: 22%; background: #f59e0b"></div>
+        <div class="mm-dot" style="top: 68%; left: 44%; background: #fbbf24"></div>
+        <div class="mm-dot" style="top: 50%; left: 54%; background: #0ea5e9"></div>
+        <div class="mm-dot" style="top: 20%; left: 60%; background: #8b5cf6"></div>
+        <div class="mm-viewport" style="top: 15%; left: 10%; width: 65%; height: 70%;"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="tb-btn active" title="Select">⌖</button>
+      <button class="tb-btn" title="Todo">✓</button>
+      <button class="tb-btn" title="Note">📝</button>
+      <button class="tb-btn" title="Commitment">🤝</button>
+      <button class="tb-btn" title="Sketch">✏</button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" title="Capture">⌕</button>
+      <button class="tb-btn" title="Focus">⚡</button>
+      <button class="tb-btn" title="Pinned">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>F — Infinite Canvas</strong>
+    Your workspace is a 2D canvas — projects are spatial zones, items are floating cards (todos/notes/commitments/focus sessions), connections drawn between related items. Pan + zoom around. Cards are draggable — you arrange them the way your head actually organizes the day. Minimap bottom-right, floating toolbar bottom-center, project-color dots in a floating top bar.
+    <ul>
+      <li>Spatial memory — "the overdue is to the left, the note is under it"</li>
+      <li>Great for people who think visually or use physical boards</li>
+      <li>You can literally draw connections between a commitment and its supporting note</li>
+      <li>Like Miro / tldraw for your own tasks, with an opinionated card system</li>
+    </ul>
+  </div>
+</body>
+</html>

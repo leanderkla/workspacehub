@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Draft 1 — Minimal / Linear-style</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { display: flex; height: 100vh; }
+  .titlebar {
+    position: fixed; top: 0; left: 0; right: 0; height: 36px;
+    background: #ffffff; border-bottom: 1px solid #ececec;
+    display: flex; align-items: center; padding: 0 16px;
+    font-size: 12px; font-weight: 500; color: #666; z-index: 100;
+  }
+  .titlebar .dot { width: 10px; height: 10px; border-radius: 2px; background: #1a1a1a; margin-right: 10px; }
+  .sidebar {
+    width: 240px; padding: 52px 12px 16px; background: #ffffff;
+    border-right: 1px solid #ececec; overflow-y: auto;
+  }
+  .sidebar-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #999; padding: 12px 10px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+    border-radius: 4px; cursor: pointer; color: #444; font-size: 13px;
+  }
+  .nav-item:hover { background: #f4f4f4; }
+  .nav-item.active { background: #eeeeee; color: #1a1a1a; font-weight: 500; }
+  .nav-item .icon { width: 14px; opacity: 0.6; }
+  .proj-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .main { flex: 1; padding: 52px 40px 40px; overflow-y: auto; max-width: 1100px; }
+  .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .page-header .proj-badge { width: 10px; height: 10px; border-radius: 2px; background: #f59e0b; }
+  .page-header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .page-sub { color: #888; font-size: 13px; margin-bottom: 32px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 28px; }
+  .stat { padding: 14px 16px; background: #fff; border: 1px solid #ececec; border-radius: 6px; }
+  .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .stat-delta { font-size: 11px; color: #dc2626; margin-top: 2px; }
+  .stat-delta.ok { color: #16a34a; }
+  .section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #999; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .count { background: #f4f4f4; color: #666; padding: 1px 6px; border-radius: 10px; font-size: 10px; }
+  .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
+  .card { background: #fff; border: 1px solid #ececec; border-radius: 6px; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid #f4f4f4; font-size: 13px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: #fafafa; }
+  .check { width: 14px; height: 14px; border: 1.5px solid #ccc; border-radius: 50%; flex-shrink: 0; }
+  .row.overdue .due { color: #dc2626; }
+  .title-text { flex: 1; color: #1a1a1a; }
+  .badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: #fff4e6; color: #92400e; border: 1px solid #fcd9a9; font-weight: 500;
+  }
+  .due { font-size: 11px; color: #888; font-variant-numeric: tabular-nums; }
+  .note { padding: 14px; border-bottom: 1px solid #f4f4f4; }
+  .note:last-child { border-bottom: 0; }
+  .note-title { font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+  .note-body { color: #666; font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .note-meta { font-size: 10px; color: #aaa; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="dot"></div>
+    <span>WorkspaceHub</span>
+    <span style="margin:0 8px; color:#ddd">/</span>
+    <span style="color:#1a1a1a">Energy Hero</span>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-section">Workspace</div>
+      <div class="nav-item active"><span class="proj-dot" style="background:#f59e0b"></span> Energy Hero</div>
+      <div class="nav-item"><span class="proj-dot" style="background:#8b5cf6"></span> AI5innovation</div>
+      <div class="nav-item"><span class="proj-dot" style="background:#0ea5e9"></span> WorkspaceHub</div>
+      <div class="sidebar-section">Energy Hero</div>
+      <div class="nav-item">Overview</div>
+      <div class="nav-item active">Dashboard</div>
+      <div class="nav-item">Dump Zone</div>
+      <div class="nav-item">Notes</div>
+      <div class="nav-item">Todos <span style="margin-left:auto;color:#dc2626;font-size:10px">3</span></div>
+      <div class="nav-item">Commitments</div>
+      <div class="nav-item">Delegations</div>
+      <div class="nav-item">Subprojects</div>
+      <div class="nav-item">Spark Map</div>
+      <div class="nav-item">Reminders</div>
+    </aside>
+    <main class="main">
+      <div class="page-header">
+        <div class="proj-badge"></div>
+        <h1>Energy Hero</h1>
+      </div>
+      <div class="page-sub">Dashboard · last updated just now</div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Open todos</div><div class="stat-value">12</div><div class="stat-delta">3 overdue</div></div>
+        <div class="stat"><div class="stat-label">Notes</div><div class="stat-value">8</div><div class="stat-delta ok">+2 this week</div></div>
+        <div class="stat"><div class="stat-label">Commitments</div><div class="stat-value">5</div><div class="stat-delta">1 overdue</div></div>
+        <div class="stat"><div class="stat-label">Subprojects</div><div class="stat-value">4</div><div class="stat-delta ok">all on track</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="section-title">Overdue <span class="count">3</span></div>
+          <div class="card" style="margin-bottom:24px">
+            <div class="row overdue">
+              <div class="check"></div>
+              <div class="title-text">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis…</div>
+              <div class="badge">CRM</div>
+              <div class="due">17 Apr</div>
+            </div>
+            <div class="row overdue">
+              <div class="check"></div>
+              <div class="title-text">Ask Claude how to set up the agents</div>
+              <div class="badge">Research</div>
+              <div class="due">17 Apr</div>
+            </div>
+            <div class="row overdue">
+              <div class="check"></div>
+              <div class="title-text">Connect Claude to energy hero github</div>
+              <div class="badge">DevOps</div>
+              <div class="due">20 Apr</div>
+            </div>
+          </div>
+          <div class="section-title">Upcoming <span class="count">5</span></div>
+          <div class="card">
+            <div class="row"><div class="check"></div><div class="title-text">Review Q2 onboarding script</div><div class="badge">CRM</div><div class="due">22 Apr</div></div>
+            <div class="row"><div class="check"></div><div class="title-text">Ping Lukas about friendscode rollout</div><div class="badge">Marketing</div><div class="due">23 Apr</div></div>
+            <div class="row"><div class="check"></div><div class="title-text">Finalize webforms v2 design</div><div class="badge">Product</div><div class="due">25 Apr</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Recent notes <span class="count">8</span></div>
+          <div class="card">
+            <div class="note"><div class="note-title">Friendscode rollout plan</div><div class="note-body">3-phase rollout — pilot with top-10 partners, then tier-2, then everyone. Measure conversion vs. control group.</div><div class="note-meta">Yesterday</div></div>
+            <div class="note"><div class="note-title">Sales deck revisions</div><div class="note-body">Slide 4: replace generic savings chart with real EH customer median. Slide 7: cut, too long.</div><div class="note-meta">2 days ago</div></div>
+            <div class="note"><div class="note-title">Meeting · Lukas</div><div class="note-body">Agreed on CRM field naming — prefix eh_, snake_case. Pushed backfill to next sprint.</div><div class="note-meta">Mar 18</div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

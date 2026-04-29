@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Combo — Parchment × macOS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #d97706;
+    --accent-deep: #92400e;
+    --accent-soft: #fdf4e2;
+    --sidebar-bg: #2a251f;
+    --sidebar-hover: rgba(255,255,255,0.05);
+    --content-bg: #faf7f1;
+    --card-bg: #fffdf8;
+    --text-primary: #2a2520;
+    --text-secondary: #6a5f52;
+    --text-muted: #9a9085;
+    --border: #ebe4d3;
+    --border-strong: #d9d0bb;
+  }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    background: #3a3530;
+    padding: 24px; min-height: 100vh;
+    color: var(--text-primary); font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window {
+    max-width: 1180px; margin: 0 auto;
+    background: var(--content-bg);
+    border-radius: 12px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    grid-template-rows: 48px 1fr;
+    min-height: 780px;
+  }
+
+  /* Unified titlebar + toolbar (mac-style), warm parchment palette */
+  .titlebar {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #efe9d9 0%, #e6e0cf 100%);
+    border-bottom: 0.5px solid rgba(0,0,0,0.1);
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 12px;
+  }
+  .traffic-lights { display: flex; gap: 7px; }
+  .tl {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 0.5px solid rgba(0,0,0,0.12);
+  }
+  .tl.red { background: #e86a60; }
+  .tl.yellow { background: #dcb04a; }
+  .tl.green { background: #6ea65c; }
+
+  .tb-divider { width: 1px; height: 22px; background: rgba(0,0,0,0.1); margin: 0 4px; }
+
+  .tb-nav { display: flex; gap: 2px; }
+  .tb-btn {
+    width: 28px; height: 28px;
+    border: 0;
+    background: transparent;
+    color: #5a5040;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+  }
+  .tb-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-primary); }
+  .tb-btn.active { background: rgba(0,0,0,0.08); color: var(--text-primary); }
+
+  /* Segmented control for main views */
+  .tb-segment {
+    display: flex;
+    background: rgba(0,0,0,0.05);
+    border-radius: 7px;
+    padding: 2px;
+    gap: 1px;
+  }
+  .tb-seg-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: transparent; border: 0;
+    color: #5a5040;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .tb-seg-btn:hover { color: var(--text-primary); }
+  .tb-seg-btn.active {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.12), 0 0 0 0.5px rgba(0,0,0,0.06);
+    font-weight: 600;
+  }
+
+  .title-center {
+    flex: 1;
+    text-align: center;
+    padding: 0 16px;
+  }
+  .title-center .name { font-size: 13px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; }
+  .title-center .sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; letter-spacing: 0.02em; }
+
+  .search-mini {
+    background: rgba(0,0,0,0.04);
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+    padding: 5px 10px 5px 28px;
+    font-size: 12px;
+    width: 200px;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a5f52' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><line x1='16' y1='16' x2='21' y2='21'/></svg>");
+    background-repeat: no-repeat;
+    background-position: 8px center;
+    background-size: 13px;
+  }
+  .search-mini::placeholder { color: var(--text-muted); }
+  .search-mini:focus {
+    background-color: var(--card-bg);
+    border-color: rgba(0,0,0,0.15);
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+  }
+
+  /* Sidebar — warm dark brown, the parchment wall */
+  .sidebar {
+    background: var(--sidebar-bg);
+    color: #c5b9a5;
+    padding: 10px 0;
+    overflow-y: auto;
+    border-right: 0.5px solid rgba(0,0,0,0.08);
+  }
+  .sb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a7e6e;
+    padding: 14px 18px 6px;
+  }
+  .sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 14px;
+    margin: 1px 6px;
+    border-radius: 6px;
+    color: #c5b9a5;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .sb-item:hover { background: var(--sidebar-hover); color: #fef3c7; }
+  .sb-item.active {
+    background: rgba(217, 119, 6, 0.18);
+    color: #fbbf24;
+    font-weight: 500;
+  }
+  .sb-item .sb-ic {
+    width: 16px; text-align: center; font-size: 12px;
+    color: #8a7e6e;
+  }
+  .sb-item.active .sb-ic { color: #fbbf24; }
+  .sb-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sb-count {
+    margin-left: auto;
+    font-size: 11px;
+    color: #ef6c3f;
+    font-weight: 700;
+    background: rgba(239, 108, 63, 0.12);
+    padding: 1px 6px; border-radius: 8px;
+  }
+
+  .sb-new {
+    color: #8a7e6e; font-size: 13px;
+    margin-top: 4px;
+  }
+  .sb-new::before {
+    content: '+';
+    width: 16px; display: inline-block; text-align: center;
+    margin-right: 10px; font-weight: 600;
+  }
+
+  /* Content */
+  .content { overflow-y: auto; padding: 32px 44px 44px; background: var(--content-bg); }
+
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+  .page-title {
+    font-size: 28px; font-weight: 600; letter-spacing: -0.025em;
+    display: flex; align-items: center; gap: 14px;
+    line-height: 1;
+  }
+  .page-title .badge {
+    width: 10px; height: 10px; border-radius: 3px; background: var(--accent);
+  }
+  .page-meta { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  .page-actions { display: flex; gap: 6px; }
+  .btn {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border-strong);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.04);
+  }
+  .btn:hover { background: #fef9ed; border-color: #c9bfa8; }
+  .btn.primary {
+    background: var(--accent); border-color: var(--accent);
+    color: white; font-weight: 600;
+  }
+  .btn.primary:hover { background: #b45309; border-color: #b45309; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat {
+    background: var(--card-bg);
+    border-radius: 11px;
+    padding: 16px 18px 14px;
+    border: 0.5px solid var(--border-strong);
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.04);
+  }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .stat-val { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; line-height: 1; }
+  .stat-delta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .stat.alert .stat-val { color: #b5442a; }
+  .stat.alert .stat-delta { color: #b5442a; }
+  .stat.ok .stat-delta { color: #4b7a3f; }
+
+  /* Section titles */
+  .sec-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-title .bar { width: 20px; height: 2px; background: var(--accent); border-radius: 1px; }
+  .sec-title .count { font-family: -apple-system, "Inter", sans-serif; background: var(--accent-soft); color: var(--accent-deep); padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; }
+
+  /* Cards / lists */
+  .card {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 11px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.04);
+    margin-bottom: 22px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+  .row:last-child { border: 0; }
+  .row:hover { background: #fbf5e3; }
+  .row .ck { width: 15px; height: 15px; border: 1.5px solid #c5b9a5; border-radius: 50%; flex-shrink: 0; transition: background 0.15s; }
+  .row .ck:hover { border-color: var(--accent); }
+  .row .title { flex: 1; line-height: 1.35; }
+  .row .chip {
+    font-size: 10px; padding: 2px 9px; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent-deep);
+    border: 0.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .row .due { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .row.overdue {
+    border-left: 3px solid #b5442a;
+    background: linear-gradient(90deg, rgba(181, 68, 42, 0.05), transparent 50%);
+    padding-left: 15px;
+  }
+  .row.overdue .title { font-weight: 500; }
+  .row.overdue .due { color: #b5442a; font-weight: 600; }
+
+  .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; }
+
+  /* Right column: notes cards */
+  .note-row {
+    padding: 12px 18px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .note-row:last-child { border: 0; }
+  .note-row:hover { background: #fbf5e3; }
+  .note-row-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; line-height: 1.3; }
+  .note-row-body { font-size: 12px; color: var(--text-secondary); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .note-row-meta { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+  .callout {
+    max-width: 680px; margin: 28px auto 0;
+    text-align: center; color: #cfc6b0; font-size: 12.5px; line-height: 1.6;
+  }
+  .callout strong { display: block; color: #fef3c7; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .callout ul { list-style: none; padding: 0; margin-top: 8px; text-align: left; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .callout li { padding: 2px 0; }
+  .callout li::before { content: '▸ '; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="traffic-lights">
+        <div class="tl red"></div>
+        <div class="tl yellow"></div>
+        <div class="tl green"></div>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-nav">
+        <button class="tb-btn" title="Back">‹</button>
+        <button class="tb-btn" title="Forward">›</button>
+      </div>
+      <div class="tb-divider"></div>
+      <div class="tb-segment">
+        <button class="tb-seg-btn active">Dashboard</button>
+        <button class="tb-seg-btn">Todos</button>
+        <button class="tb-seg-btn">Notes</button>
+        <button class="tb-seg-btn">Timeline</button>
+      </div>
+      <div class="title-center">
+        <div class="name">Energy Hero</div>
+        <div class="sub">Wed · 22 Apr · 4 overdue</div>
+      </div>
+      <input class="search-mini" placeholder="Search or capture…">
+      <div class="tb-divider"></div>
+      <button class="tb-btn active" title="Pinned mode">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" title="Settings">⚙</button>
+    </div>
+
+    <div class="sidebar">
+      <div class="sb-label">Projects</div>
+      <div class="sb-item active"><span class="sb-dot" style="background:#d97706"></span>Energy Hero<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#0ea5e9"></span>AI5innovation<span class="sb-count">3</span></div>
+      <div class="sb-item"><span class="sb-dot" style="background:#8b5cf6"></span>WorkspaceHub</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#ec4899"></span>Erasmus Buch</div>
+      <div class="sb-item"><span class="sb-dot" style="background:#10b981"></span>Memory Pix</div>
+      <div class="sb-item sb-new">New project</div>
+
+      <div class="sb-label">Energy Hero</div>
+      <div class="sb-item"><span class="sb-ic">⊞</span>Dashboard</div>
+      <div class="sb-item"><span class="sb-ic">🧠</span>Dump Zone</div>
+      <div class="sb-item"><span class="sb-ic">📝</span>Notes</div>
+      <div class="sb-item"><span class="sb-ic">✓</span>Todos<span class="sb-count">4</span></div>
+      <div class="sb-item"><span class="sb-ic">🤝</span>Commitments</div>
+      <div class="sb-item"><span class="sb-ic">📤</span>Delegations</div>
+      <div class="sb-item"><span class="sb-ic">📁</span>Subprojects</div>
+      <div class="sb-item"><span class="sb-ic">✨</span>Spark Map</div>
+      <div class="sb-item"><span class="sb-ic">🔔</span>Reminders</div>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title"><span class="badge"></span>Energy Hero</h1>
+          <div class="page-meta">Dashboard · last activity 12 minutes ago</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn">Filter</button>
+          <button class="btn">+ 30d</button>
+          <button class="btn primary">+ New todo</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat alert">
+          <div class="stat-lbl">Overdue</div>
+          <div class="stat-val">4</div>
+          <div class="stat-delta">+1 since yesterday</div>
+        </div>
+        <div class="stat">
+          <div class="stat-lbl">Open todos</div>
+          <div class="stat-val">21</div>
+          <div class="stat-delta">5 due today</div>
+        </div>
+        <div class="stat ok">
+          <div class="stat-lbl">Completion</div>
+          <div class="stat-val">78%</div>
+          <div class="stat-delta">▲ 12% this week</div>
+        </div>
+        <div class="stat">
+          <div class="stat-lbl">Notes</div>
+          <div class="stat-val">14</div>
+          <div class="stat-delta">+2 this week</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="sec-title">
+            <span class="bar"></span>
+            <span>Overdue</span>
+            <span class="count">4</span>
+          </div>
+          <div class="card">
+            <div class="row overdue"><div class="ck"></div><div class="title">KPI Felder in Accounts → Umsatz pro Account, Gesamte Ersparnis</div><div class="chip">Accounts</div><div class="due">21 Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Kontaktformular EDA Vollmacht</div><div class="chip">Vollmachten</div><div class="due">22 Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Vorlage Email GK</div><div class="chip">Großkunden</div><div class="due">22 Apr</div></div>
+            <div class="row overdue"><div class="ck"></div><div class="title">Rückbucher inaktiv stellen</div><div class="chip">Operations</div><div class="due">22 Apr</div></div>
+          </div>
+
+          <div class="sec-title">
+            <span class="bar"></span>
+            <span>Due this week</span>
+            <span class="count">3</span>
+          </div>
+          <div class="card">
+            <div class="row"><div class="ck"></div><div class="title">Anrufen GK · hufnagl leads abgleichen mit Salesforce</div><div class="chip">Sales</div><div class="due">24 Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">Claude wordpress integration test</div><div class="chip">Tech</div><div class="due">24 Apr</div></div>
+            <div class="row"><div class="ck"></div><div class="title">Review Q2 onboarding script</div><div class="chip">CRM</div><div class="due">25 Apr</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="sec-title">
+            <span class="bar"></span>
+            <span>Recent notes</span>
+            <span class="count">3</span>
+          </div>
+          <div class="card">
+            <div class="note-row">
+              <div class="note-row-title">Friendscode rollout plan</div>
+              <div class="note-row-body">Three-phase rollout — pilot with top-10 partners, tier-2 at day 15, full by day 30. Measure conversion vs. control.</div>
+              <div class="note-row-meta">Yesterday · 320 words</div>
+            </div>
+            <div class="note-row">
+              <div class="note-row-title">Sales deck revisions</div>
+              <div class="note-row-body">Slide 4 replaced with actual EH customer median. Slide 7 cut — redundant with slide 12.</div>
+              <div class="note-row-meta">2 days ago</div>
+            </div>
+            <div class="note-row">
+              <div class="note-row-title">Meeting · Lukas</div>
+              <div class="note-row-body">CRM field naming agreed: prefix eh_, snake_case. Backfill pushed to next sprint.</div>
+              <div class="note-row-meta">18 March</div>
+            </div>
+          </div>
+
+          <div class="sec-title">
+            <span class="bar"></span>
+            <span>Commitments waiting</span>
+            <span class="count">2</span>
+          </div>
+          <div class="card">
+            <div class="row overdue"><div class="ck"></div><div class="title"><strong style="font-weight:600">Akropolis</strong> — Vollmachten 5 Firmen</div><div class="chip">They owe</div><div class="due">1d stale</div></div>
+            <div class="row"><div class="ck"></div><div class="title"><strong style="font-weight:600">Lukas</strong> — Friendscode rollout draft</div><div class="chip">I owe</div><div class="due">24 Apr</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Combo — Parchment × macOS</strong>
+    Warm cream content + deep brown sidebar (Parchment), with macOS structural cues: traffic lights on left, unified titlebar-as-toolbar, back/forward, segmented view switcher, centered project title with date+overdue count, mini-search with inline search-icon, soft 0.5px dividers. Stat cards have subtle warm shadow; rows have colored left-stripe on overdue; accent (amber) uses Energy Hero's project color.
+    <ul>
+      <li>Traffic lights + segmented control = feels premium and desktop-native, not browser-y</li>
+      <li>Deep brown sidebar preserves your current contrast rhythm but in warmer tones</li>
+      <li>Two-column dashboard packs overdue + due-this-week + notes + commitments on one screen</li>
+      <li>Every surface is on-theme; no stark grays remain</li>
+    </ul>
+  </div>
+</body>
+</html>
