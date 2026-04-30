@@ -3694,6 +3694,7 @@ function renderContent() {
     reminders: renderReminders,
     overview:  renderOverview,
     today:     renderToday,
+    pull:      renderPull,
     molecular: renderMolecular,
     dumpzone:  renderDumpZone,
     commitments: renderCommitments,
@@ -4360,6 +4361,299 @@ function buildTodayBuckets() {
   overdueDelegations.sort((a, b) => (a.delegation.due_date || '').localeCompare(b.delegation.due_date || ''));
 
   return { overdueTodos, todayTodos, upcomingTodos, todayReminders, overdueCommitments, overdueDelegations };
+}
+
+// ===== PULL LANDING =====
+// The daily question — "what do I do next?" — answered as a calm, sparse,
+// prioritised list. Cross-project (no per-project grouping). No animation,
+// no 3D, no spinning. The molecular landing is the weekly review surface;
+// this is the daily one.
+//
+// Scoring reuses the same recency / urgency helpers as the molecular view
+// (molTouchWeight, molReminderWeight, isOverdue) so both surfaces share a
+// single underlying urgency model — Pull just renders it as a list.
+
+const PULL_GREETING_BREAKPOINTS = { morning: 5, afternoon: 12, evening: 18 };  // local hours
+const PULL_LIST_CAP = 9;
+const PULL_DRIFT_CAP = 3;
+const PULL_NEGLECTED_NOTE_DAYS = 14;     // notes with linkedTodos untouched ≥ 14d are "neglected threads"
+
+// Heuristic mapping: due-date proximity → score for todos.
+// Top of the list = score ≥ ~0.95 (overdue / due today).
+function computePullScore(item, kind, proj) {
+  const isPinned = (state.data.pinned || []).some(p =>
+    p.projectKey === proj.key && p.refId === item.id &&
+    (kind === 'todo' ? p.type === 'todo'
+     : kind === 'note' ? p.type === 'note'
+     : kind === 'reminder' ? p.type === 'reminder' : false));
+  const pinBonus = isPinned ? 0.25 : 0;
+
+  if (kind === 'reminder') {
+    return molReminderWeight(item) + pinBonus;
+  }
+  if (kind === 'todo') {
+    if (item.dueDate && isOverdue(item.dueDate)) {
+      const daysLate = molDaysSince(item.dueDate);
+      // Overdue: 1.0 baseline, gentle decay so 60-day-overdue isn't max forever.
+      return Math.max(0.7, 1.0 - daysLate / 60) + pinBonus;
+    }
+    if (item.dueDate) {
+      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+      const dueMid = new Date(item.dueDate); dueMid.setHours(0, 0, 0, 0);
+      const daysToDue = (dueMid.getTime() - todayMid.getTime()) / 86400000;
+      if (daysToDue <= 0) return 0.95 + pinBonus;     // due today
+      if (daysToDue <= 1) return 0.80 + pinBonus;     // due tomorrow
+      if (daysToDue <= 3) return 0.60 + pinBonus;     // due in 2–3d
+      if (daysToDue <= 7) return 0.35 + pinBonus;     // due this week
+    }
+    // No due date: only pinned undated todos rise above the cutoff.
+    return pinBonus * 2;
+  }
+  if (kind === 'note') {
+    // "Neglected thread": note with linkedTodos that hasn't been updated in
+    // PULL_NEGLECTED_NOTE_DAYS+. The more linked todos, the stronger the pull.
+    const linkedCount = (item.linkedTodos || []).length;
+    const days = molDaysSince(item.updated || item.created);
+    if (linkedCount > 0 && days >= PULL_NEGLECTED_NOTE_DAYS) {
+      return Math.min(0.7, 0.3 + linkedCount * 0.05 + (days - PULL_NEGLECTED_NOTE_DAYS) / 60) + pinBonus;
+    }
+    return pinBonus * 2;
+  }
+  return 0;
+}
+
+function buildPullList() {
+  const pulling = [];
+  const allItems = [];
+  const todayKey = toDateString(new Date());
+  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+  const tomorrowMid = new Date(todayMid); tomorrowMid.setDate(tomorrowMid.getDate() + 1);
+
+  for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
+    if (proj.archived) continue;
+    const projMeta = { key: pkey, name: proj.name, color: proj.color || '#6366f1' };
+
+    (proj.todos || []).forEach(t => {
+      if (t.archived || t.done) return;
+      const score = computePullScore(t, 'todo', projMeta);
+      const entry = { kind: 'todo', item: t, proj: projMeta, score };
+      allItems.push(entry);
+      if (score > 0.25) pulling.push(entry);                 // TUNING: revisit after 1-2 weeks of real usage data.
+    });
+    (proj.reminders || []).forEach(r => {
+      if (r.fired || r.doneAt) return;
+      const score = computePullScore(r, 'reminder', projMeta);
+      const entry = { kind: 'reminder', item: r, proj: projMeta, score };
+      allItems.push(entry);
+      if (score > 0.4) pulling.push(entry);                  // TUNING: revisit after 1-2 weeks of real usage data.
+    });
+    (proj.notes || []).forEach(n => {
+      if (n.archived) return;
+      const score = computePullScore(n, 'note', projMeta);
+      const entry = { kind: 'note', item: n, proj: projMeta, score };
+      allItems.push(entry);
+      if (score > 0.4) pulling.push(entry);                  // TUNING: revisit after 1-2 weeks of real usage data.
+    });
+  }
+
+  pulling.sort((a, b) => b.score - a.score);
+  const top = pulling.slice(0, PULL_LIST_CAP);
+  const overflowCount = Math.max(0, pulling.length - PULL_LIST_CAP);
+
+  // "Quietly slipping": the stalest items across all projects (todos, notes,
+  // reminders alike). For reminders we use 1 - molReminderWeight so a long-
+  // future never-touched reminder reads as stale. Items already in the
+  // pulling list are excluded so we don't double-show.
+  const topIds = new Set(top.map(e => `${e.kind}:${e.item.id}`));
+  const slipping = allItems
+    .filter(e => !topIds.has(`${e.kind}:${e.item.id}`))
+    .map(e => ({
+      ...e,
+      _stale: e.kind === 'reminder' ? 1 - molReminderWeight(e.item)
+            : 1 - molTouchWeight(e.item)
+    }))
+    .sort((a, b) => b._stale - a._stale)
+    .slice(0, PULL_DRIFT_CAP);
+
+  // Numbers for the state sentence. todayCount = todos due today PLUS
+  // reminders firing today, so the line reflects both.
+  const remindersToday = allItems.filter(e => {
+    if (e.kind !== 'reminder' || !e.item.datetime) return false;
+    const d = new Date(e.item.datetime);
+    return d >= todayMid && d < tomorrowMid;
+  }).length;
+  const summary = {
+    overdueCount: allItems.filter(e => e.kind === 'todo' && e.item.dueDate && isOverdue(e.item.dueDate)).length,
+    todayCount:   allItems.filter(e => e.kind === 'todo' && e.item.dueDate === todayKey).length + remindersToday,
+    remindersFiring: allItems.filter(e => e.kind === 'reminder' && molReminderWeight(e.item) >= 0.9).length,
+  };
+
+  return { pulling: top, slipping, summary, overflowCount };
+}
+
+function pullGreeting() {
+  // Returns the bare phrase — caller appends a period.
+  const h = new Date().getHours();
+  if (h < PULL_GREETING_BREAKPOINTS.afternoon) return 'Good morning';
+  if (h < PULL_GREETING_BREAKPOINTS.evening) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function pullStateSentence(s) {
+  const parts = [];
+  if (s.overdueCount) parts.push(`${s.overdueCount} thing${s.overdueCount === 1 ? '' : 's'} overdue`);
+  if (s.todayCount)   parts.push(`${s.todayCount} due today`);
+  if (s.remindersFiring) parts.push(`${s.remindersFiring} reminder${s.remindersFiring === 1 ? '' : 's'} firing`);
+  if (parts.length === 0) return 'Nothing urgent — good time to think.';
+  return parts.join(', ') + '.';
+}
+
+function relativeTimeHint(item, kind) {
+  if (kind === 'reminder' && item.datetime) {
+    const days = (Date.now() - new Date(item.datetime).getTime()) / 86400000;
+    if (days >= 0) return days < 1 ? 'firing now' : `overdue ${Math.floor(days)}d`;
+    if (days >= -1) return 'firing today';
+    return `in ${Math.ceil(-days)}d`;
+  }
+  if (kind === 'todo' && item.dueDate) {
+    if (isOverdue(item.dueDate)) {
+      const days = molDaysSince(item.dueDate);
+      return days < 1 ? 'due today' : `overdue ${Math.floor(days)}d`;
+    }
+    if (item.dueDate === toDateString(new Date())) return 'due today';
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (item.dueDate === toDateString(tomorrow)) return 'due tomorrow';
+    const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+    const dueMid = new Date(item.dueDate); dueMid.setHours(0, 0, 0, 0);
+    const daysToDue = Math.ceil((dueMid - todayMid) / 86400000);
+    return `due in ${daysToDue}d`;
+  }
+  if (kind === 'note') {
+    const days = Math.floor(molDaysSince(item.updated || item.created));
+    return days >= 1 ? `stale ${days}d` : 'just now';
+  }
+  return '';
+}
+
+function pullRowHTML(entry, idx, total, opts = {}) {
+  const icon = entry.kind === 'todo' ? '✓'
+            : entry.kind === 'note' ? '◆'
+            : entry.kind === 'reminder' ? '🔔' : '·';
+  // Visual weight: top item full opacity, last item ~0.55. Linear ramp.
+  // Drifting rows fix at 0.7 — they're a deliberate counterweight, not urgent.
+  const opacity = opts.isDrift ? 0.7
+    : (total <= 1 ? 1 : 1 - (idx / (total - 1)) * 0.45);
+  const projForRow = state.data.projects[entry.proj.key];
+  const sp = (projForRow?.subprojects || []).find(s => s.id === entry.item.subprojectId);
+  const projTag = `<span class="pull-tag">${escapeHTML(entry.proj.name)}${sp ? ' · ' + escapeHTML(sp.name) : ''}</span>`;
+  const hint = relativeTimeHint(entry.item, entry.kind);
+  return `<button class="pull-row${idx === 0 && !opts.isDrift ? ' pull-row--top' : ''}"
+            type="button"
+            role="listitem"
+            data-pull-kind="${entry.kind}"
+            data-pull-project="${escapeHTML(entry.proj.key)}"
+            data-pull-id="${escapeHTML(entry.item.id)}"
+            style="opacity:${opacity.toFixed(2)}">
+    <span class="pull-row-icon" style="color:${entry.proj.color}">${icon}</span>
+    <span class="pull-row-body">
+      <span class="pull-row-title">${escapeHTML(entry.item.title || '(untitled)')}</span>
+      <span class="pull-row-meta">${projTag}<span class="pull-row-hint">${escapeHTML(hint)}</span></span>
+    </span>
+  </button>`;
+}
+
+function renderPull() {
+  const { pulling, slipping, summary, overflowCount } = buildPullList();
+  const stateLine = pullStateSentence(summary);
+
+  document.getElementById('content').innerHTML = `
+    <div class="view active" id="view-pull">
+      <div class="view-header pull-header">
+        <div class="pull-greeting">${escapeHTML(pullGreeting())}.</div>
+        <div class="pull-state">${escapeHTML(stateLine)}</div>
+        <button type="button" class="pull-shape-link" id="pull-go-universe">
+          See the shape of your work →
+        </button>
+      </div>
+      <div class="view-body-scrollable pull-body">
+        ${pulling.length === 0 ? '' : `
+          <div class="pull-list" role="list">
+            ${pulling.map((e, i) => pullRowHTML(e, i, pulling.length)).join('')}
+          </div>
+          ${overflowCount > 0
+            ? `<button type="button" class="pull-overflow-link" id="pull-go-today">+${overflowCount} more in Today →</button>`
+            : ''}`}
+        ${slipping.length === 0 ? '' : `
+          <div class="pull-section pull-slipping">
+            <div class="pull-section-title">Quietly slipping</div>
+            <div class="pull-list pull-list--drift" role="list">
+              ${slipping.map(e => pullRowHTML(e, 0, 1, { isDrift: true })).join('')}
+            </div>
+          </div>`}
+      </div>
+    </div>`;
+
+  setupPullViewEvents();
+}
+
+// LISTENER HYGIENE: every renderPull() call wipes #content's innerHTML, which
+// orphans the previous #view-pull DOM and any listeners on it (eligible for GC).
+// We attach a single delegated handler set to the freshly-created #view-pull
+// parent — children (.pull-row, #pull-go-universe, #pull-go-today) get their
+// events via bubbling. No per-row listeners, no listener stacking on re-render.
+// Same pattern the existing Notes / Today views use; matches the Phase A
+// audit's pattern (c) "attach to a parent that survives the re-render scope".
+function setupPullViewEvents() {
+  const root = document.getElementById('view-pull');
+  if (!root) return;
+
+  // Touch press feedback. Mouse :active CSS handles itself, but touch users
+  // need an explicit class because there's no :hover analog and :active on
+  // touch is fleeting. Uses pointer events so it works for both inputs.
+  root.addEventListener('pointerdown', (e) => {
+    const row = e.target.closest('.pull-row');
+    if (row) row.classList.add('pull-row--pressed');
+  });
+  const clearPressed = () => {
+    root.querySelectorAll('.pull-row--pressed').forEach(r => r.classList.remove('pull-row--pressed'));
+  };
+  root.addEventListener('pointerup', clearPressed);
+  root.addEventListener('pointercancel', clearPressed);
+  root.addEventListener('pointerleave', clearPressed);
+
+  // Click handles taps, mouse clicks, and keyboard Enter/Space on focused
+  // <button>s for free.
+  root.addEventListener('click', (e) => {
+    const row = e.target.closest('.pull-row');
+    if (row) {
+      navigateToPullItem(row.dataset.pullKind, row.dataset.pullProject, row.dataset.pullId);
+      return;
+    }
+    if (e.target.closest('#pull-go-universe')) {
+      // Reset the molecular focus path so the universe opens at root.
+      state.molecular = state.molecular || { focusPath: ['__you'] };
+      state.molecular.focusPath = ['__you'];
+      try { localStorage.setItem('molFocusPath', JSON.stringify(['__you'])); } catch {}
+      showView('molecular');
+      return;
+    }
+    if (e.target.closest('#pull-go-today')) {
+      showView('today');
+      return;
+    }
+  });
+}
+
+function navigateToPullItem(kind, projectKey, itemId) {
+  if (projectKey && projectKey !== state.project) switchProject(projectKey);
+  if (kind === 'todo') {
+    showView('todos');
+  } else if (kind === 'reminder') {
+    showView('reminders');
+  } else if (kind === 'note') {
+    state.editingNote = itemId;
+    showView('notes');
+  }
 }
 
 // ===== MOLECULAR LANDING (3D) =====
