@@ -639,12 +639,26 @@ function settingsAppearanceHTML() {
 }
 
 function settingsWorkspaceHTML() {
-  const landing = localStorage.getItem('landingStyle') === 'molecular' ? 'molecular' : 'today';
+  // The 'molecular' value is preserved (not renamed to 'universe') so anyone
+  // whose persisted preference is the older value still parses correctly —
+  // only the displayed label changes.
+  const stored = localStorage.getItem('landingStyle');
+  const landing = stored === 'molecular' ? 'molecular'
+                : stored === 'today' ? 'today'
+                : 'pull';
   return `
     <div class="settings-section">
       <div class="settings-section-title">Landing view</div>
-      <div class="settings-hint">What the ☀/⚛ button in the sidebar opens.</div>
+      <div class="settings-hint">What the app opens to when it's a new day.</div>
       <div class="landing-style-options">
+        <label class="landing-style-option ${landing==='pull'?'active':''}">
+          <input type="radio" name="landing-style" value="pull" ${landing==='pull'?'checked':''}>
+          <div class="landing-style-card">
+            <div class="landing-style-ic">↓</div>
+            <div class="landing-style-name">Pull</div>
+            <div class="landing-style-desc">Daily · what's pulling on you next</div>
+          </div>
+        </label>
         <label class="landing-style-option ${landing==='today'?'active':''}">
           <input type="radio" name="landing-style" value="today" ${landing==='today'?'checked':''}>
           <div class="landing-style-card">
@@ -657,8 +671,8 @@ function settingsWorkspaceHTML() {
           <input type="radio" name="landing-style" value="molecular" ${landing==='molecular'?'checked':''}>
           <div class="landing-style-card">
             <div class="landing-style-ic">⚛</div>
-            <div class="landing-style-name">Molecular <span class="landing-style-beta">beta</span></div>
-            <div class="landing-style-desc">Graph view · everything connected, centered on you</div>
+            <div class="landing-style-name">Universe</div>
+            <div class="landing-style-desc">Map view · the shape of your work</div>
           </div>
         </label>
       </div>
@@ -2243,14 +2257,21 @@ async function init() {
   if (isDeveloperMode() && isAskForBackups()) startBackupPromptTimer();
   document.body.setAttribute('data-project', state.project);
   applyCurrentTheme();
-  // First open of the day → land on Today view (only if a project exists).
+  // Every boot lands on the user's chosen landing surface (Pull by default).
+  // Within-session navigation persists via JS state; a full reload (Ctrl+R)
+  // returns here. The 'molecular' value is preserved as the storage key for
+  // Universe so anyone with the legacy preference doesn't have to reconfigure.
   try {
-    const todayKey = toDateString(new Date());
-    const lastOpen = localStorage.getItem('lastOpenedDate');
-    if (state.project && lastOpen !== todayKey) {
-      state.view = 'today';
-      localStorage.setItem('lastOpenedDate', todayKey);
+    if (state.project) {
+      const landing = localStorage.getItem('landingStyle') || 'pull';
+      state.view = (landing === 'molecular' ? 'molecular'
+                  : landing === 'today' ? 'today'
+                  : 'pull');
     }
+    // Sweep up the orphaned key from the previous once-per-day gate. Harmless
+    // if it's already absent. A future first-open-today signal should use its
+    // own well-named key, not this stale one.
+    localStorage.removeItem('lastOpenedDate');
   } catch {}
   captureInitialUndoSnapshot();
   renderApp();
@@ -3907,18 +3928,32 @@ function renderSidebar() {
   const p = state.project;
   const navItems = getOrderedNavItems().filter(n => n.visible);
   const projectEntries = Object.entries(state.data.projects);
+  // Three landing-mode buttons: Pull (default daily), Today (bucketed list),
+  // Universe (the molecular map). Each is its own ≥44 px button so touch users
+  // can hit them reliably. The overdue badge moved to Pull because Pull is now
+  // the urgency surface — Today still shows the count internally but doesn't
+  // need a sidebar badge competing.
+  const overdueCount = (() => {
+    let n = 0;
+    for (const p of Object.values(state.data.projects || {})) {
+      if (p.archived) continue;
+      n += (p.todos || []).filter(t => !t.archived && !t.done && t.dueDate && (isOverdue(t.dueDate) || t.dueDate === toDateString(new Date()))).length;
+    }
+    return n;
+  })();
   document.getElementById('sidebar').innerHTML = `
-    <button class="today-btn ${(state.view==='today'||state.view==='molecular')?'active':''}" id="btn-today">
-      <span class="today-btn-icon">${localStorage.getItem('landingStyle') === 'molecular' ? '⚛' : '☀'}</span>
-      <span>Today</span>
-      ${(() => {
-        let n = 0;
-        for (const p of Object.values(state.data.projects || {})) {
-          if (p.archived) continue;
-          n += (p.todos || []).filter(t => !t.archived && !t.done && t.dueDate && (isOverdue(t.dueDate) || t.dueDate === toDateString(new Date()))).length;
-        }
-        return n > 0 ? `<span class="today-btn-count">${n}</span>` : '';
-      })()}
+    <button class="landing-btn pull-btn ${state.view==='pull'?'active':''}" id="btn-pull" aria-label="Pull — what's pulling on you next">
+      <span class="landing-btn-icon">↓</span>
+      <span class="landing-btn-label">Pull</span>
+      ${overdueCount > 0 ? `<span class="landing-btn-count">${overdueCount}</span>` : ''}
+    </button>
+    <button class="landing-btn today-btn ${state.view==='today'?'active':''}" id="btn-today" aria-label="Today — overdue, today, upcoming">
+      <span class="landing-btn-icon">☀</span>
+      <span class="landing-btn-label">Today</span>
+    </button>
+    <button class="landing-btn universe-btn ${state.view==='molecular'?'active':''}" id="btn-universe" aria-label="Universe — the shape of your work">
+      <span class="landing-btn-icon">⚛</span>
+      <span class="landing-btn-label">Universe</span>
     </button>
     <button class="overview-btn ${state.view==='overview'?'active':''}" id="btn-overview">
       <span class="overview-btn-icon">◈</span>
@@ -3995,10 +4030,15 @@ function renderSidebar() {
       </button>`;
     }).join('')}`;
 
-  document.getElementById('btn-today')?.addEventListener('click', () => {
-    const mode = localStorage.getItem('landingStyle') === 'molecular' ? 'molecular' : 'today';
-    showView(mode);
-  });
+  // Listener hygiene: renderSidebar() resets #sidebar's innerHTML on every call,
+  // so the three button DOM nodes (and any prior listeners on them) are
+  // orphaned and GC'd. Fresh querySelectorAll + addEventListener after each
+  // render means no stacking. Same pattern the today-btn used before — just
+  // fanned out to three buttons now. No event delegation needed because the
+  // re-render boundary already cleans up.
+  document.getElementById('btn-pull')?.addEventListener('click', () => showView('pull'));
+  document.getElementById('btn-today')?.addEventListener('click', () => showView('today'));
+  document.getElementById('btn-universe')?.addEventListener('click', () => showView('molecular'));
   document.getElementById('btn-overview')?.addEventListener('click', () => showView('overview'));
   document.getElementById('btn-pinned-add')?.addEventListener('click', openPalette);
   document.querySelectorAll('.pin-row').forEach(btn => {

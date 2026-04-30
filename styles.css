@@ -1132,39 +1132,50 @@ body.sidebar-compact .project-switcher {
   box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
 
-/* Today button — sits above Overview, accent-tinted to be the primary entry point */
-.today-btn {
+/* Landing buttons — Pull / Today / Universe stack above Overview. All three
+   share .landing-btn styles. Each is ≥44 px tall for touch. The active one
+   gets a stronger accent gradient. The Pull button is the default landing,
+   the only one that may carry an overdue count badge. */
+.landing-btn {
   display: flex;
   align-items: center;
   gap: 10px;
   width: calc(100% - 24px);
-  margin: 8px 12px 6px;
-  padding: 9px 12px;
+  margin: 4px 12px 0;
+  padding: 11px 12px;
+  min-height: 44px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) 0%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   color: #f8fafc;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition);
+  touch-action: manipulation;
+  transition: background var(--transition), border-color var(--transition), transform 100ms ease;
   text-align: left;
   font-family: var(--font);
 }
-.today-btn:hover {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 32%, transparent) 0%, color-mix(in srgb, var(--accent) 14%, transparent) 100%);
+.landing-btn:first-of-type { margin-top: 8px; }
+.landing-btn:hover {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 24%, transparent) 0%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.landing-btn:active { transform: scale(0.98); }
+.landing-btn.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 38%, transparent) 0%, color-mix(in srgb, var(--accent) 16%, transparent) 100%);
   border-color: var(--accent);
 }
-.today-btn.active {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, transparent) 0%, color-mix(in srgb, var(--accent) 18%, transparent) 100%);
-  border-color: var(--accent);
-}
-.today-btn-icon {
+.landing-btn-icon {
   font-size: 16px;
   color: var(--accent);
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 50%, transparent));
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
 }
-.today-btn-count {
+.landing-btn-label { flex: 1; }
+.landing-btn-count {
   margin-left: auto;
   background: var(--accent);
   color: #fff;
@@ -1174,15 +1185,24 @@ body.sidebar-compact .project-switcher {
   border-radius: 10px;
   line-height: 1.5;
 }
-body.sidebar-compact .today-btn {
-  width: 36px; height: 36px;
-  margin: 8px auto 4px;
+/* Pull is the primary landing — slightly stronger emphasis than the others
+   when not active, so the user's eye lands on it first. */
+.pull-btn {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) 0%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+body.sidebar-compact .landing-btn {
+  width: 44px; height: 44px;
+  margin: 4px auto 0;
   padding: 0;
   justify-content: center;
   position: relative;
+  min-height: 44px;
 }
-body.sidebar-compact .today-btn span:not(.today-btn-icon) { display: none; }
-body.sidebar-compact .today-btn .today-btn-count {
+body.sidebar-compact .landing-btn:first-of-type { margin-top: 8px; }
+body.sidebar-compact .landing-btn span:not(.landing-btn-icon) { display: none; }
+body.sidebar-compact .landing-btn .landing-btn-count {
   position: absolute;
   top: -2px; right: -2px;
   width: 16px; height: 16px;
