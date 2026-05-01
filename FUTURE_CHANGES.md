@@ -41,6 +41,22 @@ graduation right now.
   Pull view ships a leaner v0 of the same idea; the full three-layer vision
   is parked.
 
+- **2.3 Workspace-wide graph view.**
+  Spark Map is per-project. A `Workspace > Connections` view that visualizes
+  the full graph (every project's items as nodes, mentions/links as edges,
+  project-color clustering) would be the brand image of the app. Big build
+  — force simulation, visual hierarchy, click-through navigation. Read-only
+  at first. Worth doing only after the connection infrastructure under §3
+  is in place; until then there isn't enough to graph.
+
+- **2.4 Daily review with a graph prompt.**
+  End-of-day modal: *"You touched 5 todos, 2 notes, 1 commitment today.
+  They cluster around 2 themes. Anything to capture about how they connect?"*
+  Single textarea + auto-suggested topic chips, saves a `review` note
+  linked to everything touched. Forces implicit connections to become
+  explicit edges; potential engagement-loop driver. Depends on §3.2 (tags)
+  being workspace-aware to detect "themes."
+
 **Decoupling note**: items previously framed as "make the molecule denser"
 still earn their keep on their own merits. They live under §3 with the
 molecular framing removed.
@@ -74,42 +90,23 @@ layer further across the workspace.
   → tag chips on each card → workspace-wide tag pool → `Tags` view (sidebar,
   optional) → palette filter (`#q4`).
 
-- **3.3 Workspace-wide graph view.**
-  Spark Map is per-project. Build a `Workspace > Connections` view that
-  visualizes the entire graph: every project's items as nodes, @-mentions
-  and linked-todos as edges, project-color clustering. Reuse the SVG layout
-  engine from Spark Map. Hover a node → highlight 1-hop neighborhood, dim
-  the rest. Read-only at first; that becomes the brand image of the app.
+  Note: an earlier plan included "Topics — link-only nodes" as a separate
+  workspace-wide entity type. Topics ≈ tags but cross-project; since
+  cross-project tagging isn't a current need, the topic concept is
+  subsumed into this item. If cross-project tagging becomes useful later,
+  lifting tags to workspace-scope (one shared pool, no project keying) is
+  the natural extension.
 
-- **3.4 Smart link suggestions while typing.**
+- **3.3 Smart link suggestions while typing.**
   When the user types "the proposal" anywhere, ghost-text whispers
   `↗ Q4 Proposal · Energy Hero`. Tab inserts as `<a class="mention">`.
   Reuse the slash-command ghost-text engine (`suggestSlashCompletion`
   + overlay div + Tab handler) — same UX, different content source.
 
   Heuristic: 3+ characters typed AND a fuzzy match against an existing
-  item title.
-
-- **3.5 Topics — link-only nodes.**
-  A new lightweight type. A "Topic" has a name, a color, no due date, no
-  checkbox. Pure node whose only purpose is for other things to link to it.
-
-  > "Q4 Strategy" as a topic → 8 items mention it → opening the Topic shows
-  > the 8 plus the topic's optional description.
-
-  Roam calls these `[[brackets]]`. We pick our own term ("Topic," "Anchor,"
-  "Hub" — match brand). Workspace-wide (a topic might span projects).
-
-- **3.6 Daily review with a graph prompt.**
-  End-of-day modal (configurable time, e.g. 18:00):
-
-  > "You touched 5 todos, 2 notes, 1 commitment today. They cluster around
-  > 2 themes. Anything to capture about how they connect?"
-
-  Single textarea + auto-suggested topic chips. Saves as a `review` note
-  tagged with date, linked to everything touched. Forces implicit
-  connections to become explicit edges. Becomes the engagement loop —
-  the reason to return tomorrow.
+  item title or tag. Match index: every entity title + every tag. Lazy
+  build, invalidate on entity create/delete (Phase 1 reverse-index pattern).
+  False positives kill trust — set the threshold conservatively.
 
 ---
 
