@@ -8775,13 +8775,21 @@ function installTodoSlashCompletion(input, ghost, chipsHost, fields) {
   if (!input) return;
   fields = fields || {};
 
-  // Manual-change listener per synced field: a deliberate user pick clears
-  // our tracking so the next refresh treats it as the new manual baseline.
+  // Manual-change listener per synced field. When the user manually changes
+  // a field while slash had control of it, we record the slash value at
+  // that moment as `slashOverrideFor` — future refreshes that see the same
+  // slash value skip re-taking control, so the manual pick survives across
+  // keystrokes. As soon as the slash command resolves to a different value
+  // (or disappears), control is taken back / released cleanly.
   Object.values(fields).forEach(el => {
     if (!el || el._slashChangeHooked) return;
     el.addEventListener('change', () => {
+      if (el.dataset.slashControlled === '1') {
+        el.dataset.slashOverrideFor = el.dataset.slashControlValue || '';
+      }
       delete el.dataset.slashControlled;
       delete el.dataset.slashManual;
+      delete el.dataset.slashControlValue;
     });
     el._slashChangeHooked = true;
   });
@@ -8820,23 +8828,42 @@ function installTodoSlashCompletion(input, ghost, chipsHost, fields) {
   refresh();
 }
 
-// Drive a single form field from a slash-parsed value. When slash takes over
-// for the first time, we snapshot whatever the user had picked (slashManual)
-// so backspacing the command can restore it instead of jumping to the hard
-// default. The data attribute is also a styling hook (subtle accent border)
-// so the user can tell at a glance which fields are slash-controlled.
+// Drive a single form field from a slash-parsed value. The state machine:
+//
+//   slash has value, no override:     take control, snapshot manual baseline,
+//                                     remember slash value for override check
+//   slash has value, override matches: leave field alone (user overrode)
+//   slash has value, override differs: take control again (slash command
+//                                     changed; the previous override no
+//                                     longer applies)
+//   slash has no value, was controlled: revert to manual baseline (or hard
+//                                       default if none was captured)
+//
+// The slashControlled / slashControlValue / slashOverrideFor data attributes
+// double as a styling hook so users can see at a glance which fields are
+// currently driven by their typed slash command.
 function syncSlashField(el, slashValue, hardDefault) {
   if (!el) return;
+  const isControlled = el.dataset.slashControlled === '1';
+  const overrideFor  = el.dataset.slashOverrideFor;
   if (slashValue !== undefined && slashValue !== null && slashValue !== '') {
-    if (el.dataset.slashControlled !== '1') {
+    const slashStr = String(slashValue);
+    if (overrideFor !== undefined && overrideFor === slashStr) {
+      return;  // user overrode this exact slash value — respect their pick
+    }
+    if (!isControlled) {
       el.dataset.slashManual = el.value;
     }
-    if (el.value !== String(slashValue)) el.value = slashValue;
+    if (el.value !== slashStr) el.value = slashStr;
     el.dataset.slashControlled = '1';
-  } else if (el.dataset.slashControlled === '1') {
+    el.dataset.slashControlValue = slashStr;
+    delete el.dataset.slashOverrideFor;  // fresh slash value retakes control
+  } else if (isControlled) {
     el.value = el.dataset.slashManual !== undefined ? el.dataset.slashManual : hardDefault;
     delete el.dataset.slashControlled;
     delete el.dataset.slashManual;
+    delete el.dataset.slashControlValue;
+    delete el.dataset.slashOverrideFor;
   }
 }
 
