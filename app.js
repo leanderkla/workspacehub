@@ -13807,17 +13807,26 @@ function bmAddRowHTML(nodeId, type) {
     </button>
   `;
 
+  // Title input: every non-flow type now wraps in the slash-ghost shell.
+  // Slash sync is opt-in per type (driven by the install call in
+  // bmWireDetailPanel), so the structural cost here is one extra wrapper
+  // and a hidden chips host even for types that won't use them.
+  const titleWrap = (placeholder) => `
+    <div class="bm-dp-input-wrap">
+      <div class="bm-dp-input-ghost" id="bm-dp-input-ghost" aria-hidden="true"></div>
+      <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
+             placeholder="${placeholder}" maxlength="200" autocomplete="off" spellcheck="false">
+    </div>
+  `;
+  const chipsHost = `<div class="todo-slash-chips bm-dp-slash-chips" id="bm-dp-slash-chips" hidden></div>`;
+
   if (type === 'todo') {
     return `
       <div class="bm-dp-add-row">
         ${typeBtn}
-        <div class="bm-dp-input-wrap">
-          <div class="bm-dp-input-ghost" id="bm-dp-input-ghost" aria-hidden="true"></div>
-          <input type="text" class="bm-dp-add-input bm-dp-add-input-todo" id="bm-dp-add-input"
-                 placeholder="Add a todo… try /tomorrow /high /sp:name" maxlength="200" autocomplete="off" spellcheck="false">
-        </div>
+        ${titleWrap('Add a todo… try /tomorrow /high /sp:name')}
       </div>
-      <div class="todo-slash-chips bm-dp-slash-chips" id="bm-dp-slash-chips" hidden></div>
+      ${chipsHost}
       <div class="bm-dp-rich-form">
         <div class="bm-dp-rich-field">
           <label>Priority</label>
@@ -13841,9 +13850,9 @@ function bmAddRowHTML(nodeId, type) {
     return `
       <div class="bm-dp-add-row">
         ${typeBtn}
-        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
-               placeholder="Add a note…" maxlength="200" autocomplete="off">
+        ${titleWrap('Add a note… try /high')}
       </div>
+      ${chipsHost}
       <div class="bm-dp-rich-form">
         <div class="bm-dp-rich-field bm-dp-rich-field-grow">
           <label>Priority</label>
@@ -13867,9 +13876,9 @@ function bmAddRowHTML(nodeId, type) {
     return `
       <div class="bm-dp-add-row">
         ${typeBtn}
-        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
-               placeholder="Reminder title" maxlength="200" autocomplete="off">
+        ${titleWrap('Reminder title… try /tomorrow')}
       </div>
+      ${chipsHost}
       <div class="bm-dp-rich-form">
         <div class="bm-dp-rich-field">
           <label>Date</label>
@@ -13889,9 +13898,9 @@ function bmAddRowHTML(nodeId, type) {
     return `
       <div class="bm-dp-add-row">
         ${typeBtn}
-        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
-               placeholder="What's the commitment?" maxlength="200" autocomplete="off">
+        ${titleWrap("What's the commitment? Try /tomorrow")}
       </div>
+      ${chipsHost}
       <div class="bm-dp-rich-form">
         <button class="bm-dp-direction" type="button" data-direction="i_owe" id="bm-dp-com-dir"
                 title="Click to flip">I owe</button>
@@ -13913,13 +13922,19 @@ function bmAddRowHTML(nodeId, type) {
     return `
       <div class="bm-dp-add-row">
         ${typeBtn}
-        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
-               placeholder="Task" maxlength="200" autocomplete="off">
+        ${titleWrap('Task… try /tomorrow')}
       </div>
+      ${chipsHost}
       <div class="bm-dp-rich-form">
         <input type="text" class="bm-dp-rich-input bm-dp-rich-input-grow" id="bm-dp-del-to"
                placeholder="Delegated to" maxlength="100" autocomplete="off">
-        <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+      <div class="bm-dp-rich-form">
+        <div class="bm-dp-rich-field">
+          <label>Due (optional)</label>
+          <input type="date" class="bm-dp-rich-input" id="bm-dp-del-due">
+        </div>
+        <button class="bm-dp-add-submit bm-dp-add-submit-grow" type="button" id="bm-dp-add-submit">Add</button>
       </div>
       ${linkExistingBtn}
     `;
@@ -14022,18 +14037,28 @@ function bmWireDetailPanel(panel, nodeId) {
       if (e.key === 'Enter')  { e.preventDefault(); bmSubmitAdd(nodeId); }
       else if (e.key === 'Escape') { e.preventDefault(); titleInput.value = ''; }
     });
-    // Slash-command ghost completion + live chips + real-time field sync,
-    // identical UX to the todos-view input. Only mounted when the input is
-    // the todo variant (renders the wrap + ghost + chips host); other types
-    // skip it. The field sync makes the priority dropdown and due-date
-    // input update as the user types `/high`, `/tomorrow`, etc.
-    if (titleInput.classList.contains('bm-dp-add-input-todo')) {
-      const ghost     = panel.querySelector('#bm-dp-input-ghost');
-      const chipsHost = panel.querySelector('#bm-dp-slash-chips');
-      installTodoSlashCompletion(titleInput, ghost, chipsHost, {
+    // Slash-command ghost completion + live chips + real-time field sync.
+    // Same engine for every non-flow type — the fields object below decides
+    // which form controls each type's slash command actually drives. Types
+    // not listed in the map skip slash entirely (e.g. flow uses dedicated
+    // buttons, no text input).
+    const ghost     = panel.querySelector('#bm-dp-input-ghost');
+    const chipsHost = panel.querySelector('#bm-dp-slash-chips');
+    const currentType = bmGetCurrentLinkType(nodeId);
+    const slashFieldsByType = {
+      todo: () => ({
         priority: panel.querySelector('#bm-dp-todo-pri'),
         due:      panel.querySelector('#bm-dp-todo-due')
-      });
+      }),
+      note: () => ({
+        priority: panel.querySelector('#bm-dp-note-pri')
+      }),
+      reminder:   () => ({ due: panel.querySelector('#bm-dp-rem-date') }),
+      commitment: () => ({ due: panel.querySelector('#bm-dp-com-due') }),
+      delegation: () => ({ due: panel.querySelector('#bm-dp-del-due') })
+    };
+    if (slashFieldsByType[currentType]) {
+      installTodoSlashCompletion(titleInput, ghost, chipsHost, slashFieldsByType[currentType]());
     }
   }
 
@@ -14225,14 +14250,16 @@ function bmSubmitAdd(nodeId) {
     if (!created) { showToast('Could not create commitment.', 'error'); return; }
     newId = created.id;
   } else if (type === 'delegation') {
-    const toInp = document.getElementById('bm-dp-del-to');
-    const to = toInp ? toInp.value.trim() : '';
+    const toInp  = document.getElementById('bm-dp-del-to');
+    const dueInp = document.getElementById('bm-dp-del-due');
+    const to  = toInp  ? toInp.value.trim() : '';
+    const due = dueInp ? (dueInp.value || null) : null;
     if (!to) {
       if (toInp) toInp.focus();
       showToast("Please enter who it's delegated to.", 'error');
       return;
     }
-    const created = addDelegation({ task: title, delegated_to: to });
+    const created = addDelegation({ task: title, delegated_to: to, due_date: due });
     if (!created) { showToast('Could not create delegation.', 'error'); return; }
     newId = created.id;
   }
