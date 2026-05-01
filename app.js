@@ -272,7 +272,11 @@ const state = {
     // Global session-only toggle for the linked-items panel: hide rows
     // whose entity is archived. Default off (archived rows render with
     // strike-through styling per the v2 plan).
-    detailHideArchived: false
+    detailHideArchived: false,
+    // Parallel toggle for done items (todo done, reminder doneAt, commitment
+    // status='fulfilled', delegation status='done'). Default off — done
+    // items render with strike-through; this hides them from the list.
+    detailHideDone: false
   },
   // Molecular landing drill-down state. focusPath is a stack of node ids representing
   // the current focus depth: ['__you'] (root) → ['__you','p:eh'] (project) →
@@ -13638,13 +13642,21 @@ function bmRenderDetailPanel() {
   const itemsAll   = getLinkedItems(id);
   const totalAll   = itemsAll.length;
   const archivedN  = itemsAll.reduce((n, it) => n + (it.isArchived ? 1 : 0), 0);
+  const doneN      = itemsAll.reduce((n, it) => n + (
+    !it.isOrphan && bmEntityHasDoneState(it.entityType) && bmEntityIsDone(it.entityType, it.entity) ? 1 : 0
+  ), 0);
   const hideArch   = state.bm.detailHideArchived;
+  const hideDone   = state.bm.detailHideDone;
   // Filtered set: rows the user actually sees in the list. Counts and
   // overflow logic key off this filtered set so numbers stay consistent
-  // with what's rendered. The `archivedN` tally above keeps the small
-  // "(N hidden)" hint honest even when filtering.
-  const items     = hideArch ? itemsAll.filter(it => !it.isArchived) : itemsAll;
-  const total     = items.length;
+  // with what's rendered. The `archivedN` / `doneN` tallies above keep
+  // the "(N hidden)" hint honest even when filtering is on.
+  const items = itemsAll.filter(it => {
+    if (hideArch && it.isArchived) return false;
+    if (hideDone && !it.isOrphan && bmEntityHasDoneState(it.entityType) && bmEntityIsDone(it.entityType, it.entity)) return false;
+    return true;
+  });
+  const total = items.length;
   const expand    = state.bm.detailExpandedNodeId === id;
   // Array order is oldest-first; tail = newest. Display order is newest-first
   // (so we reverse a copy). When >10 items and not expanded, show only the
@@ -13660,18 +13672,24 @@ function bmRenderDetailPanel() {
     .map(m => `<span class="bm-dp-bd-chip" title="${m.label}">${m.icon} ${breakdown[m.type]}</span>`)
     .join('');
 
-  // Show the hide-archived toggle whenever there's at least one archived
-  // item OR the toggle is currently on (so the user always has a way to
-  // turn filtering back off if they hid the last archived row).
+  // Show the hide-archived/hide-done toggles whenever there's at least one
+  // matching item OR the toggle is currently on (so the user always has a
+  // way to turn filtering back off if they hid the last matching row).
   const showHideArchived = archivedN > 0 || hideArch;
-  const archHiddenHint   = (hideArch && archivedN > 0) ? ` <span class="bm-dp-archived-hint">(${archivedN} archived hidden)</span>` : '';
+  const showHideDone     = doneN     > 0 || hideDone;
+  const hiddenHints = [];
+  if (hideArch && archivedN > 0) hiddenHints.push(`${archivedN} archived hidden`);
+  if (hideDone && doneN     > 0) hiddenHints.push(`${doneN} done hidden`);
+  const hiddenHintHTML = hiddenHints.length
+    ? ` <span class="bm-dp-archived-hint">(${hiddenHints.join(', ')})</span>`
+    : '';
 
   const currentType = bmGetCurrentLinkType(id);
 
   panel.innerHTML = `
     <header class="bm-dp-head">
       <div class="bm-dp-node-label">${escapeHTML(node.label || '(empty)')}</div>
-      <div class="bm-dp-node-meta">${totalAll === 0 ? 'No links yet' : `${total} linked${archHiddenHint}`}</div>
+      <div class="bm-dp-node-meta">${totalAll === 0 ? 'No links yet' : `${total} linked${hiddenHintHTML}`}</div>
     </header>
     <section class="bm-dp-linked">
       ${totalAll > 0 ? `
@@ -13681,11 +13699,19 @@ function bmRenderDetailPanel() {
           <span class="bm-dp-section-spacer"></span>
           ${total > 10 ? `<span class="bm-dp-section-status">Showing ${expand ? total : 8} of ${total}</span>` : ''}
         </div>
-        ${showHideArchived ? `
-          <label class="bm-dp-archive-toggle">
-            <input type="checkbox" ${hideArch ? 'checked' : ''}>
-            <span>Hide archived${archivedN > 0 ? ` (${archivedN})` : ''}</span>
-          </label>
+        ${(showHideArchived || showHideDone) ? `
+          <div class="bm-dp-filter-row">
+            ${showHideArchived ? `
+              <label class="bm-dp-archive-toggle">
+                <input type="checkbox" data-filter="archived" ${hideArch ? 'checked' : ''}>
+                <span>Hide archived${archivedN > 0 ? ` (${archivedN})` : ''}</span>
+              </label>` : ''}
+            ${showHideDone ? `
+              <label class="bm-dp-archive-toggle">
+                <input type="checkbox" data-filter="done" ${hideDone ? 'checked' : ''}>
+                <span>Hide done${doneN > 0 ? ` (${doneN})` : ''}</span>
+              </label>` : ''}
+          </div>
         ` : ''}
         ${total > 0 ? `
           <ul class="bm-dp-list${expand ? ' bm-dp-list-expanded' : ''}">
@@ -13934,14 +13960,15 @@ function bmWireDetailPanel(panel, nodeId) {
     });
   });
 
-  // Hide-archived toggle (session-only global)
-  const archToggle = panel.querySelector('.bm-dp-archive-toggle input');
-  if (archToggle) {
-    archToggle.addEventListener('change', (e) => {
-      state.bm.detailHideArchived = e.target.checked;
+  // Hide-archived / hide-done filter toggles (session-only global state).
+  panel.querySelectorAll('.bm-dp-archive-toggle input[data-filter]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const which = cb.dataset.filter;
+      if (which === 'archived')  state.bm.detailHideArchived = e.target.checked;
+      else if (which === 'done') state.bm.detailHideDone     = e.target.checked;
       bmRenderDetailPanel();
     });
-  }
+  });
 
   // Show-all / show-fewer toggle. When expanding, we ALSO scroll the
   // linked-items section into view so the user sees the list visibly grow

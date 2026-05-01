@@ -3644,6 +3644,14 @@ body.resizing-horizontal * { cursor: col-resize !important; user-select: none !i
   white-space: nowrap;
 }
 
+.bm-dp-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
 .bm-dp-archive-toggle {
   display: inline-flex;
   align-items: center;
@@ -3651,7 +3659,6 @@ body.resizing-horizontal * { cursor: col-resize !important; user-select: none !i
   font-size: 11px;
   color: var(--text-secondary);
   cursor: pointer;
-  margin-bottom: 8px;
   user-select: none;
   text-transform: none;
   letter-spacing: 0;
