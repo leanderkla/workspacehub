@@ -7086,9 +7086,24 @@ function noteEditorHTML() {
           : '<span style="color:var(--text-muted);font-size:13px">No todos yet — create some in the Todos view</span>'}
       </div>
     </details>
+    ${note.id !== 'new' ? linkedNodesPanelHTML('note', note.id) : ''}
     ${note.id !== 'new' ? backlinksPanelHTML('note', state.project, note.id) : ''}
     ${note.id !== 'new' ? attachmentPanelHTML(note, 'note', note.id) : `<div class="att-panel-placeholder">Save the note first to add attachments.</div>`}
   </div>`;
+}
+
+// Renders the "Linked spark-map nodes" details panel beneath the note editor's
+// linked-todos panel. Visually mirrors that panel for consistency. Hidden when
+// there are no node links — no empty box.
+function linkedNodesPanelHTML(entityType, entityId) {
+  const nodes = getLinkedNodes(entityType, entityId);
+  if (nodes.length === 0) return '';
+  return `<details class="linked-nodes-panel" open>
+    <summary class="linked-nodes-summary">↔ Linked spark-map nodes <span class="linked-count">(${nodes.length})</span></summary>
+    <div class="linked-nodes-list">
+      ${nodes.map(n => `<button class="linked-node-row" type="button" data-action="open-node" data-node-id="${escapeHTML(n.id)}">${escapeHTML(n.label || '(empty)')}</button>`).join('')}
+    </div>
+  </details>`;
 }
 
 // ===== @-MENTIONS =====
@@ -7978,6 +7993,7 @@ function todoItemHTML(t) {
         </select>` : ''}
       ${dateRange ? `<button class="todo-due todo-dates ${overdue?'overdue':''}" data-id="${t.id}" title="Edit timeline">${overdue?'⚠ ':''}${dateRange}</button>` : `<button class="btn btn-ghost btn-icon todo-dates" data-id="${t.id}" title="Set timeline">📅</button>`}
       ${linkedNotes.length ? `<span class="linked-notes-chip" title="Linked: ${linkedNotes.map(n=>n.title).join(', ')}">📝 ${linkedNotes.length}</span>` : ''}
+      ${genericLinksChip('todo', t.id)}
       ${projectEntries.length > 1 ? `
         <select class="todo-project-select" data-id="${t.id}" title="Move to project" style="border-color:${proj.color || '#16a34a'};color:${proj.color || '#16a34a'}">
           ${projectEntries.map(([key, p]) => `<option value="${key}" ${key===state.project?'selected':''}>${escapeHTML(p.name)}</option>`).join('')}
@@ -11029,10 +11045,15 @@ function delegationCardHTML(d, expanded) {
       ${d.due_date ? `<span class="del-due ${overdue?'overdue':''}">📅 ${formatDate(d.due_date)}</span>` : ''}
       <span class="del-last-update ${stale?'stale':''}">↻ ${daysSinceUpdate!=null ? `${daysSinceUpdate}d ago` : 'never'}</span>
     </div>
-    ${(d.context || linkedCommitment) ? `<div class="del-chips">
-      ${d.context ? `<span class="del-context">${escapeHTML(d.context)}</span>` : ''}
-      ${linkedCommitment ? `<span class="del-commitment-link" title="Linked commitment">↔ ${escapeHTML(linkedCommitment.counterparty)}</span>` : ''}
-    </div>` : ''}
+    ${(() => {
+      const linksChip = genericLinksChip('delegation', d.id);
+      if (!d.context && !linkedCommitment && !linksChip) return '';
+      return `<div class="del-chips">
+        ${d.context ? `<span class="del-context">${escapeHTML(d.context)}</span>` : ''}
+        ${linkedCommitment ? `<span class="del-commitment-link" title="Linked commitment">↔ ${escapeHTML(linkedCommitment.counterparty)}</span>` : ''}
+        ${linksChip}
+      </div>`;
+    })()}
   </div>`;
 }
 
@@ -11373,6 +11394,7 @@ function commitmentCardHTML(c) {
     <div class="com-meta">
       <span class="com-due ${overdue ? 'overdue' : ''}">📅 ${dueDisplay}</span>
       ${c.context ? `<span class="com-context">${escapeHTML(c.context)}</span>` : ''}
+      ${genericLinksChip('commitment', c.id)}
     </div>
     ${c.notes ? `<div class="com-notes">${escapeHTML(c.notes)}</div>` : ''}
     <div class="com-actions">
@@ -11680,6 +11702,10 @@ function renderFlowEditor() {
           </div>
         </div>
         ${flow.description ? `<div class="view-subtitle" style="font-size:12px;color:var(--text-muted);margin-top:2px">${escapeHTML(flow.description)}</div>` : ''}
+        ${(() => {
+          const linksChip = genericLinksChip('flow', flow.id);
+          return linksChip ? `<div class="flow-editor-meta" style="margin-top:6px">${linksChip}</div>` : '';
+        })()}
       </div>
       <div class="view-body-scrollable" style="padding:0 24px 32px">
         <div class="flow-editor">
@@ -12195,11 +12221,12 @@ function markReminderUndone(id) {
 }
 
 function reminderItemHTML(r) {
+  const linksChip = genericLinksChip('reminder', r.id);
   return `<div class="reminder-item ${r.fired?'fired':''}">
     <div class="reminder-icon">${r.fired?'✅':'🔔'}</div>
     <div class="reminder-body">
       <div class="reminder-title">${escapeHTML(r.title)}${r.recurrence ? ` <span class="reminder-recur-chip" data-rem-recur="${r.id}" title="${escapeHTML(describeRecurrence(r.recurrence))} · click to edit">🔁 ${escapeHTML(describeRecurrence(r.recurrence))}</span>` : ''}</div>
-      <div class="reminder-time">${formatDateTime(r.datetime)}</div>
+      <div class="reminder-time">${formatDateTime(r.datetime)}${linksChip ? ` ${linksChip}` : ''}</div>
       ${r.note ? `<div class="reminder-note">${escapeHTML(r.note)}</div>` : ''}
     </div>
     ${!r.recurrence ? `<button class="btn btn-ghost btn-icon reminder-set-recur" data-id="${r.id}" title="Set repeat schedule">🔁</button>` : ''}
@@ -14214,6 +14241,115 @@ function bmNavigateToEntity(entityType, entityId) {
   else if (entityType === 'commitment') { state.expandedCommitment = entityId; showView('commitments'); }
   else if (entityType === 'delegation') { state.expandedDelegation = entityId; showView('delegations'); }
   else if (entityType === 'flow')       { state.flowEditing        = entityId; showView('flows'); }
+}
+
+// ============================================================================
+// PHASE 3 — REVERSE-LINK CHIPS ON ENTITY VIEWS
+// Each entity card/editor calls genericLinksChip(type, id) → returns a small
+// pill listing the spark-map nodes linking to it (truncated to 2 + "+N more"
+// popover). Tap a name → jump to spark map with that node selected.
+//
+// Performance: getLinkedNodes uses the Phase 1 reverse-index cache, so each
+// call is an O(1) Set lookup. Rendering N chips on a list is N cache hits +
+// 1 cache build (lazy, sub-ms on real data scale) — well under the 50ms
+// target the v2 plan set for a 100-entity view.
+// ============================================================================
+
+// Number of node names rendered before collapsing to "+N more". Two keeps
+// the chip compact even on busy cards; the popover handles the long tail.
+const NODE_LINK_CHIP_INLINE_LIMIT = 2;
+
+function genericLinksChip(entityType, entityId) {
+  const nodes = getLinkedNodes(entityType, entityId);
+  if (nodes.length === 0) return '';
+
+  const visible  = nodes.slice(0, NODE_LINK_CHIP_INLINE_LIMIT);
+  const overflow = nodes.length - visible.length;
+
+  const namesHTML = visible.map((n, i) => {
+    const isLast = (i === visible.length - 1) && overflow === 0;
+    return `<button class="node-link-chip-name" type="button" data-node-id="${escapeHTML(n.id)}" title="Open in spark map">${escapeHTML(n.label || '(empty)')}</button>${isLast ? '' : '<span class="node-link-chip-sep">,</span>'}`;
+  }).join('');
+
+  const moreHTML = overflow > 0
+    ? `<button class="node-link-chip-more" type="button" data-entity-type="${entityType}" data-entity-id="${escapeHTML(entityId)}">+${overflow} more</button>`
+    : '';
+
+  return `<span class="node-link-chip" title="Spark-map nodes linking to this ${entityType}"><span class="node-link-chip-icon" aria-hidden="true">↔</span><span class="node-link-chip-label">Linked to:</span>${namesHTML}${moreHTML}</span>`;
+}
+
+// Single document-level click delegate handles every chip across every view.
+// Cheaper than wiring listeners on each chip, and survives view re-renders
+// since the listener lives on document, not on disposable nodes.
+function _nodeLinkChipClickHandler(e) {
+  const nameBtn = e.target.closest('.node-link-chip-name');
+  if (nameBtn) {
+    e.stopPropagation();
+    const nodeId = nameBtn.dataset.nodeId;
+    if (!nodeId) return;
+    _hideNodeLinksPopover();
+    state.bm.selectedId = nodeId;
+    showView('brainmap');
+    return;
+  }
+  const popRow = e.target.closest('.node-link-chip-pop-row, .linked-node-row');
+  if (popRow) {
+    e.stopPropagation();
+    const nodeId = popRow.dataset.nodeId;
+    if (!nodeId) return;
+    _hideNodeLinksPopover();
+    state.bm.selectedId = nodeId;
+    showView('brainmap');
+    return;
+  }
+  const moreBtn = e.target.closest('.node-link-chip-more');
+  if (moreBtn) {
+    e.stopPropagation();
+    _showNodeLinksPopover(moreBtn);
+    return;
+  }
+}
+
+function _showNodeLinksPopover(anchor) {
+  _hideNodeLinksPopover();
+  const entityType = anchor.dataset.entityType;
+  const entityId   = anchor.dataset.entityId;
+  const nodes = getLinkedNodes(entityType, entityId);
+  if (nodes.length === 0) return;
+
+  const pop = document.createElement('div');
+  pop.className = 'node-link-chip-popover';
+  pop.id = '_nodeLinkChipPopover';
+  pop.innerHTML = nodes.map(n =>
+    `<button class="node-link-chip-pop-row" type="button" data-node-id="${escapeHTML(n.id)}">${escapeHTML(n.label || '(empty)')}</button>`
+  ).join('');
+  document.body.appendChild(pop);
+
+  // Position below the anchor; flip up if it would go off-screen.
+  const rect = anchor.getBoundingClientRect();
+  const popH = pop.offsetHeight;
+  const wantTop = rect.bottom + 4;
+  const top = (wantTop + popH > window.innerHeight) ? Math.max(8, rect.top - popH - 4) : wantTop;
+  pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - pop.offsetWidth - 8))}px`;
+  pop.style.top  = `${top}px`;
+
+  setTimeout(() => document.addEventListener('click', _nodeLinkChipOutsideHandler, true), 0);
+}
+
+function _hideNodeLinksPopover() {
+  const pop = document.getElementById('_nodeLinkChipPopover');
+  if (pop) pop.remove();
+  document.removeEventListener('click', _nodeLinkChipOutsideHandler, true);
+}
+
+function _nodeLinkChipOutsideHandler(e) {
+  if (e.target.closest('#_nodeLinkChipPopover')) return;
+  if (e.target.closest('.node-link-chip-more'))  return;
+  _hideNodeLinksPopover();
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', _nodeLinkChipClickHandler);
 }
 
 // ===== BOOT =====

@@ -4059,6 +4059,156 @@ select.bm-dp-rich-input {
   filter: brightness(1.2);
 }
 
+/* ===== SPARK MAP — REVERSE-LINK CHIPS ON ENTITY VIEWS (PHASE 3) ===== */
+.node-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-faint);
+  font-family: var(--font);
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.node-link-chip-icon { font-size: 11px; opacity: 0.85; }
+
+.node-link-chip-label {
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.node-link-chip-name {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 3px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-link-chip-name:hover,
+.node-link-chip-name:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.node-link-chip-sep { color: var(--text-muted); margin-right: 2px; }
+
+.node-link-chip-more {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 3px;
+}
+
+.node-link-chip-more:hover,
+.node-link-chip-more:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.node-link-chip-popover {
+  position: fixed;
+  z-index: 2000;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font);
+}
+
+.node-link-chip-pop-row {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-link-chip-pop-row:hover,
+.node-link-chip-pop-row:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+/* Note editor block: a `<details>` panel matching the existing linked-todos-
+ * panel pattern. Styling mirrors that panel for visual consistency. */
+.linked-nodes-panel {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  padding: 8px 12px;
+}
+.linked-nodes-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 4px 0;
+  user-select: none;
+  list-style: none;
+}
+.linked-nodes-summary::-webkit-details-marker { display: none; }
+.linked-nodes-summary::before { content: '▸ '; color: var(--text-muted); margin-right: 4px; transition: transform 120ms ease; display: inline-block; }
+.linked-nodes-panel[open] .linked-nodes-summary::before { transform: rotate(90deg); }
+.linked-nodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+.linked-node-row {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.linked-node-row:hover,
+.linked-node-row:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
 /* ===== DELEGATIONS ===== */
 #view-delegations .view-title { font-size: 22px; }
 
