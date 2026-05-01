@@ -124,6 +124,12 @@
  */
 
 /**
+ * @typedef {Object} NodeLink
+ * @property {'todo'|'note'|'reminder'|'commitment'|'delegation'|'flow'} entityType
+ * @property {string} entityId   ID of the entity within the same project as this node.
+ */
+
+/**
  * @typedef {Object} BrainmapNode
  * @property {string} id
  * @property {string|null} parentId
@@ -134,6 +140,12 @@
  * @property {string} note
  * @property {number} order
  * @property {string|null} subprojectId
+ * @property {NodeLink[]} linkedItems   APPEND-ONLY array of links from this
+ *   node to entities in the same project. Mutate ONLY via addNodeLink /
+ *   removeNodeLink / cleanupNodeLinksOnEntityDelete in the nodeLinks helper
+ *   section. Direct writes will desync the reverse-index cache and break
+ *   the chokepoint guarantees. Order is meaningful: oldest at index 0,
+ *   newest at the end. Display layers slice the tail for "most recent N".
  */
 
 /**
@@ -639,44 +651,7 @@ function settingsAppearanceHTML() {
 }
 
 function settingsWorkspaceHTML() {
-  // The 'molecular' value is preserved (not renamed to 'universe') so anyone
-  // whose persisted preference is the older value still parses correctly —
-  // only the displayed label changes.
-  const stored = localStorage.getItem('landingStyle');
-  const landing = stored === 'molecular' ? 'molecular'
-                : stored === 'today' ? 'today'
-                : 'pull';
   return `
-    <div class="settings-section">
-      <div class="settings-section-title">Landing view</div>
-      <div class="settings-hint">What the app opens to when it's a new day.</div>
-      <div class="landing-style-options">
-        <label class="landing-style-option ${landing==='pull'?'active':''}">
-          <input type="radio" name="landing-style" value="pull" ${landing==='pull'?'checked':''}>
-          <div class="landing-style-card">
-            <div class="landing-style-ic">↓</div>
-            <div class="landing-style-name">Pull</div>
-            <div class="landing-style-desc">Daily · what's pulling on you next</div>
-          </div>
-        </label>
-        <label class="landing-style-option ${landing==='today'?'active':''}">
-          <input type="radio" name="landing-style" value="today" ${landing==='today'?'checked':''}>
-          <div class="landing-style-card">
-            <div class="landing-style-ic">☀</div>
-            <div class="landing-style-name">Today</div>
-            <div class="landing-style-desc">List view · overdue, today, upcoming</div>
-          </div>
-        </label>
-        <label class="landing-style-option ${landing==='molecular'?'active':''}">
-          <input type="radio" name="landing-style" value="molecular" ${landing==='molecular'?'checked':''}>
-          <div class="landing-style-card">
-            <div class="landing-style-ic">⚛</div>
-            <div class="landing-style-name">Universe</div>
-            <div class="landing-style-desc">Map view · the shape of your work</div>
-          </div>
-        </label>
-      </div>
-    </div>
     <div class="settings-section">
       <div class="settings-section-title">Workspace features</div>
       <div class="settings-hint">Drag to reorder · Uncheck to hide from the sidebar.</div>
@@ -829,13 +804,6 @@ function openSettings() {
       close();
       openShortcutsCheatsheet();
     });
-    overlay.querySelectorAll('input[name="landing-style"]').forEach(r =>
-      r.addEventListener('change', () => {
-        localStorage.setItem('landingStyle', r.value);
-        renderSidebar();
-        renderKeepingScroll();
-      }));
-
     overlay.querySelectorAll('.theme-card').forEach(btn =>
       btn.addEventListener('click', () => {
         applyTheme(btn.dataset.themeId);
@@ -1054,7 +1022,7 @@ function openSettings() {
 // ===== SCHEMA VERSIONING + MIGRATIONS =====
 // Each migration brings data from version N-1 → N. Numbered, runs in order.
 // Add new migrations as new keys; never edit shipped ones.
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 const SCHEMA_MIGRATIONS = {
   // v1: consolidates everything migrateAttachments() used to do ad-hoc.
   // For fresh installs schemaVersion starts at 0 and runs through all.
@@ -1083,6 +1051,19 @@ const SCHEMA_MIGRATIONS = {
           if (typeof n.name !== 'string') n.name = '';
         });
       });
+    }
+    return data;
+  },
+  // v2: every brainmap node gains a linkedItems array — generic node→entity
+  // linking infrastructure. Idempotent: backfilling an already-present
+  // array is a no-op (the Array.isArray guard skips it).
+  2: (data) => {
+    for (const proj of Object.values(data.projects || {})) {
+      const nodes = proj.brainmap && proj.brainmap.nodes;
+      if (!nodes) continue;
+      for (const node of Object.values(nodes)) {
+        if (!Array.isArray(node.linkedItems)) node.linkedItems = [];
+      }
     }
     return data;
   }
@@ -2257,20 +2238,17 @@ async function init() {
   if (isDeveloperMode() && isAskForBackups()) startBackupPromptTimer();
   document.body.setAttribute('data-project', state.project);
   applyCurrentTheme();
-  // Every boot lands on the user's chosen landing surface (Pull by default).
-  // Within-session navigation persists via JS state; a full reload (Ctrl+R)
-  // returns here. The 'molecular' value is preserved as the storage key for
-  // Universe so anyone with the legacy preference doesn't have to reconfigure.
+  // Overview is the only landing now. Pull / Today / Universe live in the
+  // sidebar's Lab section and are reached on demand. Within-session
+  // navigation persists via JS state; a full reload (Ctrl+R) returns here.
   try {
     if (state.project) {
-      const landing = localStorage.getItem('landingStyle') || 'pull';
-      state.view = (landing === 'molecular' ? 'molecular'
-                  : landing === 'today' ? 'today'
-                  : 'pull');
+      state.view = 'overview';
     }
-    // Sweep up the orphaned key from the previous once-per-day gate. Harmless
-    // if it's already absent. A future first-open-today signal should use its
-    // own well-named key, not this stale one.
+    // Sweep up keys from prior landing-mode iterations (no current consumers).
+    // A future "remember last view" feature can introduce its own well-named
+    // key — these stale ones would only invite confusion.
+    localStorage.removeItem('landingStyle');
     localStorage.removeItem('lastOpenedDate');
   } catch {}
   captureInitialUndoSnapshot();
@@ -3941,23 +3919,17 @@ function renderSidebar() {
     }
     return n;
   })();
+  // Whether the Lab section is expanded — persisted across reloads via
+  // localStorage.labOpen ('1' = open, anything else = closed). Default
+  // closed so the experimental views (Pull / Today / Universe) don't add
+  // visual noise to the main nav.
+  const labOpen = localStorage.getItem('labOpen') === '1';
+
   document.getElementById('sidebar').innerHTML = `
-    <button class="landing-btn pull-btn ${state.view==='pull'?'active':''}" id="btn-pull" aria-label="Pull — what's pulling on you next">
-      <span class="landing-btn-icon">↓</span>
-      <span class="landing-btn-label">Pull</span>
-      ${overdueCount > 0 ? `<span class="landing-btn-count">${overdueCount}</span>` : ''}
-    </button>
-    <button class="landing-btn today-btn ${state.view==='today'?'active':''}" id="btn-today" aria-label="Today — overdue, today, upcoming">
-      <span class="landing-btn-icon">☀</span>
-      <span class="landing-btn-label">Today</span>
-    </button>
-    <button class="landing-btn universe-btn ${state.view==='molecular'?'active':''}" id="btn-universe" aria-label="Universe — the shape of your work">
-      <span class="landing-btn-icon">⚛</span>
-      <span class="landing-btn-label">Universe</span>
-    </button>
-    <button class="overview-btn ${state.view==='overview'?'active':''}" id="btn-overview">
+    <button class="overview-btn ${state.view==='overview'?'active':''}" id="btn-overview" aria-label="Overview — your daily landing">
       <span class="overview-btn-icon">◈</span>
-      <span>Overview</span>
+      <span class="overview-btn-label">Overview</span>
+      ${overdueCount > 0 ? `<span class="overview-btn-count">${overdueCount}</span>` : ''}
     </button>
     ${(() => {
       // Resolve in two arrays so that dataset.pinIndex maps to the *raw* index
@@ -4028,18 +4000,35 @@ function renderSidebar() {
       return `<button class="nav-item ${state.view === v.id ? 'active' : ''}" data-view="${v.id}">
         <span class="nav-icon">${v.icon}</span> <span class="nav-label">${v.label}</span>${countHTML}
       </button>`;
-    }).join('')}`;
+    }).join('')}
+    <div class="sidebar-divider"></div>
+    <details class="lab-section" id="lab-section"${labOpen ? ' open' : ''}>
+      <summary class="lab-summary">
+        <span class="lab-summary-chevron" aria-hidden="true">▸</span>
+        <span class="lab-summary-label">Lab</span>
+      </summary>
+      <button class="nav-item lab-item ${state.view==='pull'?'active':''}" data-view="pull">
+        <span class="nav-icon">↓</span> <span class="nav-label">Pull</span>
+      </button>
+      <button class="nav-item lab-item ${state.view==='today'?'active':''}" data-view="today">
+        <span class="nav-icon">☀</span> <span class="nav-label">Today</span>
+      </button>
+      <button class="nav-item lab-item ${state.view==='molecular'?'active':''}" data-view="molecular">
+        <span class="nav-icon">⚛</span> <span class="nav-label">Universe</span>
+      </button>
+    </details>`;
 
-  // Listener hygiene: renderSidebar() resets #sidebar's innerHTML on every call,
-  // so the three button DOM nodes (and any prior listeners on them) are
-  // orphaned and GC'd. Fresh querySelectorAll + addEventListener after each
-  // render means no stacking. Same pattern the today-btn used before — just
-  // fanned out to three buttons now. No event delegation needed because the
-  // re-render boundary already cleans up.
-  document.getElementById('btn-pull')?.addEventListener('click', () => showView('pull'));
-  document.getElementById('btn-today')?.addEventListener('click', () => showView('today'));
-  document.getElementById('btn-universe')?.addEventListener('click', () => showView('molecular'));
+  // Listener hygiene: renderSidebar() resets #sidebar's innerHTML on every call.
+  // Old DOM nodes + their listeners are orphaned and GC'd; fresh listeners are
+  // attached on the new DOM. No event delegation needed — the re-render
+  // boundary already cleans up. The Lab section's three items use the existing
+  // [data-view] click handler at the bottom of this function.
   document.getElementById('btn-overview')?.addEventListener('click', () => showView('overview'));
+  // Persist Lab open/closed across reloads. The browser fires `toggle` on
+  // <details> any time the open state changes (clicked summary or scripted).
+  document.getElementById('lab-section')?.addEventListener('toggle', (e) => {
+    try { localStorage.setItem('labOpen', e.currentTarget.open ? '1' : '0'); } catch {}
+  });
   document.getElementById('btn-pinned-add')?.addEventListener('click', openPalette);
   document.querySelectorAll('.pin-row').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -4462,58 +4451,70 @@ function computePullScore(item, kind, proj) {
   return 0;
 }
 
-function buildPullList() {
-  const pulling = [];
+// Walks every non-archived item in every non-archived project and scores each
+// via computePullScore. Returns the flat array of `{kind, item, proj, score}`
+// entries. Reusable by the Pull view AND the Overview "Quietly slipping"
+// section so neither has to duplicate the iteration / archive-skip logic.
+function _walkAllScoredItems() {
   const allItems = [];
-  const todayKey = toDateString(new Date());
-  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
-  const tomorrowMid = new Date(todayMid); tomorrowMid.setDate(tomorrowMid.getDate() + 1);
-
   for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
     if (proj.archived) continue;
     const projMeta = { key: pkey, name: proj.name, color: proj.color || '#6366f1' };
 
     (proj.todos || []).forEach(t => {
       if (t.archived || t.done) return;
-      const score = computePullScore(t, 'todo', projMeta);
-      const entry = { kind: 'todo', item: t, proj: projMeta, score };
-      allItems.push(entry);
-      if (score > 0.25) pulling.push(entry);                 // TUNING: revisit after 1-2 weeks of real usage data.
+      allItems.push({ kind: 'todo', item: t, proj: projMeta, score: computePullScore(t, 'todo', projMeta) });
     });
     (proj.reminders || []).forEach(r => {
       if (r.fired || r.doneAt) return;
-      const score = computePullScore(r, 'reminder', projMeta);
-      const entry = { kind: 'reminder', item: r, proj: projMeta, score };
-      allItems.push(entry);
-      if (score > 0.4) pulling.push(entry);                  // TUNING: revisit after 1-2 weeks of real usage data.
+      allItems.push({ kind: 'reminder', item: r, proj: projMeta, score: computePullScore(r, 'reminder', projMeta) });
     });
     (proj.notes || []).forEach(n => {
       if (n.archived) return;
-      const score = computePullScore(n, 'note', projMeta);
-      const entry = { kind: 'note', item: n, proj: projMeta, score };
-      allItems.push(entry);
-      if (score > 0.4) pulling.push(entry);                  // TUNING: revisit after 1-2 weeks of real usage data.
+      allItems.push({ kind: 'note', item: n, proj: projMeta, score: computePullScore(n, 'note', projMeta) });
     });
   }
+  return allItems;
+}
 
+// Top-N stalest items across all projects, ranked by inverse touch / reminder
+// weight. Optional `excludeIds` is a Set of `${kind}:${item.id}` strings to
+// skip — Pull view passes the ids of its pulling list so items don't double-
+// show; Overview passes nothing (it has no separate urgency list to dedupe).
+function buildSlippingItems(excludeIds = null) {
+  const items = _walkAllScoredItems();
+  const candidates = excludeIds
+    ? items.filter(e => !excludeIds.has(`${e.kind}:${e.item.id}`))
+    : items;
+  return candidates
+    .map(e => ({
+      ...e,
+      _stale: e.kind === 'reminder'
+        ? 1 - molReminderWeight(e.item)
+        : 1 - molTouchWeight(e.item)
+    }))
+    .sort((a, b) => b._stale - a._stale)
+    .slice(0, PULL_DRIFT_CAP);
+}
+
+function buildPullList() {
+  const allItems = _walkAllScoredItems();
+  const todayKey = toDateString(new Date());
+  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+  const tomorrowMid = new Date(todayMid); tomorrowMid.setDate(tomorrowMid.getDate() + 1);
+
+  const pulling = allItems.filter(e => {
+    // TUNING: revisit thresholds after 1-2 weeks of real usage data.
+    if (e.kind === 'todo') return e.score > 0.25;
+    return e.score > 0.4;
+  });
   pulling.sort((a, b) => b.score - a.score);
   const top = pulling.slice(0, PULL_LIST_CAP);
   const overflowCount = Math.max(0, pulling.length - PULL_LIST_CAP);
 
-  // "Quietly slipping": the stalest items across all projects (todos, notes,
-  // reminders alike). For reminders we use 1 - molReminderWeight so a long-
-  // future never-touched reminder reads as stale. Items already in the
-  // pulling list are excluded so we don't double-show.
+  // "Quietly slipping": stalest items not already shown in pulling.
   const topIds = new Set(top.map(e => `${e.kind}:${e.item.id}`));
-  const slipping = allItems
-    .filter(e => !topIds.has(`${e.kind}:${e.item.id}`))
-    .map(e => ({
-      ...e,
-      _stale: e.kind === 'reminder' ? 1 - molReminderWeight(e.item)
-            : 1 - molTouchWeight(e.item)
-    }))
-    .sort((a, b) => b._stale - a._stale)
-    .slice(0, PULL_DRIFT_CAP);
+  const slipping = buildSlippingItems(topIds);
 
   // Numbers for the state sentence. todayCount = todos due today PLUS
   // reminders firing today, so the line reflects both.
@@ -6502,6 +6503,24 @@ function renderOverview() {
             }).join('')}
           </div>` : ''}
 
+          ${(() => {
+            // Quietly slipping — counterweight to the urgency block above. The
+            // 3 stalest items across the workspace (todos / notes / reminders)
+            // ranked by inverse touch weight. Reuses the Pull view's row markup
+            // and click delegation so the slipping component looks identical
+            // wherever it appears.
+            const slipping = buildSlippingItems();
+            if (!slipping.length) return '';
+            return `<div class="dash-section pull-slipping" style="grid-column:1/-1">
+              <div class="dash-section-header">
+                <span class="dash-section-title">Quietly slipping</span>
+              </div>
+              <div class="pull-list pull-list--drift" role="list">
+                ${slipping.map(e => pullRowHTML(e, 0, 1, { isDrift: true })).join('')}
+              </div>
+            </div>`;
+          })()}
+
           <div class="dash-section" style="grid-column:1/-1">
             <div class="dash-section-header">
               <span class="dash-section-title">Upcoming reminders</span>
@@ -6584,6 +6603,12 @@ function renderOverview() {
       const v = el.dataset.jumpView || 'dashboard';
       if (key && key !== state.project) switchProject(key);
       showView(v);
+    }));
+  // "Quietly slipping" rows reuse the Pull view's pull-row markup with
+  // data-pull-* attrs. Same navigation as Pull → navigateToPullItem.
+  document.querySelectorAll('#view-overview .pull-row[data-pull-kind]').forEach(el =>
+    el.addEventListener('click', () => {
+      navigateToPullItem(el.dataset.pullKind, el.dataset.pullProject, el.dataset.pullId);
     }));
   document.querySelectorAll('.overview-todo-check[data-overview-todo-check]').forEach(btn =>
     btn.addEventListener('click', (e) => {
@@ -7381,7 +7406,9 @@ function saveNote() {
 function deleteNote() {
   if (!state.editingNote || state.editingNote === 'new') return;
   const proj = getProject();
-  proj.notes = proj.notes.filter(n => n.id !== state.editingNote);
+  const deletedId = state.editingNote;
+  proj.notes = proj.notes.filter(n => n.id !== deletedId);
+  cleanupNodeLinksOnEntityDelete(state.project, 'note', deletedId);
   state.editingNote = null;
   saveData();
   showToast('Note deleted.', 'info');
@@ -8760,6 +8787,10 @@ function deleteTodo(id) {
   proj.todos = proj.todos.filter(t => t.id !== id);
   // Remove from any notes that linked to this todo
   proj.notes.forEach(n => { if (n.linkedTodos) n.linkedTodos = n.linkedTodos.filter(tid => tid !== id); });
+  // Remove from any spark-map node linkedItems in this project (Phase 1
+  // orphan cleanup — keeps the link graph tidy without relying on
+  // orphan rendering as a safety net).
+  cleanupNodeLinksOnEntityDelete(state.project, 'todo', id);
   saveData();
   if (state.view === 'todos') renderTodos();
   else if (state.view === 'subprojects') renderSubprojects();
@@ -10853,6 +10884,7 @@ function deleteDelegation(id) {
   const idx = (proj.delegations || []).findIndex(x => x.id === id);
   if (idx === -1) return;
   proj.delegations.splice(idx, 1);
+  cleanupNodeLinksOnEntityDelete(state.project, 'delegation', id);
   saveData();
 }
 
@@ -11170,6 +11202,7 @@ function deleteCommitment(id) {
   const idx = (proj.commitments || []).findIndex(x => x.id === id);
   if (idx === -1) return;
   proj.commitments.splice(idx, 1);
+  cleanupNodeLinksOnEntityDelete(state.project, 'commitment', id);
   saveData();
 }
 
@@ -11309,6 +11342,7 @@ function findFlow(id) {
 function deleteFlow(id) {
   const proj = getProject();
   proj.flows = (proj.flows || []).filter(f => f.id !== id);
+  cleanupNodeLinksOnEntityDelete(state.project, 'flow', id);
   saveData();
 }
 function flowAddNode(flowId, afterNodeId) {
@@ -12141,6 +12175,7 @@ function showReminderRecurrenceModal(reminderId) {
 function deleteReminder(id) {
   const proj = getProject();
   proj.reminders = proj.reminders.filter(r => r.id !== id);
+  cleanupNodeLinksOnEntityDelete(state.project, 'reminder', id);
   saveData();
   renderReminders();
 }
@@ -12877,7 +12912,7 @@ function bmAddChild() {
     side = r <= l ? 'right' : 'left';
   }
   const newId = generateId('bm');
-  bm.nodes[newId] = { id: newId, parentId, label: 'New idea', color: null, side, collapsed: false, note: '', order: siblings.length };
+  bm.nodes[newId] = { id: newId, parentId, label: 'New idea', color: null, side, collapsed: false, note: '', order: siblings.length, subprojectId: null, linkedItems: [] };
   if (parent.collapsed) parent.collapsed = false;
   state.bm.selectedId = newId;
   drawBrainmap();
@@ -12893,7 +12928,7 @@ function bmAddSibling() {
   const parentId = sel.parentId;
   const newId = generateId('bm');
   const side = parentId === bm.rootId ? (sel.side || 'right') : null;
-  bm.nodes[newId] = { id: newId, parentId, label: 'New idea', color: null, side, collapsed: false, note: '', order: (sel.order || 0) + 0.5 };
+  bm.nodes[newId] = { id: newId, parentId, label: 'New idea', color: null, side, collapsed: false, note: '', order: (sel.order || 0) + 0.5, subprojectId: null, linkedItems: [] };
   bmGetChildren(bm, parentId).forEach((n, i) => { n.order = i; });
   state.bm.selectedId = newId;
   drawBrainmap();
@@ -13007,6 +13042,221 @@ function bmAssignToSubproject(spId) {
   saveBrainmap();
   showToast(spId ? 'Node linked to subproject.' : 'Node unlinked.', 'success');
 }
+
+// ============================================================================
+// nodeLinks — generic linking between brainmap nodes and any entity type.
+//
+// SOURCE OF TRUTH: `node.linkedItems` (Array<{entityType, entityId}>).
+// REVERSE LOOKUP: derived from forward scan, cached per project on first read,
+//                 invalidated on any mutation.
+//
+// This module is the ONLY allowed writer to `node.linkedItems`. Any other
+// code path that mutates the array directly will desync the reverse cache
+// and break chip-rendering performance on entity views.
+// ============================================================================
+
+const NODE_LINK_ENTITY_TYPES = ['todo', 'note', 'reminder', 'commitment', 'delegation', 'flow'];
+// Map entity-type → project collection name. Single source of truth.
+const NODE_LINK_COLLECTION = {
+  todo: 'todos', note: 'notes', reminder: 'reminders',
+  commitment: 'commitments', delegation: 'delegations', flow: 'flows'
+};
+
+// Reverse-index cache: projectKey → Map<'entityType:entityId', Set<nodeId>>.
+// Module-level, in-memory only, never persisted. Lazily built on first read.
+//
+// Invalidation is project-scoped (coarse): mutating any single link clears the
+// whole project's cache, forcing a full rebuild on the next read. Targeted
+// invalidation by `entityType:entityId` is a future optimization, only worth
+// doing if profiling shows chip-render-after-mutation is a hot path. Skip
+// for v1.
+//
+// Cache lifecycle: one entry per project visited per session. Never evicted.
+// Even with 50+ projects in one session the memory cost is trivial (a few KB
+// per project's index). No size limit; documented behavior.
+const _linkIndexByProject = new Map();
+
+function _invalidateLinkIndex(projectKey) {
+  if (projectKey) _linkIndexByProject.delete(projectKey);
+}
+
+function _buildReverseIndexForProject(projectKey) {
+  if (_linkIndexByProject.has(projectKey)) return _linkIndexByProject.get(projectKey);
+  const index = new Map();
+  const proj = state.data && state.data.projects && state.data.projects[projectKey];
+  if (proj && proj.brainmap && proj.brainmap.nodes) {
+    for (const node of Object.values(proj.brainmap.nodes)) {
+      for (const link of (node.linkedItems || [])) {
+        const key = link.entityType + ':' + link.entityId;
+        if (!index.has(key)) index.set(key, new Set());
+        index.get(key).add(node.id);
+      }
+    }
+  }
+  _linkIndexByProject.set(projectKey, index);
+  return index;
+}
+
+// Resolve an entity from the active project by type + id. Returns the entity
+// object or null. Used by validation + getLinkedItems.
+function _findEntityInProject(proj, entityType, entityId) {
+  if (!proj) return null;
+  const collection = NODE_LINK_COLLECTION[entityType];
+  if (!collection) return null;
+  const list = proj[collection];
+  if (!Array.isArray(list)) return null;
+  return list.find(e => e && e.id === entityId) || null;
+}
+
+// Detect archive/closed state. Phase 1 covers the explicit `archived` field
+// on todos/notes (the only types that have one). Other types' "closed-ish"
+// states (reminder fired/doneAt, commitment fulfilled, delegation done) are
+// presentation-layer concerns left to Phase 2/3 styles.
+function _isEntityArchived(entityType, entity) {
+  if (!entity) return false;
+  if (entityType === 'todo' || entityType === 'note') return !!entity.archived;
+  return false;
+}
+
+// Returns true on successful new link; false if the input is invalid or the
+// link already exists. Mutates node.linkedItems by APPENDING (never inserts).
+// Array order is meaningful: oldest at index 0, newest at the end. Phase 2
+// reads the tail for "most recent N".
+function addNodeLink(nodeId, entityType, entityId) {
+  if (typeof nodeId !== 'string' || typeof entityId !== 'string') return false;
+  if (!NODE_LINK_ENTITY_TYPES.includes(entityType)) return false;
+  const proj = state.data && state.data.projects && state.data.projects[state.project];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return false;
+  const node = proj.brainmap.nodes[nodeId];
+  if (!node) return false;
+  // Cross-project linking is rejected at the helper layer (defense in depth).
+  // The active project's brainmap can only link to entities in the same
+  // project. The data model already enforces this — entities live under
+  // `state.data.projects[K].(todos|notes|...)`. Verify the entity exists
+  // in the same project.
+  if (!_findEntityInProject(proj, entityType, entityId)) return false;
+  if (!Array.isArray(node.linkedItems)) node.linkedItems = [];
+  // Idempotent: if a link with the same {entityType, entityId} is already
+  // present, return false without mutating.
+  if (node.linkedItems.some(l => l.entityType === entityType && l.entityId === entityId)) {
+    return false;
+  }
+  node.linkedItems.push({ entityType, entityId });
+  _invalidateLinkIndex(state.project);
+  saveData();
+  return true;
+}
+
+// Returns true if a link was removed; false if no matching link existed.
+function removeNodeLink(nodeId, entityType, entityId) {
+  if (typeof nodeId !== 'string' || typeof entityId !== 'string') return false;
+  if (!NODE_LINK_ENTITY_TYPES.includes(entityType)) return false;
+  const proj = state.data && state.data.projects && state.data.projects[state.project];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return false;
+  const node = proj.brainmap.nodes[nodeId];
+  if (!node || !Array.isArray(node.linkedItems)) return false;
+  const before = node.linkedItems.length;
+  node.linkedItems = node.linkedItems.filter(l => !(l.entityType === entityType && l.entityId === entityId));
+  if (node.linkedItems.length === before) return false;
+  _invalidateLinkIndex(state.project);
+  saveData();
+  return true;
+}
+
+function nodeLinkExists(nodeId, entityType, entityId) {
+  const proj = state.data && state.data.projects && state.data.projects[state.project];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return false;
+  const node = proj.brainmap.nodes[nodeId];
+  if (!node || !Array.isArray(node.linkedItems)) return false;
+  return node.linkedItems.some(l => l.entityType === entityType && l.entityId === entityId);
+}
+
+function nodeLinkCount(nodeId) {
+  const proj = state.data && state.data.projects && state.data.projects[state.project];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return 0;
+  const node = proj.brainmap.nodes[nodeId];
+  if (!node || !Array.isArray(node.linkedItems)) return 0;
+  return node.linkedItems.length;
+}
+
+// Resolve every link on a node, tagging orphans (entity deleted) and archived
+// entities. Order matches node.linkedItems (oldest first) — Phase 2 callers
+// slice the tail for "most recent N".
+function getLinkedItems(nodeId) {
+  const proj = state.data && state.data.projects && state.data.projects[state.project];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return [];
+  const node = proj.brainmap.nodes[nodeId];
+  if (!node || !Array.isArray(node.linkedItems)) return [];
+  return node.linkedItems.map(link => {
+    const entity = _findEntityInProject(proj, link.entityType, link.entityId);
+    return {
+      entityType: link.entityType,
+      entityId: link.entityId,
+      entity: entity,
+      isOrphan: !entity,
+      isArchived: _isEntityArchived(link.entityType, entity)
+    };
+  });
+}
+
+// Returns array of node objects in `projectKey`'s brainmap that link to the
+// given entity. Defaults to the active project if `projectKey` is omitted.
+// Uses the per-project reverse-index cache (built lazily on first call).
+function getLinkedNodes(entityType, entityId, projectKey) {
+  const pk = projectKey || state.project;
+  const proj = state.data && state.data.projects && state.data.projects[pk];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return [];
+  const index = _buildReverseIndexForProject(pk);
+  const nodeIds = index.get(entityType + ':' + entityId);
+  if (!nodeIds) return [];
+  const out = [];
+  for (const id of nodeIds) {
+    const node = proj.brainmap.nodes[id];
+    if (node) out.push(node);
+  }
+  return out;
+}
+
+// Walk a project's brainmap and remove every link to the deleted entity.
+// Called from each entity's delete handler — eager cleanup keeps data tidy
+// instead of relying on orphan rendering as a safety net (it's still there
+// for any edge case that slips through).
+function cleanupNodeLinksOnEntityDelete(projectKey, entityType, entityId) {
+  if (!NODE_LINK_ENTITY_TYPES.includes(entityType)) return 0;
+  const proj = state.data && state.data.projects && state.data.projects[projectKey];
+  if (!proj || !proj.brainmap || !proj.brainmap.nodes) return 0;
+  let removed = 0;
+  for (const node of Object.values(proj.brainmap.nodes)) {
+    if (!Array.isArray(node.linkedItems) || node.linkedItems.length === 0) continue;
+    const before = node.linkedItems.length;
+    node.linkedItems = node.linkedItems.filter(l => !(l.entityType === entityType && l.entityId === entityId));
+    removed += before - node.linkedItems.length;
+  }
+  if (removed > 0) _invalidateLinkIndex(projectKey);
+  // Note: caller is already in the middle of an entity-delete + saveData()
+  // flow, so we don't call saveData() here — the caller's saveData() will
+  // persist the cleanup along with the deletion.
+  return removed;
+}
+
+// Debug surface: pokeable from devtools console before Phase 2's UI lands.
+// Documented as a private module surface (underscore-prefixed). Stays in the
+// codebase indefinitely — costs nothing, helps catch issues fast.
+if (typeof window !== 'undefined') {
+  window.__nodeLinks = {
+    add: addNodeLink,
+    remove: removeNodeLink,
+    exists: nodeLinkExists,
+    count: nodeLinkCount,
+    items: getLinkedItems,
+    nodes: getLinkedNodes,
+    cleanup: cleanupNodeLinksOnEntityDelete,
+    _invalidate: _invalidateLinkIndex,
+    _buildIndex: _buildReverseIndexForProject,
+    _index: _linkIndexByProject
+  };
+}
+// ============================================================================
 
 function bmReorderSibling(delta) {
   const bm = getBrainmap();

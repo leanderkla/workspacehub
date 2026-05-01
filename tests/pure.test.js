@@ -448,7 +448,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       const data = { projects: { p: { name: 'P' } } };
       const out = fn(data);
       eq(Array.isArray(out.pinned), true);
-      eq(out.schemaVersion, 1);
+      eq(out.schemaVersion, 2);
     });
 
     it('does not re-run migrations once schemaVersion is current', () => {
@@ -463,6 +463,247 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       eq(Array.isArray(out.projects.p.todos || []), true);
       eq(Array.isArray(out.projects.p.flows), true);
       eq(Array.isArray(out.projects.p.commitments), true);
+    });
+
+    it('v2 backfills linkedItems on every brainmap node', () => {
+      const data = {
+        projects: {
+          p: {
+            name: 'P',
+            brainmap: { rootId: 'r', nodes: { r: { id: 'r', label: 'root' } } }
+          }
+        }
+      };
+      const out = fn(data);
+      eq(Array.isArray(out.projects.p.brainmap.nodes.r.linkedItems), true);
+      eq(out.schemaVersion, 2);
+    });
+
+    it('v2 migration is idempotent', () => {
+      const data = {
+        schemaVersion: 2,
+        projects: {
+          p: {
+            brainmap: { rootId: 'r', nodes: { r: { id: 'r', linkedItems: [{ entityType: 'todo', entityId: 't1' }] } } }
+          }
+        }
+      };
+      const out = fn(data);
+      eq(out.projects.p.brainmap.nodes.r.linkedItems.length, 1);
+      eq(out.schemaVersion, 2);
+    });
+  });
+
+  // ---------- nodeLinks helper module ----------
+  describe('nodeLinks', (it) => {
+    const addNodeLink   = get('addNodeLink');
+    const removeNodeLink = get('removeNodeLink');
+    const nodeLinkExists = get('nodeLinkExists');
+    const nodeLinkCount  = get('nodeLinkCount');
+    const getLinkedItems = get('getLinkedItems');
+    const getLinkedNodes = get('getLinkedNodes');
+    const cleanupNodeLinksOnEntityDelete = get('cleanupNodeLinksOnEntityDelete');
+
+    // Reset state to a known baseline before each test group. Two projects
+    // so we can verify cross-project isolation. Active project is 'p1'.
+    const setup = () => {
+      evalIn(`saveData = function () {};`);  // no-op the persist for tests
+      evalIn(`state.project = 'p1';`);
+      // Note: notes intentionally include an item with id 't1' that collides
+      // with a todo's id. This tests that {entityType, entityId} reliably
+      // disambiguates — cleanup of (todo, t1) must NOT touch (note, t1).
+      evalIn(`state.data = {
+        projects: {
+          p1: {
+            name: 'P1',
+            todos: [{ id: 't1', title: 'todo one' }, { id: 't2', title: 'todo two', archived: true, archivedAt: '2026-01-01T00:00:00Z' }],
+            notes: [{ id: 'n1', title: 'note one' }, { id: 't1', title: 'note with todo-shaped id' }],
+            reminders: [{ id: 'r1', title: 'rem one' }],
+            commitments: [], delegations: [], flows: [{ id: 'f1', name: 'flow one' }],
+            brainmap: {
+              rootId: 'b-root',
+              nodes: {
+                'b-root': { id: 'b-root', parentId: null, label: 'root', linkedItems: [] },
+                'b-1':    { id: 'b-1',    parentId: 'b-root', label: 'child', linkedItems: [] }
+              }
+            }
+          },
+          p2: {
+            name: 'P2',
+            todos: [{ id: 'tx', title: 'cross-project todo' }],
+            notes: [], reminders: [], commitments: [], delegations: [], flows: [],
+            brainmap: { rootId: 'b-other', nodes: { 'b-other': { id: 'b-other', linkedItems: [] } } }
+          }
+        }
+      };`);
+      // Cache may have stale entries from previous tests; flush.
+      evalIn(`if (typeof _linkIndexByProject !== 'undefined') _linkIndexByProject.clear();`);
+    };
+
+    it('addNodeLink succeeds, returns true, appends to end', () => {
+      setup();
+      eq(addNodeLink('b-root', 'todo', 't1'), true);
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems.length`), 1);
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems[0].entityType`), 'todo');
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems[0].entityId`), 't1');
+    });
+
+    it('addNodeLink appends in order (newest at end)', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      addNodeLink('b-root', 'note', 'n1');
+      addNodeLink('b-root', 'reminder', 'r1');
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems.map(l => l.entityType).join(',')`),
+         'todo,note,reminder');
+    });
+
+    it('addNodeLink is idempotent (returns false on duplicate)', () => {
+      setup();
+      eq(addNodeLink('b-root', 'todo', 't1'), true);
+      eq(addNodeLink('b-root', 'todo', 't1'), false);
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems.length`), 1);
+    });
+
+    it('addNodeLink rejects nonexistent nodeId', () => {
+      setup();
+      eq(addNodeLink('does-not-exist', 'todo', 't1'), false);
+    });
+
+    it('addNodeLink rejects nonexistent entityId', () => {
+      setup();
+      eq(addNodeLink('b-root', 'todo', 'never-was'), false);
+    });
+
+    it('addNodeLink rejects unknown entityType', () => {
+      setup();
+      eq(addNodeLink('b-root', 'gizmo', 't1'), false);
+    });
+
+    it('addNodeLink rejects cross-project entity (defense in depth)', () => {
+      // Active project is p1; tx exists in p2's todos. Helper should reject.
+      setup();
+      eq(addNodeLink('b-root', 'todo', 'tx'), false);
+    });
+
+    it('removeNodeLink succeeds, returns true', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      eq(removeNodeLink('b-root', 'todo', 't1'), true);
+      eq(evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems.length`), 0);
+    });
+
+    it('removeNodeLink returns false when no matching link', () => {
+      setup();
+      eq(removeNodeLink('b-root', 'todo', 't1'), false);
+    });
+
+    it('nodeLinkExists round-trips after add/remove', () => {
+      setup();
+      eq(nodeLinkExists('b-root', 'todo', 't1'), false);
+      addNodeLink('b-root', 'todo', 't1');
+      eq(nodeLinkExists('b-root', 'todo', 't1'), true);
+      removeNodeLink('b-root', 'todo', 't1');
+      eq(nodeLinkExists('b-root', 'todo', 't1'), false);
+    });
+
+    it('nodeLinkCount tracks the array length', () => {
+      setup();
+      eq(nodeLinkCount('b-root'), 0);
+      addNodeLink('b-root', 'todo', 't1');
+      addNodeLink('b-root', 'note', 'n1');
+      eq(nodeLinkCount('b-root'), 2);
+    });
+
+    it('getLinkedItems flags orphan when entity is missing', () => {
+      setup();
+      // Manually push a link to a non-existent todo (simulating future-deleted state).
+      evalIn(`state.data.projects.p1.brainmap.nodes['b-root'].linkedItems.push({ entityType: 'todo', entityId: 'gone' });`);
+      const items = getLinkedItems('b-root');
+      eq(items.length, 1);
+      eq(items[0].isOrphan, true);
+      eq(items[0].entity, null);
+    });
+
+    it('getLinkedItems flags archived when entity has archived=true', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't2');  // t2 is archived in setup
+      const items = getLinkedItems('b-root');
+      eq(items.length, 1);
+      eq(items[0].isArchived, true);
+      eq(items[0].isOrphan, false);
+    });
+
+    it('getLinkedItems preserves array order (oldest first)', () => {
+      setup();
+      addNodeLink('b-root', 'note', 'n1');
+      addNodeLink('b-root', 'todo', 't1');
+      addNodeLink('b-root', 'reminder', 'r1');
+      const types = getLinkedItems('b-root').map(it => it.entityType);
+      eq(types.join(','), 'note,todo,reminder');
+    });
+
+    it('getLinkedNodes returns the linking nodes via cache', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      addNodeLink('b-1',    'todo', 't1');
+      const nodes = getLinkedNodes('todo', 't1');
+      eq(nodes.length, 2);
+      eq(nodes.map(n => n.id).sort().join(','), 'b-1,b-root');
+    });
+
+    it('getLinkedNodes returns [] for an entity with no links', () => {
+      setup();
+      eq(getLinkedNodes('todo', 't1').length, 0);
+    });
+
+    it('cache invalidates on addNodeLink', () => {
+      setup();
+      // Prime the cache (no links yet → empty index).
+      eq(getLinkedNodes('todo', 't1').length, 0);
+      // Add a link; cache should rebuild on next read and reflect the new link.
+      addNodeLink('b-root', 'todo', 't1');
+      eq(getLinkedNodes('todo', 't1').length, 1);
+    });
+
+    it('cache invalidates on removeNodeLink', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      eq(getLinkedNodes('todo', 't1').length, 1);
+      removeNodeLink('b-root', 'todo', 't1');
+      eq(getLinkedNodes('todo', 't1').length, 0);
+    });
+
+    it('cleanupNodeLinksOnEntityDelete removes only the matching type+id', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      addNodeLink('b-root', 'note', 't1');  // same id-suffix, different type — must NOT be touched
+      addNodeLink('b-1',    'todo', 't1');
+      const removed = cleanupNodeLinksOnEntityDelete('p1', 'todo', 't1');
+      eq(removed, 2);
+      eq(nodeLinkExists('b-root', 'todo', 't1'), false);
+      eq(nodeLinkExists('b-root', 'note', 't1'), true);   // wrong-type link untouched
+      eq(nodeLinkExists('b-1',    'todo', 't1'), false);
+    });
+
+    it('cleanupNodeLinksOnEntityDelete invalidates cache', () => {
+      setup();
+      addNodeLink('b-root', 'todo', 't1');
+      eq(getLinkedNodes('todo', 't1').length, 1);
+      cleanupNodeLinksOnEntityDelete('p1', 'todo', 't1');
+      eq(getLinkedNodes('todo', 't1').length, 0);
+    });
+
+    it('debug surface window.__nodeLinks exposes all helpers', () => {
+      // The test sandbox provides a fake `window` global. Verify __nodeLinks
+      // is attached and points at the same functions exported via get().
+      ok(evalIn(`typeof window.__nodeLinks === 'object' && window.__nodeLinks !== null`), '__nodeLinks should be on window');
+      ok(evalIn(`typeof window.__nodeLinks.add === 'function'`), 'add');
+      ok(evalIn(`typeof window.__nodeLinks.remove === 'function'`), 'remove');
+      ok(evalIn(`typeof window.__nodeLinks.exists === 'function'`), 'exists');
+      ok(evalIn(`typeof window.__nodeLinks.count === 'function'`), 'count');
+      ok(evalIn(`typeof window.__nodeLinks.items === 'function'`), 'items');
+      ok(evalIn(`typeof window.__nodeLinks.nodes === 'function'`), 'nodes');
+      ok(evalIn(`typeof window.__nodeLinks.cleanup === 'function'`), 'cleanup');
     });
   });
 };

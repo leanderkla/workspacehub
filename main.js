@@ -92,7 +92,7 @@ function makeDefaultBrainmap(rootLabel) {
   return {
     rootId,
     nodes: {
-      [rootId]: { id: rootId, parentId: null, label: rootLabel, color: null, side: null, collapsed: false, note: '', order: 0, subprojectId: null }
+      [rootId]: { id: rootId, parentId: null, label: rootLabel, color: null, side: null, collapsed: false, note: '', order: 0, subprojectId: null, linkedItems: [] }
     }
   };
 }
