@@ -259,7 +259,20 @@ const state = {
     panX: 0,
     panY: 0,
     layout: null,
-    dirty: false
+    dirty: false,
+    // Per-node memory of the last-used link type in the detail panel.
+    // Session-only — not persisted to state.data and reset on reload, by
+    // design (per the v2 plan's "in-memory only" decision). Map for O(1)
+    // get/set without prototype-pollution worries.
+    lastLinkedTypeByNode: new Map(),
+    // The id of the node whose linked-items list has been expanded via
+    // "Show all (N)". Null = collapsed (default 8 most recent shown when
+    // total > 10). Resets to null on selection change.
+    detailExpandedNodeId: null,
+    // Global session-only toggle for the linked-items panel: hide rows
+    // whose entity is archived. Default off (archived rows render with
+    // strike-through styling per the v2 plan).
+    detailHideArchived: false
   },
   // Molecular landing drill-down state. focusPath is a stack of node ids representing
   // the current focus depth: ['__you'] (root) → ['__you','p:eh'] (project) →
@@ -7752,40 +7765,23 @@ function renderTodos() {
 
   document.getElementById('btn-add-todo').onclick = addTodo;
   const todoInputEl = document.getElementById('todo-input');
-  todoInputEl.onkeydown = (e) => {
-    if (e.key === 'Enter') { addTodo(); return; }
-    // Tab accepts the active ghost suggestion (if any) instead of moving focus.
-    if (e.key === 'Tab' && !e.shiftKey) {
-      const sug = suggestSlashCompletion(todoInputEl.value, todoInputEl.selectionStart || 0);
-      if (sug && sug.completion) {
-        e.preventDefault();
-        const cur = todoInputEl.selectionStart || 0;
-        const next = todoInputEl.value.slice(0, cur) + sug.completion + todoInputEl.value.slice(cur);
-        todoInputEl.value = next;
-        const newPos = cur + sug.completion.length;
-        todoInputEl.setSelectionRange(newPos, newPos);
-        updateTodoSlashGhost();
-        updateTodoSlashChips(todoInputEl.value);
-      }
+  // Slash-command UX: ghost completion + Tab-accept + live chips + real-time
+  // sync of the form fields (priority/due/start/subproject) below the input.
+  // Single shared helper drives both this view and the spark-map detail panel.
+  installTodoSlashCompletion(
+    todoInputEl,
+    document.getElementById('todo-input-ghost'),
+    document.getElementById('todo-slash-chips'),
+    {
+      priority:   document.getElementById('todo-priority'),
+      due:        document.getElementById('todo-due'),
+      start:      document.getElementById('todo-start'),
+      subproject: document.getElementById('todo-subproject')
     }
-  };
-  todoInputEl.oninput = () => {
-    updateTodoSlashChips(todoInputEl.value);
-    updateTodoSlashGhost();
-  };
-  todoInputEl.addEventListener('click', updateTodoSlashGhost);
-  todoInputEl.addEventListener('keyup', (e) => {
-    // Caret moved without text change (arrow keys etc.) — refresh ghost.
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-      updateTodoSlashGhost();
-    }
+  );
+  todoInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTodo();
   });
-  todoInputEl.addEventListener('blur', () => {
-    // Hide ghost when input loses focus — looks weird otherwise.
-    const ghost = document.getElementById('todo-input-ghost');
-    if (ghost) { ghost.hidden = true; ghost.innerHTML = ''; }
-  });
-  todoInputEl.addEventListener('focus', updateTodoSlashGhost);
   document.getElementById('btn-todo-slash-help')?.addEventListener('click', openTodoSlashHelp);
   document.getElementById('btn-add-todo-recur')?.addEventListener('click', openPendingRecurrenceEditor);
   document.getElementById('btn-spawn-rueckbucher')?.addEventListener('click', () => {
@@ -8695,9 +8691,12 @@ function addTodo() {
 // Renders the grey ghost-text completion behind the todo input. The ghost div mirrors
 // the input's typed text in transparent ink (so it takes up the same horizontal space)
 // and appends the suggestion in a muted color right after the caret position.
-function updateTodoSlashGhost() {
-  const input = document.getElementById('todo-input');
-  const ghost = document.getElementById('todo-input-ghost');
+// Element refs default to the main todos-view IDs so existing callers keep
+// working unchanged. Pass explicit elements to drive a different input/ghost
+// pair (the spark-map detail panel uses this for its own todo input).
+function updateTodoSlashGhost(input, ghost) {
+  input = input || document.getElementById('todo-input');
+  ghost = ghost || document.getElementById('todo-input-ghost');
   if (!input || !ghost) return;
   const cur = input.selectionStart ?? input.value.length;
   // Only show the ghost when the caret is at the end of the value AND of the slash token.
@@ -8718,8 +8717,10 @@ function updateTodoSlashGhost() {
 }
 
 // Live feedback for the slash-command parser — shown as chips under the input.
-function updateTodoSlashChips(rawText) {
-  const host = document.getElementById('todo-slash-chips');
+// `host` defaults to the main todos-view chips container; pass a different
+// element to drive a panel-specific chips strip (spark-map detail panel).
+function updateTodoSlashChips(rawText, host) {
+  host = host || document.getElementById('todo-slash-chips');
   if (!host) return;
   const slash = parseTodoSlashCommands(rawText || '');
   if (!slash.tokens.length) {
@@ -8739,6 +8740,84 @@ function updateTodoSlashChips(rawText) {
       <span>${escapeHTML(tok.label)}</span>
     </span>`
   ).join('');
+}
+
+// Wires ghost-text completion + live chips + Tab-accept onto an arbitrary
+// input. Both the main todos-view and the spark-map detail panel call this
+// to get identical slash-command UX. `chipsHost` and `fields` are optional.
+//
+// `fields`, when provided, gives a real-time sync: as the user types a slash
+// command, the corresponding form field's value updates so the user sees the
+// parse reflected in the controls below. Manually changing a field releases
+// our control and remembers the user's pick — backspacing the slash then
+// reverts to that manual value, not the hard default.
+function installTodoSlashCompletion(input, ghost, chipsHost, fields) {
+  if (!input) return;
+  fields = fields || {};
+
+  // Manual-change listener per synced field: a deliberate user pick clears
+  // our tracking so the next refresh treats it as the new manual baseline.
+  Object.values(fields).forEach(el => {
+    if (!el || el._slashChangeHooked) return;
+    el.addEventListener('change', () => {
+      delete el.dataset.slashControlled;
+      delete el.dataset.slashManual;
+    });
+    el._slashChangeHooked = true;
+  });
+
+  const refresh = () => {
+    if (ghost) updateTodoSlashGhost(input, ghost);
+    const slash = parseTodoSlashCommands(input.value);
+    if (chipsHost) updateTodoSlashChips(input.value, chipsHost);
+    syncSlashField(fields.priority,   slash.priority,    'medium');
+    syncSlashField(fields.due,        slash.dueDate,     '');
+    syncSlashField(fields.start,      slash.startDate,   '');
+    syncSlashField(fields.subproject, slash.subprojectId, '');
+  };
+
+  input.addEventListener('input', refresh);
+  input.addEventListener('focus', refresh);
+  input.addEventListener('click', refresh);
+  input.addEventListener('keyup', (e) => {
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) refresh();
+  });
+  input.addEventListener('blur', () => {
+    if (ghost) { ghost.hidden = true; ghost.innerHTML = ''; }
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    const sug = suggestSlashCompletion(input.value, input.selectionStart || 0);
+    if (!sug || !sug.completion) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const cur = input.selectionStart || 0;
+    input.value = input.value.slice(0, cur) + sug.completion + input.value.slice(cur);
+    const newPos = cur + sug.completion.length;
+    input.setSelectionRange(newPos, newPos);
+    refresh();
+  });
+  refresh();
+}
+
+// Drive a single form field from a slash-parsed value. When slash takes over
+// for the first time, we snapshot whatever the user had picked (slashManual)
+// so backspacing the command can restore it instead of jumping to the hard
+// default. The data attribute is also a styling hook (subtle accent border)
+// so the user can tell at a glance which fields are slash-controlled.
+function syncSlashField(el, slashValue, hardDefault) {
+  if (!el) return;
+  if (slashValue !== undefined && slashValue !== null && slashValue !== '') {
+    if (el.dataset.slashControlled !== '1') {
+      el.dataset.slashManual = el.value;
+    }
+    if (el.value !== String(slashValue)) el.value = slashValue;
+    el.dataset.slashControlled = '1';
+  } else if (el.dataset.slashControlled === '1') {
+    el.value = el.dataset.slashManual !== undefined ? el.dataset.slashManual : hardDefault;
+    delete el.dataset.slashControlled;
+    delete el.dataset.slashManual;
+  }
 }
 
 function openTodoSlashHelp() {
@@ -11513,7 +11592,13 @@ function confirmDeleteFlow(id) {
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
 }
 
-function openFlowNameModal(prefillId) {
+// `onCreate` (optional) is invoked after a NEW flow is created and persisted.
+// When provided, it FULLY OWNS post-creation behavior — the modal closes and
+// the callback is responsible for whatever navigation/linking should happen.
+// This is how Phase 2's spark-map detail panel forms an atomic node→flow link
+// at creation time (no pending-state dance). For the Rename branch onCreate
+// is ignored.
+function openFlowNameModal(prefillId, onCreate) {
   const overlay = document.getElementById('modal-overlay');
   const existing = prefillId ? findFlow(prefillId) : null;
   overlay.innerHTML = `
@@ -11548,8 +11633,12 @@ function openFlowNameModal(prefillId) {
       f.description = desc;
       saveData();
       close();
-      state.flowEditing = f.id;
-      renderFlows();
+      if (typeof onCreate === 'function') {
+        onCreate(f);
+      } else {
+        state.flowEditing = f.id;
+        renderFlows();
+      }
     }
   };
   document.getElementById('flow-name-cancel').onclick = close;
@@ -12355,14 +12444,17 @@ function renderBrainmap() {
         <button class="btn btn-primary btn-sm" id="bm-save">Save</button>
         <span class="bm-hint" id="bm-hint">Tab child · Enter sibling · F2 rename · Del remove · Space collapse · Arrows navigate</span>
       </div>
-      <div class="bm-stage" id="bm-stage" tabindex="0">
-        <svg id="bm-svg" xmlns="http://www.w3.org/2000/svg">
-          <g id="bm-pan">
-            <g id="bm-edges"></g>
-            <g id="bm-nodes"></g>
-          </g>
-        </svg>
-        <div id="bm-edit-layer"></div>
+      <div class="bm-main">
+        <div class="bm-stage" id="bm-stage" tabindex="0">
+          <svg id="bm-svg" xmlns="http://www.w3.org/2000/svg">
+            <g id="bm-pan">
+              <g id="bm-edges"></g>
+              <g id="bm-nodes"></g>
+            </g>
+          </svg>
+          <div id="bm-edit-layer"></div>
+        </div>
+        <aside class="bm-detail-panel" id="bm-detail-panel" aria-label="Selected node detail"></aside>
       </div>
       <div class="bm-status" id="bm-status"></div>
     </div>`;
@@ -12487,12 +12579,43 @@ function drawBrainmap() {
       g.appendChild(badge);
     }
 
+    // Linked-items count badge — skipped at 0 per the v2 plan to avoid
+    // clutter on every empty node. Positioned above-right outside the node
+    // box. Tapping it routes selection to this node and ensures the detail
+    // panel scrolls its linked-items section into view (handled in the
+    // svg-click delegate). Render this AFTER the collapse badge so it
+    // overlaps neither the subproject color bar nor the collapse '+/−'.
+    const linkCount = nodeLinkCount(id);
+    if (linkCount > 0) {
+      const lbadge = document.createElementNS(BM_SVG_NS, 'g');
+      lbadge.setAttribute('class', 'bm-link-badge');
+      lbadge.setAttribute('data-link-badge-for', id);
+      lbadge.setAttribute('transform', `translate(${ln.w - 6}, -10)`);
+      const lcirc = document.createElementNS(BM_SVG_NS, 'circle');
+      lcirc.setAttribute('cx', '0'); lcirc.setAttribute('cy', '0');
+      lcirc.setAttribute('r', '9');
+      lcirc.setAttribute('fill', '#0f172a');
+      lcirc.setAttribute('stroke', '#ffffff');
+      lcirc.setAttribute('stroke-width', '1.5');
+      lbadge.appendChild(lcirc);
+      const ltxt = document.createElementNS(BM_SVG_NS, 'text');
+      ltxt.setAttribute('x', '0'); ltxt.setAttribute('y', '4');
+      ltxt.setAttribute('text-anchor', 'middle');
+      ltxt.setAttribute('font-size', linkCount > 9 ? '10' : '11');
+      ltxt.setAttribute('font-weight', '700');
+      ltxt.setAttribute('fill', '#ffffff');
+      ltxt.textContent = linkCount > 99 ? '99+' : String(linkCount);
+      lbadge.appendChild(ltxt);
+      g.appendChild(lbadge);
+    }
+
     nodesG.appendChild(g);
   }
 
   applyBmTransform();
   bmUpdateStatus();
   bmSyncSpSelect();
+  bmRenderDetailPanel();
 }
 
 function bmSyncSpSelect() {
@@ -12566,10 +12689,22 @@ function setupBrainmapEvents() {
 
   svg.addEventListener('click', (e) => {
     const badge = e.target.closest('.bm-badge');
+    const linkBadge = e.target.closest('.bm-link-badge');
     const g = e.target.closest('.bm-node');
     if (badge && g) {
       state.bm.selectedId = g.dataset.id;
       bmToggleCollapse();
+      return;
+    }
+    if (linkBadge && g) {
+      // Select the node and surface the linked-items section. Panel is
+      // always visible; we just scroll it to the section header so taps
+      // behave the same whether the panel was scrolled or not.
+      state.bm.selectedId = g.dataset.id;
+      drawBrainmap();
+      const panel = document.getElementById('bm-detail-panel');
+      const section = panel && panel.querySelector('.bm-dp-linked');
+      if (section) section.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
     if (g) {
@@ -13061,6 +13196,18 @@ const NODE_LINK_COLLECTION = {
   todo: 'todos', note: 'notes', reminder: 'reminders',
   commitment: 'commitments', delegation: 'delegations', flow: 'flows'
 };
+// Display metadata for the spark-map detail panel. Order = picker order.
+// Icons match the v2 plan; flow uses the universal cycle/branch glyph.
+const NODE_LINK_TYPE_META = [
+  { type: 'todo',       icon: '✓',  label: 'Todo' },
+  { type: 'note',       icon: '◆',  label: 'Note' },
+  { type: 'reminder',   icon: '🔔', label: 'Reminder' },
+  { type: 'commitment', icon: '🤝', label: 'Commitment' },
+  { type: 'delegation', icon: '→',  label: 'Delegation' },
+  { type: 'flow',       icon: '🔀', label: 'Flow' }
+];
+const _nodeLinkTypeIcon  = Object.fromEntries(NODE_LINK_TYPE_META.map(m => [m.type, m.icon]));
+const _nodeLinkTypeLabel = Object.fromEntries(NODE_LINK_TYPE_META.map(m => [m.type, m.label]));
 
 // Reverse-index cache: projectKey → Map<'entityType:entityId', Set<nodeId>>.
 // Module-level, in-memory only, never persisted. Lazily built on first read.
@@ -13338,12 +13485,735 @@ function teardownBrainmap() {
   state.bm.layout = null;
   state.bm.selectedId = null;
   state.bm.panX = 0; state.bm.panY = 0; state.bm.zoom = 1;
+  state.bm.detailExpandedNodeId = null;
+  // lastLinkedTypeByNode intentionally NOT cleared — it survives view-switches
+  // within the same session per the v2 plan ("reset on app reload").
+  document.removeEventListener('click', bmTypePickerOutsideHandler, true);
+  document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
   const layer = document.getElementById('bm-edit-layer');
   if (layer) layer.innerHTML = '';
   if (state.bm._mouseMoveHandler) window.removeEventListener('mousemove', state.bm._mouseMoveHandler);
   if (state.bm._mouseUpHandler) window.removeEventListener('mouseup', state.bm._mouseUpHandler);
   state.bm._mouseMoveHandler = null;
   state.bm._mouseUpHandler = null;
+}
+
+// ============================================================================
+// SPARK MAP — DETAIL PANEL (PHASE 2)
+// Per-node panel showing linked items + an inline-add input. The ONLY mutator
+// for node.linkedItems remains addNodeLink/removeNodeLink in the nodeLinks
+// module — this code orchestrates UI + entity creation, then calls the
+// chokepoint helpers.
+// ============================================================================
+
+// Per-node memory of last-used link type. Defaults to 'todo' for nodes
+// never linked from before. Map is on state.bm (session-only).
+function bmGetCurrentLinkType(nodeId) {
+  const t = state.bm.lastLinkedTypeByNode.get(nodeId);
+  return (t && NODE_LINK_ENTITY_TYPES.includes(t)) ? t : 'todo';
+}
+function bmSetCurrentLinkType(nodeId, type) {
+  if (NODE_LINK_ENTITY_TYPES.includes(type)) {
+    state.bm.lastLinkedTypeByNode.set(nodeId, type);
+  }
+}
+
+function bmEntityTitle(entityType, entity) {
+  if (!entity) return null;
+  if (entityType === 'todo' || entityType === 'note' || entityType === 'reminder') return entity.title;
+  if (entityType === 'commitment') return entity.description;
+  if (entityType === 'delegation') return entity.task;
+  if (entityType === 'flow')       return entity.name;
+  return null;
+}
+
+// Done-state helpers. Notes and flows have no "done"; the others each store
+// the state in a different field, mirroring the canonical native-view toggles
+// (toggleTodoDone / updateCommitmentStatus / updateDelegationStatus). Keeping
+// these inline rather than reusing the native toggles because those wrap UI
+// concerns we don't want here (toasts, recurrence spawning, navigation).
+function bmEntityHasDoneState(entityType) {
+  return entityType === 'todo' || entityType === 'reminder'
+      || entityType === 'commitment' || entityType === 'delegation';
+}
+function bmEntityIsDone(entityType, entity) {
+  if (!entity) return false;
+  if (entityType === 'todo')       return !!entity.done;
+  if (entityType === 'reminder')   return !!entity.doneAt;
+  if (entityType === 'commitment') return entity.status === 'fulfilled';
+  if (entityType === 'delegation') return entity.status === 'done';
+  return false;
+}
+function bmToggleEntityDone(entityType, entity) {
+  if (!entity) return;
+  const now = new Date().toISOString();
+  if (entityType === 'todo') {
+    const becoming = !entity.done;
+    entity.done = becoming;
+    entity.completedAt = becoming ? now : null;
+  } else if (entityType === 'reminder') {
+    entity.doneAt = entity.doneAt ? null : now;
+  } else if (entityType === 'commitment') {
+    if (entity.status === 'fulfilled') {
+      entity.status = 'open';
+      entity.fulfilled_at = null;
+    } else {
+      entity.status = 'fulfilled';
+      entity.fulfilled_at = now;
+    }
+  } else if (entityType === 'delegation') {
+    entity.status = entity.status === 'done' ? 'waiting' : 'done';
+    entity.last_update = now;
+  }
+  saveData();
+}
+
+function bmRenderDetailPanel() {
+  const panel = document.getElementById('bm-detail-panel');
+  if (!panel) return;
+  const bm = getBrainmap();
+  const id = state.bm.selectedId;
+  const node = id && bm.nodes && bm.nodes[id];
+  if (!node) { panel.innerHTML = ''; return; }
+
+  // Coarse reset of the "Show all" toggle when selection moves to a
+  // different node. Keeps the toggle scoped to the node it was opened on.
+  if (state.bm.detailExpandedNodeId && state.bm.detailExpandedNodeId !== id) {
+    state.bm.detailExpandedNodeId = null;
+  }
+
+  const itemsAll   = getLinkedItems(id);
+  const totalAll   = itemsAll.length;
+  const archivedN  = itemsAll.reduce((n, it) => n + (it.isArchived ? 1 : 0), 0);
+  const hideArch   = state.bm.detailHideArchived;
+  // Filtered set: rows the user actually sees in the list. Counts and
+  // overflow logic key off this filtered set so numbers stay consistent
+  // with what's rendered. The `archivedN` tally above keeps the small
+  // "(N hidden)" hint honest even when filtering.
+  const items     = hideArch ? itemsAll.filter(it => !it.isArchived) : itemsAll;
+  const total     = items.length;
+  const expand    = state.bm.detailExpandedNodeId === id;
+  // Array order is oldest-first; tail = newest. Display order is newest-first
+  // (so we reverse a copy). When >10 items and not expanded, show only the
+  // 8 newest per the v2 plan.
+  const visible   = ((total > 10 && !expand) ? items.slice(-8) : items.slice()).reverse();
+
+  // Per-type breakdown chips for the section header. Computed over the
+  // filtered set so the chips reflect what's visible.
+  const breakdown = Object.create(null);
+  for (const it of items) breakdown[it.entityType] = (breakdown[it.entityType] || 0) + 1;
+  const breakdownHTML = NODE_LINK_TYPE_META
+    .filter(m => breakdown[m.type])
+    .map(m => `<span class="bm-dp-bd-chip" title="${m.label}">${m.icon} ${breakdown[m.type]}</span>`)
+    .join('');
+
+  // Show the hide-archived toggle whenever there's at least one archived
+  // item OR the toggle is currently on (so the user always has a way to
+  // turn filtering back off if they hid the last archived row).
+  const showHideArchived = archivedN > 0 || hideArch;
+  const archHiddenHint   = (hideArch && archivedN > 0) ? ` <span class="bm-dp-archived-hint">(${archivedN} archived hidden)</span>` : '';
+
+  const currentType = bmGetCurrentLinkType(id);
+
+  panel.innerHTML = `
+    <header class="bm-dp-head">
+      <div class="bm-dp-node-label">${escapeHTML(node.label || '(empty)')}</div>
+      <div class="bm-dp-node-meta">${totalAll === 0 ? 'No links yet' : `${total} linked${archHiddenHint}`}</div>
+    </header>
+    <section class="bm-dp-linked">
+      ${totalAll > 0 ? `
+        <div class="bm-dp-section-title">
+          ${total} linked
+          <span class="bm-dp-breakdown">${breakdownHTML}</span>
+          <span class="bm-dp-section-spacer"></span>
+          ${total > 10 ? `<span class="bm-dp-section-status">Showing ${expand ? total : 8} of ${total}</span>` : ''}
+        </div>
+        ${showHideArchived ? `
+          <label class="bm-dp-archive-toggle">
+            <input type="checkbox" ${hideArch ? 'checked' : ''}>
+            <span>Hide archived${archivedN > 0 ? ` (${archivedN})` : ''}</span>
+          </label>
+        ` : ''}
+        ${total > 0 ? `
+          <ul class="bm-dp-list${expand ? ' bm-dp-list-expanded' : ''}">
+            ${visible.map(it => bmLinkRowHTML(it)).join('')}
+          </ul>
+          ${total > 10 ? `<button class="bm-dp-show-toggle" type="button" data-action="${expand ? 'collapse' : 'expand'}">${expand ? 'Show fewer' : `Show all (${total})`}</button>` : ''}
+        ` : `<div class="bm-dp-empty-hint">All ${totalAll} linked items are archived. Toggle "Hide archived" to see them.</div>`}
+      ` : `<div class="bm-dp-empty-hint">Use the input below to create &amp; link an item.</div>`}
+    </section>
+    <section class="bm-dp-add">
+      <div class="bm-dp-popover-host" id="bm-dp-popover-host"></div>
+      ${bmAddRowHTML(id, currentType)}
+    </section>
+  `;
+
+  bmWireDetailPanel(panel, id);
+}
+
+function bmLinkRowHTML(it) {
+  const icon     = _nodeLinkTypeIcon[it.entityType] || '·';
+  const orphan   = it.isOrphan;
+  const archived = it.isArchived;
+  const hasDone  = !orphan && bmEntityHasDoneState(it.entityType);
+  const isDone   = hasDone && bmEntityIsDone(it.entityType, it.entity);
+  const cls      = ['bm-dp-row'];
+  if (orphan)   cls.push('bm-dp-row-orphan');
+  if (archived) cls.push('bm-dp-row-archived');
+  if (isDone)   cls.push('bm-dp-row-done');
+  const title = orphan
+    ? '(deleted)'
+    : (bmEntityTitle(it.entityType, it.entity) || '(untitled)');
+  const meta = orphan ? 'deleted' : (archived ? 'archived' : '');
+  // Done checkbox slot: rendered for entity types that have a done concept
+  // (todo/reminder/commitment/delegation). Notes and flows get a width-
+  // matching spacer so the icon + title columns line up across the list.
+  const checkSlot = hasDone
+    ? `<input type="checkbox" class="bm-dp-row-check" ${isDone ? 'checked' : ''} data-action="toggle-done" aria-label="Mark done">`
+    : `<span class="bm-dp-row-check-spacer" aria-hidden="true"></span>`;
+  return `
+    <li class="${cls.join(' ')}" data-link-type="${it.entityType}" data-link-id="${escapeHTML(it.entityId)}">
+      ${checkSlot}
+      <span class="bm-dp-row-icon">${icon}</span>
+      <span class="bm-dp-row-title">${escapeHTML(title)}</span>
+      ${meta ? `<span class="bm-dp-row-meta">${meta}</span>` : ''}
+      <button class="bm-dp-row-unlink" type="button" data-action="unlink" title="Unlink" aria-label="Unlink">✕</button>
+    </li>
+  `;
+}
+
+function bmAddRowHTML(nodeId, type) {
+  const icon  = _nodeLinkTypeIcon[type]  || '✓';
+  const label = _nodeLinkTypeLabel[type] || 'Todo';
+  const typeBtn = `
+    <button class="bm-dp-type-btn" type="button" id="bm-dp-type-btn"
+            data-current-type="${type}" title="Pick a different type" aria-label="Pick link type">
+      <span class="bm-dp-type-ic">${icon}</span>
+    </button>
+  `;
+
+  if (type === 'todo') {
+    return `
+      <div class="bm-dp-add-row">
+        ${typeBtn}
+        <div class="bm-dp-input-wrap">
+          <div class="bm-dp-input-ghost" id="bm-dp-input-ghost" aria-hidden="true"></div>
+          <input type="text" class="bm-dp-add-input bm-dp-add-input-todo" id="bm-dp-add-input"
+                 placeholder="Add a todo… try /tomorrow /high /sp:name" maxlength="200" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="todo-slash-chips bm-dp-slash-chips" id="bm-dp-slash-chips" hidden></div>
+      <div class="bm-dp-rich-form">
+        <div class="bm-dp-rich-field">
+          <label>Priority</label>
+          <select class="bm-dp-rich-input" id="bm-dp-todo-pri">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="bm-dp-rich-field bm-dp-rich-field-grow">
+          <label>Due (optional)</label>
+          <input type="date" class="bm-dp-rich-input" id="bm-dp-todo-due">
+        </div>
+        <button class="bm-dp-add-submit bm-dp-add-submit-grow" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+    `;
+  }
+
+  if (type === 'note') {
+    return `
+      <div class="bm-dp-add-row">
+        ${typeBtn}
+        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
+               placeholder="Add a note…" maxlength="200" autocomplete="off">
+      </div>
+      <div class="bm-dp-rich-form">
+        <div class="bm-dp-rich-field bm-dp-rich-field-grow">
+          <label>Priority</label>
+          <select class="bm-dp-rich-input" id="bm-dp-note-pri">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+    `;
+  }
+
+  if (type === 'reminder') {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm   = String(today.getMonth() + 1).padStart(2, '0');
+    const dd   = String(today.getDate()).padStart(2, '0');
+    return `
+      <div class="bm-dp-add-row">
+        ${typeBtn}
+        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
+               placeholder="Reminder title" maxlength="200" autocomplete="off">
+      </div>
+      <div class="bm-dp-rich-form">
+        <div class="bm-dp-rich-field">
+          <label>Date</label>
+          <input type="date" class="bm-dp-rich-input" id="bm-dp-rem-date" value="${yyyy}-${mm}-${dd}">
+        </div>
+        <div class="bm-dp-rich-field">
+          <label>Time</label>
+          <input type="time" class="bm-dp-rich-input" id="bm-dp-rem-time" value="09:00">
+        </div>
+        <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+    `;
+  }
+
+  if (type === 'commitment') {
+    return `
+      <div class="bm-dp-add-row">
+        ${typeBtn}
+        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
+               placeholder="What's the commitment?" maxlength="200" autocomplete="off">
+      </div>
+      <div class="bm-dp-rich-form">
+        <button class="bm-dp-direction" type="button" data-direction="i_owe" id="bm-dp-com-dir"
+                title="Click to flip">I owe</button>
+        <input type="text" class="bm-dp-rich-input bm-dp-rich-input-grow" id="bm-dp-com-cp"
+               placeholder="Counterparty" maxlength="100" autocomplete="off">
+      </div>
+      <div class="bm-dp-rich-form">
+        <div class="bm-dp-rich-field">
+          <label>Due (optional)</label>
+          <input type="date" class="bm-dp-rich-input" id="bm-dp-com-due">
+        </div>
+        <button class="bm-dp-add-submit bm-dp-add-submit-grow" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+    `;
+  }
+
+  if (type === 'delegation') {
+    return `
+      <div class="bm-dp-add-row">
+        ${typeBtn}
+        <input type="text" class="bm-dp-add-input" id="bm-dp-add-input"
+               placeholder="Task" maxlength="200" autocomplete="off">
+      </div>
+      <div class="bm-dp-rich-form">
+        <input type="text" class="bm-dp-rich-input bm-dp-rich-input-grow" id="bm-dp-del-to"
+               placeholder="Delegated to" maxlength="100" autocomplete="off">
+        <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
+      </div>
+    `;
+  }
+
+  if (type === 'flow') {
+    return `
+      <div class="bm-dp-add-row bm-dp-add-row-flow">
+        ${typeBtn}
+        <button class="bm-dp-flow-action" type="button" data-flow-action="create">+ Create new flow</button>
+        <button class="bm-dp-flow-action bm-dp-flow-action-secondary" type="button" data-flow-action="link">Link existing</button>
+      </div>
+    `;
+  }
+
+  return '';
+}
+
+function bmWireDetailPanel(panel, nodeId) {
+  // Type-picker open
+  const typeBtn = panel.querySelector('#bm-dp-type-btn');
+  if (typeBtn) {
+    typeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bmOpenTypePicker(nodeId);
+    });
+  }
+
+  // Linked-items rows: tap navigates, ✕ unlinks, checkbox toggles done.
+  panel.querySelectorAll('.bm-dp-row').forEach(row => {
+    const unlinkBtn = row.querySelector('[data-action="unlink"]');
+    if (unlinkBtn) {
+      unlinkBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const t   = row.dataset.linkType;
+        const eid = row.dataset.linkId;
+        if (removeNodeLink(nodeId, t, eid)) {
+          saveData();
+          drawBrainmap();
+        }
+      });
+    }
+    const doneCheck = row.querySelector('[data-action="toggle-done"]');
+    if (doneCheck) {
+      // Stop click bubbling so it doesn't trigger row-navigation. The change
+      // event then handles the actual state flip.
+      doneCheck.addEventListener('click', (e) => e.stopPropagation());
+      doneCheck.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const t   = row.dataset.linkType;
+        const eid = row.dataset.linkId;
+        const proj = getProject();
+        const entity = _findEntityInProject(proj, t, eid);
+        if (entity) {
+          bmToggleEntityDone(t, entity);
+          drawBrainmap();
+        }
+      });
+    }
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="unlink"]')) return;
+      if (e.target.closest('[data-action="toggle-done"]')) return;
+      if (row.classList.contains('bm-dp-row-orphan')) return;
+      bmNavigateToEntity(row.dataset.linkType, row.dataset.linkId);
+    });
+  });
+
+  // Hide-archived toggle (session-only global)
+  const archToggle = panel.querySelector('.bm-dp-archive-toggle input');
+  if (archToggle) {
+    archToggle.addEventListener('change', (e) => {
+      state.bm.detailHideArchived = e.target.checked;
+      bmRenderDetailPanel();
+    });
+  }
+
+  // Show-all / show-fewer toggle. When expanding, we ALSO scroll the
+  // linked-items section into view so the user sees the list visibly grow
+  // (otherwise the just-revealed items sit below the fold and the click
+  // looks like it did nothing).
+  const showToggle = panel.querySelector('.bm-dp-show-toggle');
+  if (showToggle) {
+    showToggle.addEventListener('click', () => {
+      const expanding = showToggle.dataset.action === 'expand';
+      state.bm.detailExpandedNodeId = expanding ? nodeId : null;
+      bmRenderDetailPanel();
+      if (expanding) {
+        const linked = panel.querySelector('.bm-dp-linked');
+        if (linked) linked.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    });
+  }
+
+  // Title input: Enter submits, Escape clears.
+  const titleInput = panel.querySelector('#bm-dp-add-input');
+  if (titleInput) {
+    titleInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter')  { e.preventDefault(); bmSubmitAdd(nodeId); }
+      else if (e.key === 'Escape') { e.preventDefault(); titleInput.value = ''; }
+    });
+    // Slash-command ghost completion + live chips + real-time field sync,
+    // identical UX to the todos-view input. Only mounted when the input is
+    // the todo variant (renders the wrap + ghost + chips host); other types
+    // skip it. The field sync makes the priority dropdown and due-date
+    // input update as the user types `/high`, `/tomorrow`, etc.
+    if (titleInput.classList.contains('bm-dp-add-input-todo')) {
+      const ghost     = panel.querySelector('#bm-dp-input-ghost');
+      const chipsHost = panel.querySelector('#bm-dp-slash-chips');
+      installTodoSlashCompletion(titleInput, ghost, chipsHost, {
+        priority: panel.querySelector('#bm-dp-todo-pri'),
+        due:      panel.querySelector('#bm-dp-todo-due')
+      });
+    }
+  }
+
+  // Rich-form inputs: Enter also submits
+  panel.querySelectorAll('.bm-dp-rich-input').forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); bmSubmitAdd(nodeId); }
+    });
+  });
+
+  // Add submit button (rich types)
+  const submitBtn = panel.querySelector('#bm-dp-add-submit');
+  if (submitBtn) submitBtn.addEventListener('click', () => bmSubmitAdd(nodeId));
+
+  // Commitment direction toggle
+  const dirBtn = panel.querySelector('#bm-dp-com-dir');
+  if (dirBtn) {
+    dirBtn.addEventListener('click', () => {
+      const next = dirBtn.dataset.direction === 'i_owe' ? 'they_owe' : 'i_owe';
+      dirBtn.dataset.direction = next;
+      dirBtn.textContent = next === 'i_owe' ? 'I owe' : 'They owe';
+    });
+  }
+
+  // Flow actions
+  panel.querySelectorAll('.bm-dp-flow-action').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (btn.dataset.flowAction === 'create') bmFlowCreateAndLink(nodeId);
+      else if (btn.dataset.flowAction === 'link') bmFlowLinkExisting(nodeId);
+    });
+  });
+}
+
+function bmOpenTypePicker(nodeId) {
+  const host = document.getElementById('bm-dp-popover-host');
+  if (!host) return;
+  // Toggle: a second tap on the same type-btn closes it.
+  if (host.firstChild && host.firstChild.classList.contains('bm-dp-type-popover')) {
+    host.innerHTML = '';
+    document.removeEventListener('click', bmTypePickerOutsideHandler, true);
+    return;
+  }
+  const popover = document.createElement('div');
+  popover.className = 'bm-dp-type-popover';
+  popover.innerHTML = NODE_LINK_TYPE_META.map(m => `
+    <button class="bm-dp-type-opt" type="button" data-type="${m.type}">
+      <span class="bm-dp-type-opt-ic">${m.icon}</span>
+      <span class="bm-dp-type-opt-lbl">${m.label}</span>
+    </button>
+  `).join('');
+  popover.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const opt = e.target.closest('.bm-dp-type-opt');
+    if (!opt) return;
+    bmSetCurrentLinkType(nodeId, opt.dataset.type);
+    host.innerHTML = '';
+    document.removeEventListener('click', bmTypePickerOutsideHandler, true);
+    bmRenderDetailPanel();
+    requestAnimationFrame(() => {
+      const inp = document.getElementById('bm-dp-add-input');
+      if (inp) inp.focus();
+    });
+  });
+  host.appendChild(popover);
+  // Capture-phase outside-click to close. setTimeout defers past the
+  // current click event so we don't immediately self-close.
+  setTimeout(() => document.addEventListener('click', bmTypePickerOutsideHandler, true), 0);
+}
+
+function bmTypePickerOutsideHandler(e) {
+  const host = document.getElementById('bm-dp-popover-host');
+  if (!host || !host.firstChild) {
+    document.removeEventListener('click', bmTypePickerOutsideHandler, true);
+    return;
+  }
+  if (e.target.closest('.bm-dp-type-popover')) return;
+  if (e.target.closest('#bm-dp-type-btn'))     return;
+  host.innerHTML = '';
+  document.removeEventListener('click', bmTypePickerOutsideHandler, true);
+}
+
+function bmSubmitAdd(nodeId) {
+  const type = bmGetCurrentLinkType(nodeId);
+  if (type === 'flow') return;  // flow uses dedicated buttons, not this submit path
+
+  const titleInput = document.getElementById('bm-dp-add-input');
+  const rawTitle = titleInput ? titleInput.value.trim() : '';
+  if (!rawTitle) {
+    if (titleInput) titleInput.focus();
+    showToast(`Please enter a ${_nodeLinkTypeLabel[type].toLowerCase()} title.`, 'error');
+    return;
+  }
+
+  const proj = getProject();
+  const node = proj.brainmap.nodes[nodeId];
+  const subId = node ? (node.subprojectId || null) : null;
+  let newId = null;
+  // For non-slash-aware types, the title used downstream is rawTitle as-is.
+  // The todo branch overrides this with the slash-parsed title.
+  let title = rawTitle;
+
+  if (type === 'todo') {
+    // Match addTodo's behavior: slash commands override form fields. So a
+    // user typing "Call Lukas /tom /high" gets dueDate=tomorrow, priority=high
+    // even when the dropdowns say "Medium" / blank. Slash-parsed title falls
+    // back to the raw input if no command stripped any text.
+    const slash = parseTodoSlashCommands(rawTitle);
+    title = slash.title || rawTitle;
+    if (!title) {
+      if (titleInput) titleInput.focus();
+      showToast('Please enter a todo title.', 'error');
+      return;
+    }
+    const priInp = document.getElementById('bm-dp-todo-pri');
+    const dueInp = document.getElementById('bm-dp-todo-due');
+    const priority   = slash.priority   || (priInp && priInp.value)   || 'medium';
+    const startDate  = slash.startDate  || '';
+    let   dueDate    = slash.dueDate    || (dueInp && dueInp.value)   || '';
+    const subprojectId = slash.subprojectId || subId;
+    const recurrence = slash.recurrence ? JSON.parse(JSON.stringify(slash.recurrence)) : null;
+    if (recurrence && !dueDate) {
+      const first = computeNextOccurrence(recurrence, new Date());
+      if (first) dueDate = toDateString(first);
+    }
+    newId = generateId('todo');
+    proj.todos = proj.todos || [];
+    proj.todos.unshift({
+      id: newId, title, done: false, priority,
+      startDate, dueDate, subprojectId,
+      created: new Date().toISOString(), attachments: [], steps: [], recurrence
+    });
+  } else if (type === 'note') {
+    const priInp = document.getElementById('bm-dp-note-pri');
+    const priority = (priInp && priInp.value) || 'medium';
+    newId = generateId('note');
+    const now = new Date().toISOString();
+    proj.notes = proj.notes || [];
+    proj.notes.unshift({
+      id: newId, title, content: '', priority, tags: [],
+      subprojectId: subId, linkedTodos: [], created: now, updated: now
+    });
+  } else if (type === 'reminder') {
+    const dateInp = document.getElementById('bm-dp-rem-date');
+    const timeInp = document.getElementById('bm-dp-rem-time');
+    const date = dateInp ? dateInp.value : '';
+    const time = timeInp ? timeInp.value : '';
+    if (!date || !time) {
+      (date ? timeInp : dateInp)?.focus();
+      showToast('Please set a date and time.', 'error');
+      return;
+    }
+    const datetime = new Date(`${date}T${time}`);
+    if (isNaN(datetime.getTime())) {
+      showToast('Invalid date/time.', 'error');
+      return;
+    }
+    if (datetime < new Date()) {
+      showToast('Please pick a future time.', 'error');
+      return;
+    }
+    newId = generateId('rem');
+    proj.reminders = proj.reminders || [];
+    proj.reminders.push({ id: newId, title, note: '', datetime: datetime.toISOString(), fired: false });
+  } else if (type === 'commitment') {
+    const cpInp  = document.getElementById('bm-dp-com-cp');
+    const dueInp = document.getElementById('bm-dp-com-due');
+    const dirBtn = document.getElementById('bm-dp-com-dir');
+    const cp  = cpInp ? cpInp.value.trim() : '';
+    const due = dueInp ? (dueInp.value || null) : null;
+    const dir = dirBtn ? dirBtn.dataset.direction : 'i_owe';
+    if (!cp) {
+      if (cpInp) cpInp.focus();
+      showToast('Please enter a counterparty.', 'error');
+      return;
+    }
+    const created = addCommitment({ direction: dir, counterparty: cp, description: title, due_date: due });
+    if (!created) { showToast('Could not create commitment.', 'error'); return; }
+    newId = created.id;
+  } else if (type === 'delegation') {
+    const toInp = document.getElementById('bm-dp-del-to');
+    const to = toInp ? toInp.value.trim() : '';
+    if (!to) {
+      if (toInp) toInp.focus();
+      showToast("Please enter who it's delegated to.", 'error');
+      return;
+    }
+    const created = addDelegation({ task: title, delegated_to: to });
+    if (!created) { showToast('Could not create delegation.', 'error'); return; }
+    newId = created.id;
+  }
+
+  if (!newId) return;
+  if (!addNodeLink(nodeId, type, newId)) {
+    showToast('Created but could not link.', 'error');
+    return;
+  }
+  saveData();
+  drawBrainmap();
+  // Re-focus the title input (panel was re-rendered, so this is the fresh
+  // element). Matches the v2 plan's "clear input + keep focus" requirement.
+  requestAnimationFrame(() => {
+    const fresh = document.getElementById('bm-dp-add-input');
+    if (fresh) fresh.focus();
+  });
+  showToast(`${_nodeLinkTypeLabel[type]} created and linked.`, 'success');
+}
+
+function bmFlowCreateAndLink(nodeId) {
+  // openFlowNameModal accepts an optional onCreate callback so the link
+  // is formed atomically with creation — no pending-state dance.
+  openFlowNameModal(null, (flow) => {
+    addNodeLink(nodeId, 'flow', flow.id);
+    bmSetCurrentLinkType(nodeId, 'flow');
+    saveData();
+    state.flowEditing = flow.id;
+    showView('flows');
+  });
+}
+
+function bmFlowLinkExisting(nodeId) {
+  const proj = getProject();
+  const flows = (proj.flows || []).filter(f => !nodeLinkExists(nodeId, 'flow', f.id));
+  if (flows.length === 0) {
+    showToast('No flows in this project to link, or all are already linked.', 'info');
+    return;
+  }
+  bmOpenFlowPicker(nodeId, flows);
+}
+
+function bmOpenFlowPicker(nodeId, flows) {
+  const host = document.getElementById('bm-dp-popover-host');
+  if (!host) return;
+  host.innerHTML = '';
+  const pop = document.createElement('div');
+  pop.className = 'bm-dp-flow-picker';
+  pop.innerHTML = `
+    <input type="search" class="bm-dp-flow-search" placeholder="Search flows…" autocomplete="off">
+    <div class="bm-dp-flow-list">
+      ${flows.map(f => `<button class="bm-dp-flow-row" type="button" data-flow-id="${escapeHTML(f.id)}">${escapeHTML(f.name)}</button>`).join('')}
+    </div>
+  `;
+  host.appendChild(pop);
+  const search = pop.querySelector('.bm-dp-flow-search');
+  const list   = pop.querySelector('.bm-dp-flow-list');
+  search.focus();
+  search.addEventListener('input', () => {
+    const q = search.value.toLowerCase().trim();
+    list.querySelectorAll('.bm-dp-flow-row').forEach(row => {
+      row.hidden = q && !row.textContent.toLowerCase().includes(q);
+    });
+  });
+  search.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') {
+      host.innerHTML = '';
+      document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
+    }
+  });
+  pop.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const row = e.target.closest('.bm-dp-flow-row');
+    if (!row) return;
+    const fid = row.dataset.flowId;
+    if (addNodeLink(nodeId, 'flow', fid)) {
+      bmSetCurrentLinkType(nodeId, 'flow');
+      saveData();
+      host.innerHTML = '';
+      document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
+      drawBrainmap();
+      showToast('Flow linked.', 'success');
+    }
+  });
+  setTimeout(() => document.addEventListener('click', bmFlowPickerOutsideHandler, true), 0);
+}
+
+function bmFlowPickerOutsideHandler(e) {
+  const host = document.getElementById('bm-dp-popover-host');
+  if (!host || !host.firstChild) {
+    document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
+    return;
+  }
+  if (e.target.closest('.bm-dp-flow-picker'))   return;
+  if (e.target.closest('.bm-dp-flow-action'))   return;
+  host.innerHTML = '';
+  document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
+}
+
+function bmNavigateToEntity(entityType, entityId) {
+  // Save the brainmap before leaving (showView would teardown the brainmap
+  // anyway — this just makes the order explicit). For most types the entity's
+  // native list view shows everything including the linked one. Pinpoint
+  // scrolling/highlight is a future polish; navigation alone is Phase 2.
+  saveBrainmap();
+  if      (entityType === 'todo')       showView('todos');
+  else if (entityType === 'note')       { state.editingNote        = entityId; showView('notes'); }
+  else if (entityType === 'reminder')   showView('reminders');
+  else if (entityType === 'commitment') { state.expandedCommitment = entityId; showView('commitments'); }
+  else if (entityType === 'delegation') { state.expandedDelegation = entityId; showView('delegations'); }
+  else if (entityType === 'flow')       { state.flowEditing        = entityId; showView('flows'); }
 }
 
 // ===== BOOT =====

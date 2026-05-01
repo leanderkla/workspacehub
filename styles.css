@@ -3434,6 +3434,631 @@ body.resizing-horizontal * { cursor: col-resize !important; user-select: none !i
   color: #fecaca;
 }
 
+/* ===== SPARK MAP — DETAIL PANEL (PHASE 2) ===== */
+.bm-main {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+}
+
+.bm-detail-panel {
+  width: 360px;
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  font-family: var(--font);
+}
+
+.bm-detail-panel:empty { display: none; }
+
+.bm-dp-head {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.bm-dp-node-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bm-dp-node-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.bm-dp-linked {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.bm-dp-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bm-dp-breakdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.bm-dp-bd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: var(--content-bg);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bm-dp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Expanded mode: drop the inner scroll cap so the list grows naturally and
+ * the user can SEE there's more. The whole panel scrolls instead. The
+ * sticky add-row keeps the input visible while scrolling. */
+.bm-dp-list.bm-dp-list-expanded {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.bm-dp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.bm-dp-row:hover,
+.bm-dp-row:focus-within {
+  background: var(--content-bg);
+}
+
+.bm-dp-row-check,
+.bm-dp-row-check-spacer {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.bm-dp-row-check {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.bm-dp-row-done .bm-dp-row-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.bm-dp-row-icon {
+  width: 22px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.bm-dp-row-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bm-dp-row-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.bm-dp-row-orphan {
+  cursor: default;
+}
+.bm-dp-row-orphan .bm-dp-row-title {
+  color: var(--text-muted);
+  font-style: italic;
+  text-decoration: line-through;
+}
+
+.bm-dp-row-archived .bm-dp-row-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.bm-dp-row-unlink {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.bm-dp-row-unlink:hover,
+.bm-dp-row-unlink:focus-visible {
+  background: #fee2e2;
+  color: #dc2626;
+  outline: none;
+}
+
+.bm-dp-section-spacer { flex: 1; }
+
+.bm-dp-section-status {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.bm-dp-archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-bottom: 8px;
+  user-select: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bm-dp-archive-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.bm-dp-archive-toggle:hover { color: var(--text-primary); }
+
+.bm-dp-archived-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.bm-dp-show-toggle {
+  margin-top: 6px;
+  align-self: flex-start;
+  padding: 8px 12px;
+  min-height: 36px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bm-dp-show-toggle:hover,
+.bm-dp-show-toggle:focus-visible {
+  background: var(--content-bg);
+  color: var(--text-primary);
+  border-style: solid;
+  outline: none;
+}
+
+.bm-dp-empty-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.bm-dp-add {
+  margin-top: auto;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--card-bg);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.bm-dp-add-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.bm-dp-add-row-flow {
+  flex-wrap: wrap;
+}
+
+.bm-dp-type-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.bm-dp-type-btn:hover,
+.bm-dp-type-btn:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.bm-dp-type-ic {
+  line-height: 1;
+}
+
+.bm-dp-add-input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.bm-dp-add-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Slash-completion ghost: same mechanism as the todos-view input. The wrap
+ * is the relative container; the ghost sits absolutely-positioned behind
+ * the (transparent-bg) input, with padding/font matched pixel-for-pixel so
+ * the suggestion sits right after the user's typed slash token. */
+.bm-dp-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+.bm-dp-input-wrap .bm-dp-add-input {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+.bm-dp-input-ghost {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 44px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  color: var(--text-muted);
+}
+/* Reuse the existing ghost-typed/-suggest/-tab classes from the todos input.
+ * The panel renders with the same class names so no extra styling needed. */
+.bm-dp-input-ghost .todo-input-ghost-typed,
+.bm-dp-input-ghost .todo-input-ghost-suggest,
+.bm-dp-input-ghost .todo-input-ghost-tab { font-family: inherit; font-size: 13px; }
+
+/* Live chips strip — mirrors .todo-slash-chips but tighter for the panel. */
+.bm-dp-slash-chips {
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+/* Slash-controlled fields: subtle accent ring so the user sees that the
+ * value reflects the slash command they're typing. Applied to both the
+ * spark-map panel's rich-form fields and the todos-view form. */
+[data-slash-controlled="1"] {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--text-primary);
+}
+
+.bm-dp-rich-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.bm-dp-rich-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bm-dp-rich-field label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.bm-dp-rich-input {
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 0;
+}
+
+select.bm-dp-rich-input {
+  appearance: auto;
+  padding-right: 24px;
+}
+
+.bm-dp-rich-input-grow {
+  flex: 1;
+}
+
+.bm-dp-rich-field-grow {
+  flex: 1;
+  min-width: 120px;
+}
+
+.bm-dp-rich-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.bm-dp-direction {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bm-dp-direction[data-direction="they_owe"] {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.bm-dp-add-submit,
+.bm-dp-flow-action {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 120ms ease;
+}
+
+.bm-dp-add-submit:hover,
+.bm-dp-flow-action:hover,
+.bm-dp-add-submit:focus-visible,
+.bm-dp-flow-action:focus-visible {
+  filter: brightness(1.07);
+  outline: none;
+}
+
+.bm-dp-flow-action {
+  flex: 1;
+}
+
+.bm-dp-add-submit-grow {
+  align-self: flex-end;
+  flex: 1;
+}
+
+.bm-dp-flow-action-secondary {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Popover host — anchored to the bottom-add area, popovers position above. */
+.bm-dp-popover-host {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 100%;
+  pointer-events: none;
+}
+
+.bm-dp-type-popover,
+.bm-dp-flow-picker {
+  pointer-events: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 8px;
+  padding: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.bm-dp-type-popover {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.bm-dp-type-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.bm-dp-type-opt:hover,
+.bm-dp-type-opt:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.bm-dp-type-opt-ic {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.bm-dp-type-opt-lbl { flex: 1; }
+
+.bm-dp-flow-picker { padding: 8px; }
+
+.bm-dp-flow-search {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.bm-dp-flow-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.bm-dp-flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.bm-dp-flow-row {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 10px;
+  height: 44px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 120ms ease;
+}
+
+.bm-dp-flow-row:hover,
+.bm-dp-flow-row:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+/* Count badge on each spark-map node (rendered in SVG, styled here so the
+ * cursor + small hover lift are consistent with the existing collapse badge). */
+.bm-link-badge {
+  cursor: pointer;
+}
+.bm-link-badge:hover circle {
+  filter: brightness(1.2);
+}
+
 /* ===== DELEGATIONS ===== */
 #view-delegations .view-title { font-size: 22px; }
 
