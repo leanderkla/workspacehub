@@ -7978,7 +7978,7 @@ function todoItemHTML(t) {
   const expanded = state.expandedTodos?.has(t.id);
 
   const isSelected = state.selectedTodos.has(t.id);
-  return `<div class="todo-card ${expanded?'expanded':''} ${overdue?'overdue':''} ${isSelected?'bulk-selected':''} ${t.archived?'archived':''}">
+  return `<div class="todo-card ${expanded?'expanded':''} ${overdue?'overdue':''} ${isSelected?'bulk-selected':''} ${t.archived?'archived':''}" data-todo-id="${t.id}">
     <div class="todo-item ${t.done?'done':''}">
       <span class="todo-bulk-select ${isSelected?'on':''}" data-bulk-id="${t.id}" title="Select for bulk actions">${isSelected?'✓':''}</span>
       <button class="todo-expand ${expanded?'open':''}" data-expand-id="${t.id}" title="${steps.length?'Toggle steps':'Add steps'}">▸</button>
@@ -12222,7 +12222,7 @@ function markReminderUndone(id) {
 
 function reminderItemHTML(r) {
   const linksChip = genericLinksChip('reminder', r.id);
-  return `<div class="reminder-item ${r.fired?'fired':''}">
+  return `<div class="reminder-item ${r.fired?'fired':''}" data-reminder-id="${r.id}">
     <div class="reminder-icon">${r.fired?'✅':'🔔'}</div>
     <div class="reminder-body">
       <div class="reminder-title">${escapeHTML(r.title)}${r.recurrence ? ` <span class="reminder-recur-chip" data-rem-recur="${r.id}" title="${escapeHTML(describeRecurrence(r.recurrence))} · click to edit">🔁 ${escapeHTML(describeRecurrence(r.recurrence))}</span>` : ''}</div>
@@ -14305,16 +14305,46 @@ function bmFlowPickerOutsideHandler(e) {
 
 function bmNavigateToEntity(entityType, entityId) {
   // Save the brainmap before leaving (showView would teardown the brainmap
-  // anyway — this just makes the order explicit). For most types the entity's
-  // native list view shows everything including the linked one. Pinpoint
-  // scrolling/highlight is a future polish; navigation alone is Phase 2.
+  // anyway — this just makes the order explicit). For note/flow the editor
+  // opens to that entity directly. For commitment/delegation the existing
+  // expandedCommitment/expandedDelegation state expands the matching card
+  // in place. Todo and reminder only need a list-view scroll-and-highlight
+  // since their renderers don't pinpoint anything.
   saveBrainmap();
-  if      (entityType === 'todo')       showView('todos');
+  if      (entityType === 'todo')       { showView('todos');       bmHighlightTargetItem('todo', entityId); }
   else if (entityType === 'note')       { state.editingNote        = entityId; showView('notes'); }
-  else if (entityType === 'reminder')   showView('reminders');
-  else if (entityType === 'commitment') { state.expandedCommitment = entityId; showView('commitments'); }
-  else if (entityType === 'delegation') { state.expandedDelegation = entityId; showView('delegations'); }
+  else if (entityType === 'reminder')   { showView('reminders');   bmHighlightTargetItem('reminder', entityId); }
+  else if (entityType === 'commitment') { state.expandedCommitment = entityId; showView('commitments'); bmHighlightTargetItem('commitment', entityId); }
+  else if (entityType === 'delegation') { state.expandedDelegation = entityId; showView('delegations'); bmHighlightTargetItem('delegation', entityId); }
   else if (entityType === 'flow')       { state.flowEditing        = entityId; showView('flows'); }
+}
+
+// Scrolls the target row/card into view and applies a brief pulse so the
+// user can spot it in a long list. Selectors map to the data-* attributes
+// each entity type's row/card already exposes (see todoItemHTML, etc.).
+// Defers to requestAnimationFrame so the showView render has settled.
+function bmHighlightTargetItem(entityType, entityId) {
+  const selector = ({
+    todo:       `.todo-card[data-todo-id="${cssEscape(entityId)}"]`,
+    reminder:   `.reminder-item[data-reminder-id="${cssEscape(entityId)}"]`,
+    commitment: `.com-card[data-com-id="${cssEscape(entityId)}"]`,
+    delegation: `.del-card[data-del-id="${cssEscape(entityId)}"]`
+  })[entityType];
+  if (!selector) return;
+  requestAnimationFrame(() => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('bm-target-highlight');
+    setTimeout(() => el.classList.remove('bm-target-highlight'), 2000);
+  });
+}
+
+// CSS.escape isn't always available in older WebViews; fall back to a
+// minimal escape sufficient for our id format (prefix-timestamp-rand).
+function cssEscape(s) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s);
+  return String(s).replace(/[^a-zA-Z0-9_\-]/g, m => '\\' + m);
 }
 
 // ============================================================================

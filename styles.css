@@ -4089,6 +4089,20 @@ select.bm-dp-rich-input {
   outline: none;
 }
 
+/* Brief pulse-highlight applied to a target entity's card after the user
+ * arrives at its native view via the spark-map detail panel. Helps locate
+ * the row in a long list. Animation auto-clears via the JS-side
+ * setTimeout(2000) that removes the class. */
+.bm-target-highlight {
+  animation: bm-target-pulse 2s ease-out;
+  position: relative;
+  z-index: 1;
+}
+@keyframes bm-target-pulse {
+  0%, 25%   { box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px var(--accent-soft); }
+  100%      { box-shadow: 0 0 0 0 transparent; }
+}
+
 /* Count badge on each spark-map node (rendered in SVG, styled here so the
  * cursor + small hover lift are consistent with the existing collapse badge). */
 .bm-link-badge {
