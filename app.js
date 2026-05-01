@@ -13718,6 +13718,15 @@ function bmAddRowHTML(nodeId, type) {
       <span class="bm-dp-type-ic">${icon}</span>
     </button>
   `;
+  // Secondary action shown below each non-flow type's create form. Flow has
+  // its own dedicated "Link existing" button up top because its create path
+  // is also a button (not a text input), so the layout already accommodates
+  // the choice.
+  const linkExistingBtn = type === 'flow' ? '' : `
+    <button class="bm-dp-link-existing" type="button" data-link-existing-type="${type}">
+      Or link an existing ${label.toLowerCase()} →
+    </button>
+  `;
 
   if (type === 'todo') {
     return `
@@ -13745,6 +13754,7 @@ function bmAddRowHTML(nodeId, type) {
         </div>
         <button class="bm-dp-add-submit bm-dp-add-submit-grow" type="button" id="bm-dp-add-submit">Add</button>
       </div>
+      ${linkExistingBtn}
     `;
   }
 
@@ -13766,6 +13776,7 @@ function bmAddRowHTML(nodeId, type) {
         </div>
         <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
       </div>
+      ${linkExistingBtn}
     `;
   }
 
@@ -13791,6 +13802,7 @@ function bmAddRowHTML(nodeId, type) {
         </div>
         <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
       </div>
+      ${linkExistingBtn}
     `;
   }
 
@@ -13814,6 +13826,7 @@ function bmAddRowHTML(nodeId, type) {
         </div>
         <button class="bm-dp-add-submit bm-dp-add-submit-grow" type="button" id="bm-dp-add-submit">Add</button>
       </div>
+      ${linkExistingBtn}
     `;
   }
 
@@ -13829,6 +13842,7 @@ function bmAddRowHTML(nodeId, type) {
                placeholder="Delegated to" maxlength="100" autocomplete="off">
         <button class="bm-dp-add-submit" type="button" id="bm-dp-add-submit">Add</button>
       </div>
+      ${linkExistingBtn}
     `;
   }
 
@@ -13971,6 +13985,16 @@ function bmWireDetailPanel(panel, nodeId) {
       e.stopPropagation();
       if (btn.dataset.flowAction === 'create') bmFlowCreateAndLink(nodeId);
       else if (btn.dataset.flowAction === 'link') bmFlowLinkExisting(nodeId);
+    });
+  });
+
+  // "Or link an existing X →" — secondary action below each non-flow form.
+  // Opens the same fuzzy picker pattern as flow's "Link existing" button.
+  panel.querySelectorAll('.bm-dp-link-existing').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = btn.dataset.linkExistingType;
+      if (t) bmLinkExistingForType(nodeId, t);
     });
   });
 }
@@ -14161,26 +14185,49 @@ function bmFlowCreateAndLink(nodeId) {
   });
 }
 
+// Backwards-compatible thin wrapper kept so the flow-action button keeps
+// working unchanged. Both the flow path and every non-flow type now share
+// the bmLinkExistingForType / bmOpenEntityPicker pair below.
 function bmFlowLinkExisting(nodeId) {
-  const proj = getProject();
-  const flows = (proj.flows || []).filter(f => !nodeLinkExists(nodeId, 'flow', f.id));
-  if (flows.length === 0) {
-    showToast('No flows in this project to link, or all are already linked.', 'info');
-    return;
-  }
-  bmOpenFlowPicker(nodeId, flows);
+  bmLinkExistingForType(nodeId, 'flow');
 }
 
-function bmOpenFlowPicker(nodeId, flows) {
+// Open a fuzzy-search picker for any entity type. Filters out items already
+// linked from this node + archived items (the latter typically aren't what
+// the user wants to surface; a "show archived" toggle could be added later
+// if real use shows it's needed).
+function bmLinkExistingForType(nodeId, entityType) {
+  const proj = getProject();
+  const collection = NODE_LINK_COLLECTION[entityType];
+  if (!collection) return;
+  const items = (proj[collection] || []).filter(item =>
+    item && item.id
+    && !nodeLinkExists(nodeId, entityType, item.id)
+    && !item.archived
+  );
+  if (items.length === 0) {
+    const label = _nodeLinkTypeLabel[entityType].toLowerCase();
+    showToast(`No ${label}s available to link, or all are already linked.`, 'info');
+    return;
+  }
+  bmOpenEntityPicker(nodeId, entityType, items);
+}
+
+function bmOpenEntityPicker(nodeId, entityType, items) {
   const host = document.getElementById('bm-dp-popover-host');
   if (!host) return;
   host.innerHTML = '';
+  const typeLabel = _nodeLinkTypeLabel[entityType].toLowerCase();
   const pop = document.createElement('div');
   pop.className = 'bm-dp-flow-picker';
+  pop.dataset.pickerType = entityType;
   pop.innerHTML = `
-    <input type="search" class="bm-dp-flow-search" placeholder="Search flows…" autocomplete="off">
+    <input type="search" class="bm-dp-flow-search" placeholder="Search ${typeLabel}s…" autocomplete="off">
     <div class="bm-dp-flow-list">
-      ${flows.map(f => `<button class="bm-dp-flow-row" type="button" data-flow-id="${escapeHTML(f.id)}">${escapeHTML(f.name)}</button>`).join('')}
+      ${items.map(item => {
+        const title = bmEntityTitle(entityType, item) || '(untitled)';
+        return `<button class="bm-dp-flow-row" type="button" data-entity-id="${escapeHTML(item.id)}">${escapeHTML(title)}</button>`;
+      }).join('')}
     </div>
   `;
   host.appendChild(pop);
@@ -14204,14 +14251,14 @@ function bmOpenFlowPicker(nodeId, flows) {
     e.stopPropagation();
     const row = e.target.closest('.bm-dp-flow-row');
     if (!row) return;
-    const fid = row.dataset.flowId;
-    if (addNodeLink(nodeId, 'flow', fid)) {
-      bmSetCurrentLinkType(nodeId, 'flow');
+    const eid = row.dataset.entityId;
+    if (addNodeLink(nodeId, entityType, eid)) {
+      bmSetCurrentLinkType(nodeId, entityType);
       saveData();
       host.innerHTML = '';
       document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
       drawBrainmap();
-      showToast('Flow linked.', 'success');
+      showToast(`${_nodeLinkTypeLabel[entityType]} linked.`, 'success');
     }
   });
   setTimeout(() => document.addEventListener('click', bmFlowPickerOutsideHandler, true), 0);
@@ -14223,8 +14270,9 @@ function bmFlowPickerOutsideHandler(e) {
     document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
     return;
   }
-  if (e.target.closest('.bm-dp-flow-picker'))   return;
-  if (e.target.closest('.bm-dp-flow-action'))   return;
+  if (e.target.closest('.bm-dp-flow-picker'))    return;
+  if (e.target.closest('.bm-dp-flow-action'))    return;
+  if (e.target.closest('.bm-dp-link-existing'))  return;
   host.innerHTML = '';
   document.removeEventListener('click', bmFlowPickerOutsideHandler, true);
 }

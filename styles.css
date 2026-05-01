@@ -3936,6 +3936,35 @@ select.bm-dp-rich-input {
   border-color: var(--border-strong);
 }
 
+/* Secondary "Or link an existing X →" action below each non-flow create
+ * form. Looks like a quiet text link to keep the create path the visual
+ * primary, but with a 44px tap target so the touch interaction stays
+ * forgiving. */
+.bm-dp-link-existing {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 8px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bm-dp-link-existing:hover,
+.bm-dp-link-existing:focus-visible {
+  background: var(--content-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
 /* Popover host — anchored to the bottom-add area, popovers position above. */
 .bm-dp-popover-host {
   position: absolute;
@@ -3955,13 +3984,13 @@ select.bm-dp-rich-input {
   margin-bottom: 8px;
   padding: 6px;
   max-height: 360px;
-  overflow-y: auto;
 }
 
 .bm-dp-type-popover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
+  overflow-y: auto;
 }
 
 .bm-dp-type-opt {
@@ -3997,7 +4026,14 @@ select.bm-dp-rich-input {
 
 .bm-dp-type-opt-lbl { flex: 1; }
 
-.bm-dp-flow-picker { padding: 8px; }
+/* Picker layout: column flex with the search fixed at top and the list
+ * taking the remaining space and scrolling. One scroll axis, not two. */
+.bm-dp-flow-picker {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
 .bm-dp-flow-search {
   width: 100%;
@@ -4010,6 +4046,7 @@ select.bm-dp-rich-input {
   font-size: 13px;
   font-family: inherit;
   margin-bottom: 6px;
+  flex-shrink: 0;
 }
 
 .bm-dp-flow-search:focus {
@@ -4022,7 +4059,8 @@ select.bm-dp-rich-input {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 240px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -4033,6 +4071,7 @@ select.bm-dp-rich-input {
   border-radius: 6px;
   padding: 0 10px;
   height: 44px;
+  flex-shrink: 0;
   font-size: 13px;
   font-family: inherit;
   color: var(--text-primary);
