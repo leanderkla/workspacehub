@@ -2143,6 +2143,86 @@ body.sidebar-compact .lab-summary-label { display: none; }
 .todo-priority-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .todo-priority-select option { background: var(--card-bg); color: var(--text-primary); font-weight: 500; }
 
+/* Compact priority dot. Native <select> with everything visual collapsed
+ * to a 14px circle in the priority color. The dropdown picker still works
+ * on click since we kept the <select> element. Border + shadow give the
+ * dot a small visible "frame" so it doesn't disappear into pale rows. */
+.todo-priority-dot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid;
+  background-image: none;
+  font-size: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.todo-priority-dot.badge-high   { background: #dc2626; border-color: #fca5a5; }
+.todo-priority-dot.badge-medium { background: #eab308; border-color: #fde68a; }
+.todo-priority-dot.badge-low    { background: #16a34a; border-color: #86efac; }
+.todo-priority-dot:hover  { transform: scale(1.2); }
+.todo-priority-dot:focus,
+.todo-priority-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.todo-priority-dot option { font-size: 13px; }
+
+/* Overflow menu trigger sits at the very right of each todo row. Same
+ * btn-ghost btn-icon styling as the others; the ⋯ glyph is enough. */
+.todo-overflow {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Floating menu launched from .todo-overflow. Built fresh per click and
+ * removed on dismiss, so it lives in document.body to escape any card-
+ * level overflow:hidden. Pattern mirrors .bm-context-menu. */
+.todo-overflow-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 200px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  font-family: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.todo-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  min-height: 44px;
+}
+.todo-overflow-item:hover { background: var(--content-bg); }
+.todo-overflow-ic {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.todo-overflow-danger { color: #dc2626; }
+.todo-overflow-danger .todo-overflow-ic { color: #dc2626; }
+.todo-overflow-danger:hover { background: #fee2e2; }
+
 .todo-project-select {
   appearance: none;
   -webkit-appearance: none;

@@ -343,13 +343,18 @@ function priorityBadge(p) {
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
 
+// Compact colored-dot variant of the priority pill. The native <select>
+// stays so the dropdown picker is free; styling collapses it to a circle
+// with the priority color. Tooltip surfaces the current priority text
+// since it's no longer visible in the chip itself.
 function priorityBadgeEditable(todoId, p) {
   const cur = ['high','medium','low'].includes(p) ? p : 'low';
   const cls = { high:'badge-high', medium:'badge-medium', low:'badge-low' }[cur];
-  return `<select class="badge ${cls} todo-priority-select" data-id="${todoId}" title="Change priority">
-    <option value="high" ${cur==='high'?'selected':''}>High</option>
-    <option value="medium" ${cur==='medium'?'selected':''}>Medium</option>
-    <option value="low" ${cur==='low'?'selected':''}>Low</option>
+  const lbl = { high: 'High', medium: 'Medium', low: 'Low' }[cur];
+  return `<select class="todo-priority-dot ${cls} todo-priority-select" data-id="${todoId}" title="Priority: ${lbl} — click to change" aria-label="Priority: ${lbl}">
+    <option value="high" ${cur==='high'?'selected':''}>🔴 High</option>
+    <option value="medium" ${cur==='medium'?'selected':''}>🟡 Medium</option>
+    <option value="low" ${cur==='low'?'selected':''}>🟢 Low</option>
   </select>`;
 }
 
@@ -7914,6 +7919,11 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
     b.addEventListener('click', () => showTodoDatesModal(b.dataset.id)));
   scope.querySelectorAll('.todo-to-note').forEach(b =>
     b.addEventListener('click', () => convertTodoToNote(b.dataset.id)));
+  scope.querySelectorAll('.todo-overflow').forEach(b =>
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTodoOverflowMenu(b, b.dataset.id, onRefresh, toggleFrom);
+    }));
   scope.querySelectorAll('.todo-priority-select').forEach(sel =>
     sel.addEventListener('change', () => { if (setTodoPriority(sel.dataset.id, sel.value)) onRefresh(); }));
   scope.querySelectorAll('.todo-sp-select').forEach(sel => {
@@ -7964,6 +7974,85 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
   bindEditableTodoTitles(scopeSelector, onRefresh);
 }
 
+// Floating overflow menu for the todo row's secondary actions. The actual
+// click handlers (todo-attachments, todo-recurrence, todo-to-note,
+// todo-archive, todo-delete) are reused from bindTodoRowEvents — we just
+// build a menu DOM with the same class names + data-id, then call the
+// binding helper with the menu as scope. The menu also closes itself on
+// any click inside (so users get a clean dismiss after picking an action).
+function openTodoOverflowMenu(anchor, todoId, onRefresh, toggleFrom) {
+  closeTodoOverflowMenu();
+  const proj = getProject();
+  const t = (proj.todos || []).find(x => x.id === todoId);
+  if (!t) return;
+  const attCount = (t.attachments || []).length;
+  const recurLabel = t.recurrence ? `Recurrence — ${escapeHTML(describeRecurrence(t.recurrence))}` : 'Set recurrence';
+  const menu = document.createElement('div');
+  menu.id = 'todo-overflow-menu';
+  menu.className = 'todo-overflow-menu';
+  menu.innerHTML = `
+    <button class="todo-overflow-item todo-attachments" data-id="${todoId}">
+      <span class="todo-overflow-ic">📎</span>
+      <span>Attachments${attCount ? ` (${attCount})` : ''}</span>
+    </button>
+    <button class="todo-overflow-item todo-recurrence ${t.recurrence?'active':''}" data-id="${todoId}">
+      <span class="todo-overflow-ic">🔁</span>
+      <span>${recurLabel}</span>
+    </button>
+    <button class="todo-overflow-item todo-to-note" data-id="${todoId}">
+      <span class="todo-overflow-ic">→</span>
+      <span>Convert to note</span>
+    </button>
+    <button class="todo-overflow-item todo-archive" data-id="${todoId}">
+      <span class="todo-overflow-ic">${t.archived ? '↺' : '📦'}</span>
+      <span>${t.archived ? 'Restore from archive' : 'Archive'}</span>
+    </button>
+    <button class="todo-overflow-item todo-delete todo-overflow-danger" data-id="${todoId}">
+      <span class="todo-overflow-ic">✕</span>
+      <span>Delete</span>
+    </button>
+  `;
+  document.body.appendChild(menu);
+
+  // Position. Default below-right; flip up if it would overflow the viewport.
+  const rect = anchor.getBoundingClientRect();
+  let top  = rect.bottom + 4;
+  let left = rect.right - menu.offsetWidth;
+  if (top + menu.offsetHeight > window.innerHeight) top  = Math.max(8, rect.top - menu.offsetHeight - 4);
+  if (left < 8) left = 8;
+  if (left + menu.offsetWidth > window.innerWidth - 8) left = window.innerWidth - menu.offsetWidth - 8;
+  menu.style.top  = `${top}px`;
+  menu.style.left = `${left}px`;
+
+  // Reuse the existing handler wiring for these classes by binding against
+  // the menu as scope. onRefresh re-renders the underlying view; we close
+  // the menu first so it doesn't linger as orphaned DOM.
+  bindTodoRowEvents('#todo-overflow-menu', () => {
+    closeTodoOverflowMenu();
+    if (typeof onRefresh === 'function') onRefresh();
+  }, toggleFrom);
+
+  // Belt-and-suspenders: any click inside the menu also closes it (covers
+  // actions like attachments that open a modal but don't trigger onRefresh).
+  menu.addEventListener('click', (e) => {
+    if (e.target.closest('.todo-overflow-item')) closeTodoOverflowMenu();
+  });
+
+  setTimeout(() => document.addEventListener('click', _todoOverflowOutsideHandler, true), 0);
+}
+
+function closeTodoOverflowMenu() {
+  const m = document.getElementById('todo-overflow-menu');
+  if (m) m.remove();
+  document.removeEventListener('click', _todoOverflowOutsideHandler, true);
+}
+
+function _todoOverflowOutsideHandler(e) {
+  if (e.target.closest('#todo-overflow-menu')) return;
+  if (e.target.closest('.todo-overflow'))      return;
+  closeTodoOverflowMenu();
+}
+
 function todoItemHTML(t) {
   const proj = getProject();
   const overdue = t.dueDate && !t.done && isOverdue(t.dueDate);
@@ -8002,12 +8091,8 @@ function todoItemHTML(t) {
         <select class="todo-project-select" data-id="${t.id}" title="Move to project" style="border-color:${proj.color || '#16a34a'};color:${proj.color || '#16a34a'}">
           ${projectEntries.map(([key, p]) => `<option value="${key}" ${key===state.project?'selected':''}>${escapeHTML(p.name)}</option>`).join('')}
         </select>` : ''}
-      <button class="btn btn-ghost btn-icon todo-attachments" data-id="${t.id}" title="Attachments${(t.attachments||[]).length?` (${(t.attachments||[]).length})`:''}">📎${(t.attachments||[]).length?`<span class="todo-att-count">${t.attachments.length}</span>`:''}</button>
-      <button class="btn btn-ghost btn-icon todo-recurrence ${t.recurrence?'active':''}" data-id="${t.id}" title="${t.recurrence ? describeRecurrence(t.recurrence) : 'Set recurrence'}">🔁</button>
       ${pinToggleButtonHTML('todo', state.project, t.id, 'btn btn-ghost btn-icon')}
-      <button class="btn btn-ghost btn-sm todo-to-note" data-id="${t.id}" title="Convert to note">→ Note</button>
-      <button class="btn btn-ghost btn-icon todo-archive" data-id="${t.id}" title="${t.archived ? 'Restore from archive' : 'Archive'}">${t.archived ? '↺' : '📦'}</button>
-      <button class="btn btn-ghost btn-icon todo-delete" data-id="${t.id}" title="Delete">✕</button>
+      <button class="btn btn-ghost btn-icon todo-overflow" data-id="${t.id}" title="More actions" aria-label="More actions">⋯</button>
     </div>
     ${expanded ? todoStepsPanelHTML(t) : ''}
     ${expanded ? backlinksPanelHTML('todo', state.project, t.id) : ''}
