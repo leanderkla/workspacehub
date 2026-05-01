@@ -12487,7 +12487,33 @@ function renderBrainmap() {
     </div>`;
 
   drawBrainmap();
-  requestAnimationFrame(() => { bmFitToView(); setupBrainmapEvents(); });
+  // On arrival, center on the selected node when one is set (and isn't the
+  // root) — that's the case when the user got here via a reverse-link chip
+  // or the linked-items row, and they expect to land on that node, not on
+  // a fitted overview where it might be tiny. Default fit-all otherwise.
+  requestAnimationFrame(() => {
+    if (!bmCenterOnSelected()) bmFitToView();
+    setupBrainmapEvents();
+  });
+}
+
+// Returns true when it centered on a non-root selected node, false otherwise
+// (caller should fall back to fit-to-view). Picks a comfortable zoom (1.2x)
+// so the selected node sits prominently with parent/sibling context still
+// visible around it.
+function bmCenterOnSelected() {
+  const bm = getBrainmap();
+  const id = state.bm.selectedId;
+  if (!id || id === bm.rootId) return false;
+  const stage = document.getElementById('bm-stage');
+  const ln = state.bm.layout && state.bm.layout.nodes[id];
+  if (!stage || !ln) return false;
+  state.bm.zoom = 1.2;
+  state.bm.panX = stage.clientWidth  / 2 - ln.x * state.bm.zoom;
+  state.bm.panY = stage.clientHeight / 2 - ln.y * state.bm.zoom;
+  applyBmTransform();
+  bmUpdateStatus();
+  return true;
 }
 
 function drawBrainmap() {
