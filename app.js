@@ -343,6 +343,67 @@ function priorityBadge(p) {
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
 
+// Workspace-wide pool of unique tags (lowercased for de-dup; stored case
+// is whatever the user first typed). Skips archived projects. Used for
+// autocomplete suggestions, the Tags view, and the palette filter.
+function getAllWorkspaceTags() {
+  const seen = new Map();  // lowercased → original-case
+  for (const proj of Object.values(state.data.projects || {})) {
+    if (proj.archived) continue;
+    const collect = (arr) => (arr || []).forEach(item => {
+      (item.tags || []).forEach(t => {
+        const key = String(t).toLowerCase();
+        if (!seen.has(key)) seen.set(key, String(t));
+      });
+    });
+    collect(proj.todos);
+    collect(proj.notes);
+    collect(proj.commitments);
+    collect(proj.delegations);
+    collect(proj.reminders);
+    collect(proj.dumps);
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+}
+
+// Parse a comma-separated string of tags into an array. Trims, drops
+// empties, dedups case-insensitively while keeping the original casing
+// of the first occurrence.
+function parseTagsString(str) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of String(str || '').split(',')) {
+    const t = raw.trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
+// Find an entity by type + id in the active project, replace its tags
+// with the parsed array, save. Returns true on change.
+const _TAG_TARGET_COLLECTIONS = {
+  todo: 'todos', note: 'notes', reminder: 'reminders',
+  commitment: 'commitments', delegation: 'delegations', dump: 'dumps'
+};
+function setEntityTags(entityType, entityId, tagsArr) {
+  const proj = getProject();
+  const coll = _TAG_TARGET_COLLECTIONS[entityType];
+  if (!coll) return false;
+  const item = (proj[coll] || []).find(x => x.id === entityId);
+  if (!item) return false;
+  const next = Array.isArray(tagsArr) ? tagsArr : parseTagsString(tagsArr);
+  const prev = item.tags || [];
+  if (prev.length === next.length && prev.every((v, i) => v === next[i])) return false;
+  item.tags = next;
+  if (entityType === 'note') item.updated = new Date().toISOString();
+  saveData();
+  return true;
+}
+
 // Renders the `#tagN` chips for any entity that has tags. Reuses the
 // existing `.tag-chip` class used in the notes list. Empty arrays return
 // '' so callers can drop the call inline without a guard. The
@@ -3707,7 +3768,23 @@ function setupReminderListener() {
 }
 
 // ===== RENDER APP =====
-function renderApp() { renderSidebar(); renderContent(); }
+function renderApp() { renderSidebar(); renderContent(); ensureWorkspaceTagsDatalist(); }
+
+// Singleton datalist mounted on body that backs every input with
+// list="all-workspace-tags". Rebuilt on every renderApp so it reflects
+// the current pool. Browsers only autocomplete the FIRST comma-separated
+// token in a multi-tag input — acceptable for v1, full per-tag completion
+// would need a custom popover (the slash/mention pattern).
+function ensureWorkspaceTagsDatalist() {
+  let dl = document.getElementById('all-workspace-tags');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'all-workspace-tags';
+    document.body.appendChild(dl);
+  }
+  const tags = getAllWorkspaceTags();
+  dl.innerHTML = tags.map(t => `<option value="${escapeHTML(t)}"></option>`).join('');
+}
 
 function switchProject(key) {
   if (!state.data.projects[key]) return;
@@ -7933,6 +8010,7 @@ function renderTodos() {
             </select>
             <label class="date-field"><span>Start</span><input type="date" class="form-input" id="todo-start"></label>
             <label class="date-field"><span>Due</span><input type="date" class="form-input" id="todo-due"></label>
+            <input type="text" class="form-input entity-tags-input" id="todo-tags" placeholder="Tags (comma)" list="all-workspace-tags" style="flex:1;min-width:140px">
             <button class="btn btn-ghost btn-sm todo-add-recur ${state.pendingTodoRecurrence?'active':''}" id="btn-add-todo-recur" title="${state.pendingTodoRecurrence ? describeRecurrence(state.pendingTodoRecurrence) : 'Set recurrence'}">
               🔁 ${state.pendingTodoRecurrence ? escapeHTML(describeRecurrence(state.pendingTodoRecurrence)) : 'Repeat'}
             </button>
@@ -8146,6 +8224,14 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
       e.stopPropagation();
       openTodoOverflowMenu(b, b.dataset.id, onRefresh, toggleFrom);
     }));
+  scope.querySelectorAll('.todo-tags-edit').forEach(inp => {
+    inp.addEventListener('click', e => e.stopPropagation());
+    const commit = () => {
+      if (setEntityTags('todo', inp.dataset.id, parseTagsString(inp.value))) onRefresh();
+    };
+    inp.addEventListener('change', commit);
+    inp.addEventListener('blur', commit);
+  });
   scope.querySelectorAll('.todo-priority-select').forEach(sel =>
     sel.addEventListener('change', () => { if (setTodoPriority(sel.dataset.id, sel.value)) onRefresh(); }));
   scope.querySelectorAll('.todo-sp-select').forEach(sel => {
@@ -8317,6 +8403,10 @@ function todoItemHTML(t) {
       <button class="btn btn-ghost btn-icon todo-overflow" data-id="${t.id}" title="More actions" aria-label="More actions">⋯</button>
     </div>
     ${(t.tags && t.tags.length) ? `<div class="entity-tags-row">${entityTagsHTML(t.tags)}</div>` : ''}
+    ${expanded ? `<div class="entity-tags-edit-row">
+      <label class="entity-tags-edit-label">Tags</label>
+      <input type="text" class="form-input entity-tags-input todo-tags-edit" data-id="${t.id}" placeholder="comma-separated" list="all-workspace-tags" value="${escapeHTML((t.tags||[]).join(', '))}">
+    </div>` : ''}
     ${expanded ? todoStepsPanelHTML(t) : ''}
     ${expanded ? backlinksPanelHTML('todo', state.project, t.id) : ''}
   </div>`;
@@ -9008,8 +9098,10 @@ function addTodo() {
     if (first) dueDate = toDateString(first);
   }
   const proj = getProject();
+  const tagsRaw = document.getElementById('todo-tags')?.value || '';
+  const tags = parseTagsString(tagsRaw);
   proj.todos.unshift({
-    id: generateId('todo'), title, done: false, priority, startDate, dueDate, subprojectId, tags: [],
+    id: generateId('todo'), title, done: false, priority, startDate, dueDate, subprojectId, tags,
     created: new Date().toISOString(),
     attachments: [], steps: [], recurrence
   });
@@ -11297,13 +11389,18 @@ function updateDelegationFields(id, patch) {
   const proj = getProject();
   const d = (proj.delegations || []).find(x => x.id === id);
   if (!d) return false;
-  const keys = ['task','delegated_to','delegated_on','due_date','context','notes','commitment_id'];
+  const keys = ['task','delegated_to','delegated_on','due_date','context','notes','commitment_id','tags'];
   let changed = false;
   keys.forEach(k => {
-    if (patch[k] !== undefined && patch[k] !== d[k]) {
-      d[k] = patch[k];
-      changed = true;
+    if (patch[k] === undefined) return;
+    let next = patch[k];
+    if (k === 'tags') {
+      next = Array.isArray(next) ? next : parseTagsString(next);
+      const prev = d.tags || [];
+      if (prev.length === next.length && prev.every((v, i) => v === next[i])) return;
+      d.tags = next; changed = true; return;
     }
+    if (next !== d[k]) { d[k] = next; changed = true; }
   });
   if (changed) {
     d.last_update = new Date().toISOString();
@@ -11372,6 +11469,10 @@ function delegationCardHTML(d, expanded) {
       <div class="del-edit-row">
         <label class="del-edit-label">Notes</label>
         <textarea class="form-textarea del-edit-field" data-del-field="notes" rows="3">${escapeHTML(d.notes || '')}</textarea>
+      </div>
+      <div class="del-edit-row">
+        <label class="del-edit-label">Tags</label>
+        <input type="text" class="form-input del-edit-field entity-tags-input" data-del-field="tags" placeholder="comma-separated" list="all-workspace-tags" value="${escapeHTML((d.tags || []).join(', '))}">
       </div>
       <div class="del-card-footer">
         <span class="del-meta">Last update: ${daysSinceUpdate!=null ? `${daysSinceUpdate}d ago` : '—'}</span>
@@ -11494,6 +11595,7 @@ function renderDelegations() {
                   </div>
                   <div class="del-add-row">
                     <input type="text" class="form-input" id="del-add-context" placeholder="Context" list="del-context-list">
+                    <input type="text" class="form-input entity-tags-input" id="del-add-tags" placeholder="Tags (comma)" list="all-workspace-tags">
                     <button class="btn btn-primary btn-sm" id="btn-del-add">Add</button>
                   </div>
                 </div>
@@ -11518,16 +11620,18 @@ function renderDelegations() {
     const person = document.getElementById('del-add-person').value;
     const due = document.getElementById('del-add-due').value;
     const ctx = document.getElementById('del-add-context').value;
+    const tags = parseTagsString(document.getElementById('del-add-tags')?.value || '');
     if (!task.trim() || !person.trim()) {
       showToast('Task and person are required.', 'error');
       return;
     }
-    addDelegation({ task, delegated_to: person, due_date: due, context: ctx });
+    const d = addDelegation({ task, delegated_to: person, due_date: due, context: ctx });
+    if (d && tags.length) { d.tags = tags; saveData(); }
     showToast('Delegation added.', 'success');
     renderDelegations();
   };
   document.getElementById('btn-del-add')?.addEventListener('click', submitAdd);
-  ['del-add-task','del-add-person','del-add-context'].forEach(id =>
+  ['del-add-task','del-add-person','del-add-context','del-add-tags'].forEach(id =>
     document.getElementById(id)?.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); submitAdd(); }
     }));
@@ -11660,13 +11764,18 @@ function updateCommitmentFields(id, patch) {
   const proj = getProject();
   const c = (proj.commitments || []).find(x => x.id === id);
   if (!c) return false;
-  const keys = ['direction','counterparty','description','due_date','context','notes'];
+  const keys = ['direction','counterparty','description','due_date','context','notes','tags'];
   let changed = false;
   for (const k of keys) {
-    if (patch[k] !== undefined && patch[k] !== c[k]) {
-      c[k] = patch[k];
-      changed = true;
+    if (patch[k] === undefined) continue;
+    let next = patch[k];
+    if (k === 'tags') {
+      next = Array.isArray(next) ? next : parseTagsString(next);
+      const prev = c.tags || [];
+      if (prev.length === next.length && prev.every((v, i) => v === next[i])) continue;
+      c.tags = next; changed = true; continue;
     }
+    if (next !== c[k]) { c[k] = next; changed = true; }
   }
   if (changed) saveData();
   return changed;
@@ -11712,6 +11821,10 @@ function commitmentCardHTML(c) {
       <div class="com-edit-row">
         <label class="com-edit-label">Notes</label>
         <textarea class="form-textarea com-edit-field" data-com-field="notes" rows="2">${escapeHTML(c.notes || '')}</textarea>
+      </div>
+      <div class="com-edit-row">
+        <label class="com-edit-label">Tags</label>
+        <input type="text" class="form-input com-edit-field entity-tags-input" data-com-field="tags" placeholder="comma-separated" list="all-workspace-tags" value="${escapeHTML((c.tags || []).join(', '))}">
       </div>
       <div class="com-actions">
         ${c.status === 'open' ? `
@@ -12314,6 +12427,7 @@ function renderCommitments() {
             <datalist id="com-context-suggestions">
               ${contexts.map(ctx => `<option value="${escapeHTML(ctx)}"></option>`).join('')}
             </datalist>
+            <input type="text" class="form-input entity-tags-input" id="com-tags" placeholder="Tags (comma)" list="all-workspace-tags" style="flex:1;min-width:140px">
             <button class="btn btn-primary" id="btn-com-add">Add</button>
           </div>
           <textarea class="form-textarea com-notes-input" id="com-notes" placeholder="Optional notes…" rows="2"></textarea>
@@ -12378,11 +12492,13 @@ function renderCommitments() {
     const due_date = document.getElementById('com-due-date').value;
     const context = document.getElementById('com-context').value;
     const notes = document.getElementById('com-notes').value;
+    const tags = parseTagsString(document.getElementById('com-tags')?.value || '');
     if (!counterparty.trim() || !description.trim()) {
       showToast('Counterparty and description are required.', 'error');
       return;
     }
-    addCommitment({ direction: selectedDirection, counterparty, description, due_date, context, notes });
+    const c = addCommitment({ direction: selectedDirection, counterparty, description, due_date, context, notes });
+    if (c && tags.length) { c.tags = tags; saveData(); }
     showToast('Commitment added.', 'success');
     renderCommitments();
   };
@@ -12508,6 +12624,8 @@ function renderReminders() {
           <div class="form-row-2">
             <div class="form-group"><label class="form-label">Note (optional)</label>
               <input type="text" class="form-input" id="rem-note" placeholder="Details…"></div>
+            <div class="form-group"><label class="form-label">Tags</label>
+              <input type="text" class="form-input entity-tags-input" id="rem-tags" placeholder="comma-separated" list="all-workspace-tags"></div>
             <button class="btn btn-secondary" id="btn-rem-recurrence" type="button" title="Set repeat schedule" style="height:38px">${state.pendingReminderRecurrence ? `🔁 ${escapeHTML(describeRecurrence(state.pendingReminderRecurrence))}` : '🔁 Repeat'}</button>
             <button class="btn btn-primary" id="btn-add-reminder" style="height:38px">Add Reminder</button>
           </div>
@@ -12601,7 +12719,8 @@ function addReminder() {
   const datetime = new Date(`${date}T${time}`).toISOString();
   if (new Date(datetime) < new Date()) { showToast('Please pick a future time.', 'error'); return; }
   const proj = getProject();
-  const reminder = { id: generateId('rem'), title, note, datetime, fired: false, tags: [] };
+  const tags = parseTagsString(document.getElementById('rem-tags')?.value || '');
+  const reminder = { id: generateId('rem'), title, note, datetime, fired: false, tags };
   if (state.pendingReminderRecurrence) {
     reminder.recurrence = state.pendingReminderRecurrence;
     state.pendingReminderRecurrence = null;
