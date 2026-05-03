@@ -2975,6 +2975,10 @@ function closePalette() {
 function searchEverything(query) {
   const q = (query || '').trim().toLowerCase();
   if (!q) return [];
+  // #tag mode: queries starting with `#` filter by tag rather than text.
+  // The prefix after `#` is matched against each entity's tags via
+  // startsWith — typing `#q` shows everything tagged q*, `#q4` narrows.
+  if (q.startsWith('#')) return _searchByTag(q.slice(1));
   const out = [];
   for (const [key, proj] of Object.entries(state.data.projects || {})) {
     if (proj.archived) continue;
@@ -3051,6 +3055,49 @@ function searchEverything(query) {
     if (aStarts !== bStarts) return aStarts - bStarts;
     return at.indexOf(q) - bt.indexOf(q);
   });
+  return out.slice(0, 30);
+}
+
+// Tag-mode palette search. Empty prefix lists every taggable entity that
+// has any tag; non-empty prefix matches tags by startsWith. Exact matches
+// rank above prefix-only matches; ties break alphabetically.
+function _searchByTag(prefix) {
+  const out = [];
+  const types = [
+    { coll: 'todos',       kind: 'todo',       icon: '✅', titleKey: 'title' },
+    { coll: 'notes',       kind: 'note',       icon: '📝', titleKey: 'title' },
+    { coll: 'commitments', kind: 'commitment', icon: '🤝', titleKey: 'description' },
+    { coll: 'delegations', kind: 'delegation', icon: '📤', titleKey: 'task' },
+    { coll: 'reminders',   kind: 'reminder',   icon: '🔔', titleKey: 'title' }
+  ];
+  for (const [key, proj] of Object.entries(state.data.projects || {})) {
+    if (proj.archived) continue;
+    const meta = { project: key, projectName: proj.name, projectColor: proj.color || '#16a34a', projectIcon: proj.iconRelPath || null };
+    for (const { coll, kind, icon, titleKey } of types) {
+      (proj[coll] || []).forEach(item => {
+        if (item.archived) return;
+        const tags = item.tags || [];
+        if (!tags.length) return;
+        const matched = prefix
+          ? tags.find(t => String(t).toLowerCase().startsWith(prefix))
+          : tags[0];
+        if (!matched) return;
+        const exactMatch = prefix && String(matched).toLowerCase() === prefix;
+        out.push({
+          ...meta,
+          type: kind,
+          icon,
+          title: item[titleKey] || '(untitled)',
+          id: item.id,
+          subtitle: `Tag: #${matched}`,
+          metaRight: '',
+          _tagRank: exactMatch ? 0 : 1,
+          _matchedTag: matched
+        });
+      });
+    }
+  }
+  out.sort((a, b) => a._tagRank - b._tagRank || (a.title || '').localeCompare(b.title || ''));
   return out.slice(0, 30);
 }
 
