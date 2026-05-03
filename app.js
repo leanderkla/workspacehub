@@ -283,7 +283,11 @@ const state = {
   // ['__you','p:eh','sp:q4'] (subproject). Persisted to localStorage on every change.
   molecular: {
     focusPath: ['__you']
-  }
+  },
+  // Currently-selected tag in the workspace Tags view (§3.2 stage 4).
+  // Null = show the tag cloud only; set = show items tagged with this label.
+  // Session-only (resets on reload).
+  tagFilter: null
 };
 
 const SUBPROJECT_COLORS = [
@@ -404,6 +408,58 @@ function setEntityTags(entityType, entityId, tagsArr) {
   return true;
 }
 
+// Workspace-wide tag → count map, sorted by count desc then alphabetical.
+// Used by the Tags view's cloud header. Original casing is preserved from
+// the first occurrence (matching getAllWorkspaceTags' policy).
+function getTagCounts() {
+  const counts = new Map();
+  for (const proj of Object.values(state.data.projects || {})) {
+    if (proj.archived) continue;
+    const collect = (arr) => (arr || []).forEach(item => (item.tags || []).forEach(t => {
+      const key = String(t).toLowerCase();
+      const cur = counts.get(key) || { count: 0, label: String(t) };
+      cur.count += 1;
+      counts.set(key, cur);
+    }));
+    collect(proj.todos);
+    collect(proj.notes);
+    collect(proj.commitments);
+    collect(proj.delegations);
+    collect(proj.reminders);
+    collect(proj.dumps);
+  }
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+// Returns a flat list of every taggable entity (across types and projects)
+// matching `tag` case-insensitively. Each row carries enough metadata for
+// the Tags view to navigate to its native surface.
+function getEntitiesByTag(tag) {
+  const lc = String(tag || '').toLowerCase();
+  if (!lc) return [];
+  const out = [];
+  const types = [
+    { coll: 'todos',       kind: 'todo' },
+    { coll: 'notes',       kind: 'note' },
+    { coll: 'commitments', kind: 'commitment' },
+    { coll: 'delegations', kind: 'delegation' },
+    { coll: 'reminders',   kind: 'reminder' },
+    { coll: 'dumps',       kind: 'dump' }
+  ];
+  for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
+    if (proj.archived) continue;
+    const projInfo = { key: pkey, name: proj.name, color: proj.color || '#16a34a' };
+    for (const { coll, kind } of types) {
+      (proj[coll] || []).forEach(item => {
+        if ((item.tags || []).some(t => String(t).toLowerCase() === lc)) {
+          out.push({ kind, item, project: projInfo });
+        }
+      });
+    }
+  }
+  return out;
+}
+
 // Renders the `#tagN` chips for any entity that has tags. Reuses the
 // existing `.tag-chip` class used in the notes list. Empty arrays return
 // '' so callers can drop the call inline without a guard. The
@@ -414,6 +470,100 @@ function entityTagsHTML(tags) {
   return tags.map(t =>
     `<button class="tag-chip" data-entity-tag="${escapeHTML(t)}" type="button" title="Filter by #${escapeHTML(t)}">#${escapeHTML(t)}</button>`
   ).join('');
+}
+
+// Workspace Tags view: cloud of every tag at the top, list of matching
+// entities (across types and projects) when a filter is active. Click a
+// chip → set state.tagFilter and re-render. Click a match → navigate to
+// the entity's native surface, switching project if necessary.
+function renderTagsView() {
+  const counts = getTagCounts();
+  const active = state.tagFilter;
+  const matches = active ? getEntitiesByTag(active) : [];
+
+  const cloudHTML = counts.length === 0
+    ? '<div class="empty-state" style="padding:40px 20px;text-align:center">No tags yet — add some to your todos, notes, commitments, etc.</div>'
+    : counts.map(({ label, count }) => {
+        const isActive = active && active.toLowerCase() === label.toLowerCase();
+        return `<button class="tag-chip ${isActive ? 'tag-chip-active' : ''}" data-tag-pick="${escapeHTML(label)}" type="button">
+          #${escapeHTML(label)}<span class="tag-chip-count">${count}</span>
+        </button>`;
+      }).join('');
+
+  const matchesHTML = !active
+    ? '<div class="tags-hint">Pick a tag above to see everything tagged with it.</div>'
+    : matches.length === 0
+      ? `<div class="empty-state" style="padding:40px 20px;text-align:center">Nothing tagged <strong>#${escapeHTML(active)}</strong>.</div>`
+      : matches.map(m => tagMatchRowHTML(m)).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="view active" id="view-tags">
+      <div class="view-header">
+        <div class="view-header-row">
+          <div class="view-title">Tags${active ? ` <span class="tag-active-name">#${escapeHTML(active)}</span>` : ''}</div>
+          ${active ? `<button class="btn btn-ghost btn-sm" id="tags-clear-filter">✕ Clear filter</button>` : ''}
+        </div>
+        <div class="view-subtitle" style="font-size:12px;color:var(--text-muted);margin-top:2px">
+          ${counts.length} tag${counts.length === 1 ? '' : 's'} across the workspace${active ? ` · ${matches.length} match${matches.length === 1 ? '' : 'es'}` : ''}
+        </div>
+      </div>
+      <div class="view-body-scrollable" style="padding:16px 24px 32px">
+        <div class="tags-cloud">${cloudHTML}</div>
+        <div class="tags-matches">${matchesHTML}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('tags-clear-filter')?.addEventListener('click', () => {
+    state.tagFilter = null;
+    renderApp();
+  });
+  document.querySelectorAll('[data-tag-pick]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      state.tagFilter = btn.dataset.tagPick;
+      renderApp();
+    }));
+}
+
+function tagMatchRowHTML(m) {
+  const icon = ({ todo: '✓', note: '◆', reminder: '🔔', commitment: '🤝', delegation: '→', dump: '🧠' })[m.kind] || '·';
+  const title = bmEntityTitle(m.kind, m.item) || (m.kind === 'dump' ? noteContentText(m.item.text || '').slice(0, 80) : '') || '(untitled)';
+  return `<button class="tag-match-row" type="button" data-tag-match-kind="${m.kind}" data-tag-match-id="${escapeHTML(m.item.id)}" data-tag-match-project="${escapeHTML(m.project.key)}">
+    <span class="tag-match-icon">${icon}</span>
+    <span class="tag-match-title">${escapeHTML(title)}</span>
+    <span class="tag-match-project" style="background:${m.project.color}22;color:${m.project.color};border-color:${m.project.color}55">${escapeHTML(m.project.name)}</span>
+  </button>`;
+}
+
+function navigateToTagMatch(kind, id, projKey) {
+  if (projKey && projKey !== state.project) switchProject(projKey);
+  if      (kind === 'todo')       { showView('todos');       bmHighlightTargetItem('todo', id); }
+  else if (kind === 'note')       { state.editingNote        = id; showView('notes'); }
+  else if (kind === 'reminder')   { showView('reminders');   bmHighlightTargetItem('reminder', id); }
+  else if (kind === 'commitment') { state.expandedCommitment = id; showView('commitments'); bmHighlightTargetItem('commitment', id); }
+  else if (kind === 'delegation') { state.expandedDelegation = id; showView('delegations'); bmHighlightTargetItem('delegation', id); }
+  else if (kind === 'dump')       { showView('dumpzone'); }
+}
+
+// Global click delegate for tag interactions. Entity-card tag chips
+// (.tag-chip[data-entity-tag]) navigate to the Tags view with that
+// filter applied. Tag-match rows (.tag-match-row) navigate to the
+// matched entity's native surface. Lives at document level so it
+// survives every re-render without per-view wiring.
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.tag-chip[data-entity-tag]');
+    if (chip) {
+      e.stopPropagation();
+      state.tagFilter = chip.dataset.entityTag;
+      showView('tags');
+      return;
+    }
+    const matchRow = e.target.closest('.tag-match-row');
+    if (matchRow) {
+      e.stopPropagation();
+      navigateToTagMatch(matchRow.dataset.tagMatchKind, matchRow.dataset.tagMatchId, matchRow.dataset.tagMatchProject);
+    }
+  });
 }
 
 // Compact colored-dot variant of the priority pill. The native <select>
@@ -3826,7 +3976,8 @@ function renderContent() {
     dumpzone:  renderDumpZone,
     commitments: renderCommitments,
     delegations: renderDelegations,
-    flows:     renderFlows
+    flows:     renderFlows,
+    tags:      renderTagsView
   };
   (views[state.view] || renderDashboard)();
   setupGanttLabelResizers();
@@ -3844,7 +3995,8 @@ const DEFAULT_NAV_ITEMS = [
   { id: 'flows',        icon: '🔀', label: 'Flows' },
   { id: 'subprojects',  icon: '📁', label: 'Subprojects' },
   { id: 'brainmap',     icon: '✨', label: 'Spark Map' },
-  { id: 'reminders',    icon: '🔔', label: 'Reminders' }
+  { id: 'reminders',    icon: '🔔', label: 'Reminders' },
+  { id: 'tags',         icon: '#',  label: 'Tags' }
 ];
 
 function loadNavPrefs() {

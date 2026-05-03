@@ -2849,6 +2849,102 @@ button.tag-chip { line-height: 1.5; }
   height: 28px;
 }
 
+/* ===== TAGS VIEW (§3.2 stage 4) ===== */
+.tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 0 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.tags-cloud .tag-chip {
+  font-size: 13px;
+  padding: 4px 10px;
+  gap: 6px;
+}
+.tag-chip-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+.tag-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+.tag-chip-active .tag-chip-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.tag-active-name {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tags-hint {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tags-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tag-match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.tag-match-row:hover,
+.tag-match-row:focus-visible {
+  background: var(--content-bg);
+  border-color: var(--border-strong);
+  outline: none;
+}
+.tag-match-icon {
+  width: 22px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.tag-match-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag-match-project {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
 .notes-editor-panel {
   flex: 1;
   display: flex;
