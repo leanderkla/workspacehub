@@ -24,6 +24,13 @@ is git log.
 - **1.3 Molecular drill-down focus (Phase A).** Stage 0 of the molecular
   build plan. Now parked (see §2.1).
 
+- **1.4 @-mentions everywhere, not just notes** (`8aa96a0`).
+  Completer fires in every free-text surface (todo titles + add input,
+  reminder title/note, commitment counterparty/description/notes,
+  delegation task/delegated_to/notes, dump zone, flow node text). Saved
+  `@Label` patterns render with the same orange chip styling and
+  click-through navigation everywhere (not just in note content).
+
 ---
 
 ## 2. Paused / low priority
@@ -69,18 +76,7 @@ The "everything connects" thesis now lives in Spark Map (per-project) +
 reverse-link chips on entity views. These items extend that connection
 layer further across the workspace.
 
-- **3.1 @-mentions everywhere, not just notes.**
-  The completer (`openMentionCompleter`, `findCaretMention`,
-  `buildMentionResults`) only fires inside `note-content`. Surface it in:
-  - Todo titles (editable spans + add-form input)
-  - Reminder notes
-  - Commitment / delegation description fields
-  - Dump zone capture box (already contenteditable)
-  - Flow node text (already contenteditable)
-
-  Factor `setupNoteEditorEvents` mention wiring into `installMentionCompleter(el)`
-  and call everywhere that accepts free text. `decorateMentions` already
-  works on any root, so display is free.
+- **3.1 @-mentions everywhere** — *shipped, see §1.4.*
 
 - **3.2 Tags as a workspace-wide layer.**
   Tags exist on notes only. Extend to todos, commitments, dumps, reminders.
