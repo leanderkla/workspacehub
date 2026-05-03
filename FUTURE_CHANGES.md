@@ -31,6 +31,20 @@ is git log.
   `@Label` patterns render with the same orange chip styling and
   click-through navigation everywhere (not just in note content).
 
+- **1.5 Tags as a workspace-wide layer** (5 commits, `e2a4ede` → `a460e3b`).
+  - Schema v3: `tags: []` on todo/note/commitment/delegation/reminder/dump.
+  - `#tag` chips render on every entity card.
+  - Tag inputs on every add form + commitment/delegation expanded edit
+    + todo expanded edit. Native `<datalist>` autocomplete from the
+    workspace tag pool (single-tag-aware; per-tag completion in a long
+    comma list would need a custom popover).
+  - New `Tags` view: cloud header with counts + filtered cross-type /
+    cross-project listing. Tap any chip in the app → jump to Tags view
+    with that filter. Tap a result row → navigate to the entity with
+    pinpoint scroll-and-pulse highlight (reusing §3.1's helper).
+  - Palette filter: queries starting with `#` go into tag-mode
+    (`#q4` shows everything tagged q4*).
+
 ---
 
 ## 2. Paused / low priority
@@ -78,20 +92,7 @@ layer further across the workspace.
 
 - **3.1 @-mentions everywhere** — *shipped, see §1.4.*
 
-- **3.2 Tags as a workspace-wide layer.**
-  Tags exist on notes only. Extend to todos, commitments, dumps, reminders.
-  Killer query: "show everything tagged #q4" as a workspace neighborhood.
-
-  Stages: schema additions (undefined → empty array, no migration needed)
-  → tag chips on each card → workspace-wide tag pool → `Tags` view (sidebar,
-  optional) → palette filter (`#q4`).
-
-  Note: an earlier plan included "Topics — link-only nodes" as a separate
-  workspace-wide entity type. Topics ≈ tags but cross-project; since
-  cross-project tagging isn't a current need, the topic concept is
-  subsumed into this item. If cross-project tagging becomes useful later,
-  lifting tags to workspace-scope (one shared pool, no project keying) is
-  the natural extension.
+- **3.2 Tags as a workspace-wide layer** — *shipped, see §1.5.*
 
 - **3.3 Smart link suggestions while typing.**
   When the user types "the proposal" anywhere, ghost-text whispers
