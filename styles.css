@@ -1633,7 +1633,11 @@ body.todos-has-selection .todo-bulk-select { opacity: 1; }
 .reminder-recur-chip:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
 /* ===== @-MENTIONS ===== */
-.note-rich a.mention {
+/* Mention chip — used in note bodies (where the markup is stored) AND in
+ * any plain-text field decorated at render time by decoratePlainTextMentions
+ * (todo titles, reminders, commitments, delegations, etc). The class is
+ * specific enough to be safely unscoped. */
+a.mention {
   display: inline-block;
   padding: 1px 6px;
   margin: 0 1px;
@@ -1647,24 +1651,24 @@ body.todos-has-selection .todo-bulk-select { opacity: 1; }
   cursor: pointer;
   transition: background var(--transition), color var(--transition);
 }
-.note-rich a.mention:hover {
+a.mention:hover {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
-.note-rich a.mention.mention-done {
+a.mention.mention-done {
   text-decoration: line-through;
   color: var(--text-muted);
   background: var(--content-bg);
   border-color: var(--border);
 }
-.note-rich a.mention.mention-done:hover {
+a.mention.mention-done:hover {
   color: var(--text-secondary);
 }
-.note-rich a.mention.mention-done::before {
+a.mention.mention-done::before {
   content: '✓ ';
   color: #16a34a;
   font-weight: 700;
 }
-.note-rich a.mention.mention-orphan {
+a.mention.mention-orphan {
   text-decoration: line-through;
   color: #9ca3af;
   background: transparent;

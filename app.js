@@ -7118,6 +7118,71 @@ function linkedNodesPanelHTML(entityType, entityId) {
 // ===== @-MENTIONS =====
 const mentionState = { open: false, results: [], activeIdx: 0, query: '', anchor: null };
 
+// Workspace-wide label → entity index for plain-text mention decoration.
+// Built fresh per call (sub-ms even at 1000+ entities). The keys are
+// lowercased labels; sortedKeys sorts by length descending so a greedy
+// match prefers "Q4 Strategy" over "Q4" when the user writes the longer
+// form.
+function _buildMentionLabelIndex() {
+  const map = Object.create(null);
+  for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
+    if (proj.archived) continue;
+    if (proj.name) map[proj.name.toLowerCase()] = { type: 'project', projectKey: pkey, refId: pkey };
+    (proj.todos || []).forEach(t => { if (!t.archived && t.title) map[t.title.toLowerCase()] = { type: 'todo', projectKey: pkey, refId: t.id }; });
+    (proj.notes || []).forEach(n => { if (!n.archived && n.title) map[n.title.toLowerCase()] = { type: 'note', projectKey: pkey, refId: n.id }; });
+    (proj.flows || []).forEach(f => { if (f.name) map[f.name.toLowerCase()] = { type: 'flow', projectKey: pkey, refId: f.id }; });
+    (proj.subprojects || []).forEach(s => { if (s.name) map[s.name.toLowerCase()] = { type: 'subproject', projectKey: pkey, refId: s.id }; });
+    (proj.reminders || []).forEach(r => { if (r.title) map[r.title.toLowerCase()] = { type: 'reminder', projectKey: pkey, refId: r.id }; });
+  }
+  const sortedKeys = Object.keys(map).sort((a, b) => b.length - a.length);
+  return { map, sortedKeys };
+}
+
+// Render-time decoration: takes a saved plain-text string, returns HTML
+// with `@Label` patterns wrapped in <a class="mention"> when `Label`
+// matches a known workspace entity. Walks the string and at every `@`
+// that's preceded by a word boundary tries the longest match first.
+// Unknown @-tokens pass through as escaped plain text. The returned HTML
+// is safe to inject as innerHTML — every literal text segment is escaped.
+function decoratePlainTextMentions(str) {
+  if (!str) return '';
+  const { map, sortedKeys } = _buildMentionLabelIndex();
+  if (!sortedKeys.length) return escapeHTML(str);
+  let out = '';
+  let i = 0;
+  while (i < str.length) {
+    if (str[i] === '@' && (i === 0 || /\s/.test(str[i - 1]))) {
+      const after = str.slice(i + 1);
+      const lowerAfter = after.toLowerCase();
+      let matched = null;
+      for (const label of sortedKeys) {
+        if (lowerAfter.startsWith(label)) {
+          const next = after[label.length];
+          if (next === undefined || /[\s.,!?;:)]/.test(next)) {
+            matched = { label: after.slice(0, label.length), entity: map[label] };
+            break;
+          }
+        }
+      }
+      if (matched) {
+        const e = matched.entity;
+        out += `<a class="mention" href="#" data-mention-type="${e.type}" data-mention-project="${escapeHTML(e.projectKey)}" data-mention-ref="${escapeHTML(e.refId)}">@${escapeHTML(matched.label)}</a>`;
+        i += 1 + matched.label.length;
+        continue;
+      }
+    }
+    const ch = str[i];
+    if      (ch === '<') out += '&lt;';
+    else if (ch === '>') out += '&gt;';
+    else if (ch === '&') out += '&amp;';
+    else if (ch === '"') out += '&quot;';
+    else if (ch === "'") out += '&#39;';
+    else out += ch;
+    i++;
+  }
+  return out;
+}
+
 function buildMentionResults(query) {
   const q = (query || '').toLowerCase();
   const out = [];
@@ -7190,6 +7255,26 @@ function findCaretMention() {
   return { node, startOffset: i + 1, endOffset: offset, query: afterAt };
 }
 
+// Plain-input variant of findCaretMention. Inputs/textareas don't have a
+// Range/Selection API the same way contenteditable does — caret position
+// is selectionStart/selectionEnd indices into `value`. Result shape mirrors
+// findCaretMention so the rest of the completer pipeline doesn't have to
+// know which surface it came from.
+function findCaretMentionInInput(input) {
+  if (!input) return null;
+  const value = input.value || '';
+  const start = input.selectionStart;
+  const end   = input.selectionEnd;
+  if (start == null || start !== end) return null;
+  let i = start - 1;
+  while (i >= 0 && /\S/.test(value[i])) i--;
+  const word = value.slice(i + 1, start);
+  if (!word.startsWith('@')) return null;
+  const afterAt = word.slice(1);
+  if (afterAt.length > 40) return null;
+  return { input, startOffset: i + 1, endOffset: start, query: afterAt, isInput: true };
+}
+
 function ensureMentionMenu() {
   let menu = document.getElementById('mention-menu');
   if (menu) return menu;
@@ -7254,10 +7339,19 @@ function renderMentionMenu() {
 function positionMentionMenu() {
   const menu = document.getElementById('mention-menu');
   if (!menu) return;
-  const sel = window.getSelection();
-  if (!sel || !sel.rangeCount) return;
-  const range = sel.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
+  // Anchor: caret rect for contenteditable, input bounding rect for plain
+  // inputs/textareas (no public API to get the caret pixel position in an
+  // input without dom-trickery). Positioning at the input's bottom-left is
+  // good enough — the caret is always somewhere inside that rect.
+  let rect;
+  if (mentionState.anchor && mentionState.anchor.isInput) {
+    const r = mentionState.anchor.input.getBoundingClientRect();
+    rect = { left: r.left, top: r.top, bottom: r.bottom };
+  } else {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    rect = sel.getRangeAt(0).getBoundingClientRect();
+  }
   const x = rect.left;
   const y = rect.bottom + 4;
   const menuRect = menu.getBoundingClientRect();
@@ -7274,6 +7368,27 @@ function insertMentionFromCompleter() {
   const item = mentionState.results[mentionState.activeIdx];
   const anchor = mentionState.anchor;
   if (!item || !anchor) { closeMentionCompleter(); return; }
+
+  // Plain-input path: replace the @… token with `@Label ` text. We can't
+  // wrap in <a class="mention"> because the input's value is plain text;
+  // backlinks from these surfaces are not generated yet (would need a
+  // text-parsing pass at save time, future work). The completer here is
+  // primarily a capture-assist — saving the user from typing the full name.
+  if (anchor.isInput) {
+    const input = anchor.input;
+    const before = input.value.slice(0, anchor.startOffset);
+    const after  = input.value.slice(anchor.endOffset);
+    const insert = '@' + item.label + ' ';
+    input.value = before + insert + after;
+    const newPos = before.length + insert.length;
+    input.setSelectionRange(newPos, newPos);
+    closeMentionCompleter();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+
+  // Contenteditable path: insert a real <a class="mention"> so backlinks
+  // and decoration work as before.
   const { node, startOffset, endOffset } = anchor;
   const range = document.createRange();
   try {
@@ -7301,9 +7416,114 @@ function insertMentionFromCompleter() {
   sel.removeAllRanges();
   sel.addRange(newRange);
   closeMentionCompleter();
-  // Trigger input event so dirty-tracking, autosave, etc. fire
-  const editor = document.getElementById('note-content');
-  if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+  // Trigger input event on the host element so dirty-tracking / autosave
+  // fire. Walk up from the inserted node to find a contenteditable host.
+  let host = a.parentElement;
+  while (host && !host.isContentEditable) host = host.parentElement;
+  if (host) host.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Tracks which DOM nodes already have the completer wired so we don't stack
+// duplicate listeners on re-focus. WeakSet so orphaned (re-rendered) nodes
+// get GC'd cleanly.
+const _mentionInstalledFor = new WeakSet();
+
+// Generic mention-completer installer. Works for contenteditable elements
+// AND <input>/<textarea>. Keydown is captured so Enter/Tab (when the popover
+// is open) intercepts before per-surface handlers like #todo-input's addTodo.
+function installMentionCompleter(el) {
+  if (!el || _mentionInstalledFor.has(el)) return;
+  _mentionInstalledFor.add(el);
+  const isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+
+  const onInput = () => {
+    const anchor = isInput ? findCaretMentionInInput(el) : findCaretMention();
+    if (anchor) openMentionCompleter(anchor);
+    else closeMentionCompleter();
+  };
+  el.addEventListener('input', onInput);
+  // For inputs: caret can move via arrow keys / clicks without an input
+  // event. Refresh on those to keep the popover in sync with the caret.
+  if (isInput) {
+    el.addEventListener('keyup', (e) => {
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) onInput();
+    });
+    el.addEventListener('click', onInput);
+  }
+
+  el.addEventListener('keydown', (e) => {
+    if (!mentionState.open) return;
+    // Only act when the caret is in THIS element's anchor — otherwise
+    // the popover belongs to a different field.
+    const a = mentionState.anchor;
+    const anchorEl = a && (a.isInput ? a.input : (a.node && a.node.parentElement));
+    if (anchorEl && anchorEl !== el && !el.contains(anchorEl)) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); e.stopImmediatePropagation();
+      mentionState.activeIdx = Math.min(mentionState.results.length - 1, mentionState.activeIdx + 1);
+      renderMentionMenu();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); e.stopImmediatePropagation();
+      mentionState.activeIdx = Math.max(0, mentionState.activeIdx - 1);
+      renderMentionMenu();
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (mentionState.results.length) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        insertMentionFromCompleter();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); e.stopImmediatePropagation();
+      closeMentionCompleter();
+    }
+  }, true);  // capture phase — runs before per-surface bubble handlers
+
+  el.addEventListener('blur', () => {
+    // Slight delay so the popover's mousedown/click handlers fire first.
+    // Guard: only close if the popover still belongs to THIS element. The
+    // user might have tabbed to another mention-enabled field, which would
+    // already have re-opened the popover with its own anchor — closing
+    // unconditionally would clobber that.
+    setTimeout(() => {
+      const a = mentionState.anchor;
+      const anchorEl = a && (a.isInput ? a.input : (a.node && a.node.parentElement));
+      if (!anchorEl || anchorEl === el || el.contains(anchorEl)) {
+        closeMentionCompleter();
+      }
+    }, 150);
+  });
+}
+
+// Surfaces that should auto-install the completer on focus. The focusin
+// delegate fires on the first focus of any new DOM node matching one of
+// these selectors, so re-renders (which create fresh nodes) don't need
+// any per-render wiring code. Add to the list to enable a new surface.
+const _mentionTargetSelectors = [
+  '#note-content',                                         // existing
+  '.todo-title',                                           // todo card title (contenteditable)
+  '.todo-step-title',                                      // todo step (contenteditable)
+  '#dump-input',                                           // dump zone capture (contenteditable)
+  '.flow-node-text',                                       // flow node text (contenteditable)
+  '#todo-input',                                           // todo add form input
+  '#rem-title', '#rem-note',                               // reminder add form
+  '#com-counterparty', '#com-description', '#com-notes',   // commitment add form
+  '.com-edit-field[data-com-field="counterparty"]',        // commitment expanded
+  '.com-edit-field[data-com-field="description"]',
+  '.com-edit-field[data-com-field="notes"]',
+  '#del-add-task', '#del-add-person',                      // delegation add form
+  '.del-edit-task',                                        // delegation expanded
+  '.del-edit-field[data-del-field="task"]',
+  '.del-edit-field[data-del-field="delegated_to"]',
+  '.del-edit-field[data-del-field="notes"]'
+].join(', ');
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches(_mentionTargetSelectors)) {
+      installMentionCompleter(t);
+    }
+  });
 }
 
 function setupNoteEditorEvents() {
@@ -7364,38 +7584,10 @@ function setupNoteEditorEvents() {
       }
     });
   }
-  const richEditor = document.getElementById('note-content');
-  if (richEditor) {
-    richEditor.addEventListener('input', () => {
-      const anchor = findCaretMention();
-      if (anchor) openMentionCompleter(anchor);
-      else closeMentionCompleter();
-    });
-    richEditor.addEventListener('keydown', (e) => {
-      if (!mentionState.open) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        mentionState.activeIdx = Math.min(mentionState.results.length - 1, mentionState.activeIdx + 1);
-        renderMentionMenu();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        mentionState.activeIdx = Math.max(0, mentionState.activeIdx - 1);
-        renderMentionMenu();
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
-        if (mentionState.results.length) {
-          e.preventDefault();
-          insertMentionFromCompleter();
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        closeMentionCompleter();
-      }
-    });
-    richEditor.addEventListener('blur', () => {
-      // Slight delay so click handlers on the menu can fire first
-      setTimeout(() => closeMentionCompleter(), 150);
-    });
-  }
+  // Mention completer is now auto-installed via the focusin delegate
+  // (see installMentionCompleter / _mentionTargetSelectors). The note
+  // editor's #note-content is one of the targets, so it picks up the
+  // wiring on first focus without any per-render code here.
   document.querySelectorAll('#note-rtf-toolbar [data-rtf]').forEach(btn => {
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
@@ -8076,7 +8268,7 @@ function todoItemHTML(t) {
       <span class="todo-bulk-select ${isSelected?'on':''}" data-bulk-id="${t.id}" title="Select for bulk actions">${isSelected?'✓':''}</span>
       <button class="todo-expand ${expanded?'open':''}" data-expand-id="${t.id}" title="${steps.length?'Toggle steps':'Add steps'}">▸</button>
       <div class="todo-checkbox ${t.done?'checked':''}" data-id="${t.id}"></div>
-      <span class="todo-title" contenteditable="true" spellcheck="false" data-id="${t.id}" title="Click to edit">${escapeHTML(t.title)}</span>
+      <span class="todo-title" contenteditable="true" spellcheck="false" data-id="${t.id}" title="Click to edit">${decoratePlainTextMentions(t.title)}</span>
       ${steps.length ? `<span class="todo-steps-count" title="${stepsDone} of ${steps.length} steps done">${stepsDone}/${steps.length}</span>` : ''}
       ${priorityBadgeEditable(t.id, t.priority)}
       ${sps.length ? `
@@ -8105,7 +8297,7 @@ function todoStepsPanelHTML(t) {
     ${steps.map(s => `
       <div class="todo-step ${s.done?'done':''}">
         <div class="todo-step-checkbox ${s.done?'checked':''}" data-todo-id="${t.id}" data-step-id="${s.id}"></div>
-        <span class="todo-step-title" contenteditable="true" spellcheck="false" data-todo-id="${t.id}" data-step-id="${s.id}">${escapeHTML(s.title)}</span>
+        <span class="todo-step-title" contenteditable="true" spellcheck="false" data-todo-id="${t.id}" data-step-id="${s.id}">${decoratePlainTextMentions(s.title)}</span>
         <button class="todo-step-delete" data-todo-id="${t.id}" data-step-id="${s.id}" title="Remove">✕</button>
       </div>`).join('')}
     <div class="todo-step-add">
@@ -11152,12 +11344,12 @@ function delegationCardHTML(d, expanded) {
 
   return `<div class="del-card ${overdue?'overdue':''} ${stale?'stale':''}" data-del-id="${d.id}">
     <div class="del-card-top">
-      <span class="del-task">${escapeHTML(d.task)}</span>
+      <span class="del-task">${decoratePlainTextMentions(d.task)}</span>
       ${stale ? `<span class="del-badge del-badge-stale" title="Last update ${daysSinceUpdate}d ago">⏰ Nudge due</span>` : ''}
       ${overdue ? `<span class="del-badge del-badge-overdue">⚠ Overdue</span>` : ''}
     </div>
     <div class="del-card-meta">
-      <span class="del-person">👤 ${escapeHTML(d.delegated_to)}</span>
+      <span class="del-person">👤 ${decoratePlainTextMentions(d.delegated_to)}</span>
       ${d.due_date ? `<span class="del-due ${overdue?'overdue':''}">📅 ${formatDate(d.due_date)}</span>` : ''}
       <span class="del-last-update ${stale?'stale':''}">↻ ${daysSinceUpdate!=null ? `${daysSinceUpdate}d ago` : 'never'}</span>
     </div>
@@ -11501,18 +11693,18 @@ function commitmentCardHTML(c) {
 
   return `<div class="com-card ${c.direction} ${closed ? 'closed' : ''} ${overdue ? 'overdue' : ''}" data-com-id="${c.id}">
     <div class="com-card-header">
-      <span class="com-counterparty">${escapeHTML(c.counterparty)}</span>
+      <span class="com-counterparty">${decoratePlainTextMentions(c.counterparty)}</span>
       ${overdue ? `<span class="com-badge com-badge-overdue">⚠ Overdue</span>` : ''}
       ${c.status === 'fulfilled' ? `<span class="com-badge com-badge-done">✓ Fulfilled</span>` : ''}
       ${c.status === 'cancelled' ? `<span class="com-badge com-badge-cancelled">✕ Cancelled</span>` : ''}
     </div>
-    <div class="com-description">${escapeHTML(c.description)}</div>
+    <div class="com-description">${decoratePlainTextMentions(c.description)}</div>
     <div class="com-meta">
       <span class="com-due ${overdue ? 'overdue' : ''}">📅 ${dueDisplay}</span>
       ${c.context ? `<span class="com-context">${escapeHTML(c.context)}</span>` : ''}
       ${genericLinksChip('commitment', c.id)}
     </div>
-    ${c.notes ? `<div class="com-notes">${escapeHTML(c.notes)}</div>` : ''}
+    ${c.notes ? `<div class="com-notes">${decoratePlainTextMentions(c.notes)}</div>` : ''}
     <div class="com-actions">
       ${c.status === 'open' ? `
         <button class="btn btn-ghost btn-sm com-fulfill" data-com-id="${c.id}">✓ Fulfilled</button>
@@ -11660,14 +11852,18 @@ function renderFlowList() {
             ${flows.map(f => {
               const nodeCount = Object.keys(f.nodes || {}).length;
               const startNode = f.nodes[f.startNodeId];
-              const preview = startNode ? (startNode.text || '').slice(0, 100) : '';
+              // Flow node text is HTML (contenteditable storage). Strip to
+              // plain text first so the preview doesn't render raw markup,
+              // then decorate so @-mentions still show the styled chip.
+              const fullPlain = startNode ? noteContentText(startNode.text || '') : '';
+              const preview = fullPlain.slice(0, 100);
               return `<div class="flow-card" data-flow-id="${f.id}">
                 <div class="flow-card-head">
                   <span class="flow-card-icon">🔀</span>
-                  <span class="flow-card-name">${escapeHTML(f.name)}</span>
+                  <span class="flow-card-name">${decoratePlainTextMentions(f.name)}</span>
                 </div>
-                ${f.description ? `<div class="flow-card-desc">${escapeHTML(f.description)}</div>` : ''}
-                ${preview ? `<div class="flow-card-preview">${escapeHTML(preview)}${(startNode.text || '').length > 100 ? '…' : ''}</div>` : '<div class="flow-card-preview" style="font-style:italic;color:var(--text-muted)">Empty start</div>'}
+                ${f.description ? `<div class="flow-card-desc">${decoratePlainTextMentions(f.description)}</div>` : ''}
+                ${preview ? `<div class="flow-card-preview">${decoratePlainTextMentions(preview)}${fullPlain.length > 100 ? '…' : ''}</div>` : '<div class="flow-card-preview" style="font-style:italic;color:var(--text-muted)">Empty start</div>'}
                 <div class="flow-card-meta">
                   <span>${nodeCount} step${nodeCount === 1 ? '' : 's'}</span>
                   <span class="flow-card-actions">
@@ -12341,9 +12537,9 @@ function reminderItemHTML(r) {
   return `<div class="reminder-item ${r.fired?'fired':''}" data-reminder-id="${r.id}">
     <div class="reminder-icon">${r.fired?'✅':'🔔'}</div>
     <div class="reminder-body">
-      <div class="reminder-title">${escapeHTML(r.title)}${r.recurrence ? ` <span class="reminder-recur-chip" data-rem-recur="${r.id}" title="${escapeHTML(describeRecurrence(r.recurrence))} · click to edit">🔁 ${escapeHTML(describeRecurrence(r.recurrence))}</span>` : ''}</div>
+      <div class="reminder-title">${decoratePlainTextMentions(r.title)}${r.recurrence ? ` <span class="reminder-recur-chip" data-rem-recur="${r.id}" title="${escapeHTML(describeRecurrence(r.recurrence))} · click to edit">🔁 ${escapeHTML(describeRecurrence(r.recurrence))}</span>` : ''}</div>
       <div class="reminder-time">${formatDateTime(r.datetime)}${linksChip ? ` ${linksChip}` : ''}</div>
-      ${r.note ? `<div class="reminder-note">${escapeHTML(r.note)}</div>` : ''}
+      ${r.note ? `<div class="reminder-note">${decoratePlainTextMentions(r.note)}</div>` : ''}
     </div>
     ${!r.recurrence ? `<button class="btn btn-ghost btn-icon reminder-set-recur" data-id="${r.id}" title="Set repeat schedule">🔁</button>` : ''}
     ${!r.fired ? `<button class="btn btn-ghost btn-icon reminder-done" data-id="${r.id}" title="Mark as done">✓</button>` : `<button class="btn btn-ghost btn-icon reminder-undone" data-id="${r.id}" title="Reopen">↺</button>`}
