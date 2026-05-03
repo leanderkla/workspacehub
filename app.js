@@ -343,6 +343,18 @@ function priorityBadge(p) {
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
 
+// Renders the `#tagN` chips for any entity that has tags. Reuses the
+// existing `.tag-chip` class used in the notes list. Empty arrays return
+// '' so callers can drop the call inline without a guard. The
+// data-entity-tag attribute is the click hook for the workspace Tags
+// view (stage 4) and palette filter (stage 5).
+function entityTagsHTML(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return '';
+  return tags.map(t =>
+    `<button class="tag-chip" data-entity-tag="${escapeHTML(t)}" type="button" title="Filter by #${escapeHTML(t)}">#${escapeHTML(t)}</button>`
+  ).join('');
+}
+
 // Compact colored-dot variant of the priority pill. The native <select>
 // stays so the dropdown picker is free; styling collapses it to a circle
 // with the priority color. Tooltip surfaces the current priority text
@@ -7036,7 +7048,7 @@ function noteListItemHTML(n) {
     <div class="note-item-tags">
       ${priorityBadge(n.priority)}
       ${sp ? `<span class="todo-sp-chip" style="background:${sp.color}22;color:${sp.color};border:1px solid ${sp.color}44">${escapeHTML(sp.name)}</span>` : ''}
-      ${(n.tags||[]).map(t => `<span class="tag-chip">${escapeHTML(t)}</span>`).join('')}
+      ${entityTagsHTML(n.tags)}
     </div>
   </div>`;
 }
@@ -8304,6 +8316,7 @@ function todoItemHTML(t) {
       ${pinToggleButtonHTML('todo', state.project, t.id, 'btn btn-ghost btn-icon')}
       <button class="btn btn-ghost btn-icon todo-overflow" data-id="${t.id}" title="More actions" aria-label="More actions">⋯</button>
     </div>
+    ${(t.tags && t.tags.length) ? `<div class="entity-tags-row">${entityTagsHTML(t.tags)}</div>` : ''}
     ${expanded ? todoStepsPanelHTML(t) : ''}
     ${expanded ? backlinksPanelHTML('todo', state.project, t.id) : ''}
   </div>`;
@@ -11381,11 +11394,13 @@ function delegationCardHTML(d, expanded) {
     </div>
     ${(() => {
       const linksChip = genericLinksChip('delegation', d.id);
-      if (!d.context && !linkedCommitment && !linksChip) return '';
+      const tagsHTML = entityTagsHTML(d.tags);
+      if (!d.context && !linkedCommitment && !linksChip && !tagsHTML) return '';
       return `<div class="del-chips">
         ${d.context ? `<span class="del-context">${escapeHTML(d.context)}</span>` : ''}
         ${linkedCommitment ? `<span class="del-commitment-link" title="Linked commitment">↔ ${escapeHTML(linkedCommitment.counterparty)}</span>` : ''}
         ${linksChip}
+        ${tagsHTML}
       </div>`;
     })()}
   </div>`;
@@ -11730,6 +11745,7 @@ function commitmentCardHTML(c) {
       <span class="com-due ${overdue ? 'overdue' : ''}">📅 ${dueDisplay}</span>
       ${c.context ? `<span class="com-context">${escapeHTML(c.context)}</span>` : ''}
       ${genericLinksChip('commitment', c.id)}
+      ${entityTagsHTML(c.tags)}
     </div>
     ${c.notes ? `<div class="com-notes">${decoratePlainTextMentions(c.notes)}</div>` : ''}
     <div class="com-actions">
@@ -12567,6 +12583,7 @@ function reminderItemHTML(r) {
       <div class="reminder-title">${decoratePlainTextMentions(r.title)}${r.recurrence ? ` <span class="reminder-recur-chip" data-rem-recur="${r.id}" title="${escapeHTML(describeRecurrence(r.recurrence))} · click to edit">🔁 ${escapeHTML(describeRecurrence(r.recurrence))}</span>` : ''}</div>
       <div class="reminder-time">${formatDateTime(r.datetime)}${linksChip ? ` ${linksChip}` : ''}</div>
       ${r.note ? `<div class="reminder-note">${decoratePlainTextMentions(r.note)}</div>` : ''}
+      ${(r.tags && r.tags.length) ? `<div class="entity-tags-row">${entityTagsHTML(r.tags)}</div>` : ''}
     </div>
     ${!r.recurrence ? `<button class="btn btn-ghost btn-icon reminder-set-recur" data-id="${r.id}" title="Set repeat schedule">🔁</button>` : ''}
     ${!r.fired ? `<button class="btn btn-ghost btn-icon reminder-done" data-id="${r.id}" title="Mark as done">✓</button>` : `<button class="btn btn-ghost btn-icon reminder-undone" data-id="${r.id}" title="Reopen">↺</button>`}

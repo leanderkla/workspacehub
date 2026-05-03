@@ -2792,7 +2792,37 @@ body.resizing-horizontal * { cursor: col-resize !important; user-select: none !i
 .note-item-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .note-item-preview { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-item-tags { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
-.tag-chip { background: var(--content-bg); color: var(--text-secondary); border-radius: 20px; padding: 1px 7px; font-size: 11px; border: 1px solid var(--border); }
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--content-bg);
+  color: var(--text-secondary);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+button.tag-chip { line-height: 1.5; }
+.tag-chip:hover,
+.tag-chip:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  outline: none;
+}
+
+/* Wrapper used inside todo / reminder cards to lay out tag chips on a
+ * thin row beneath the main content. Only rendered when there are tags,
+ * so cards without tags don't gain extra height. */
+.entity-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 12px 8px;
+}
 
 .notes-editor-panel {
   flex: 1;
