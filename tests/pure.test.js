@@ -448,7 +448,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       const data = { projects: { p: { name: 'P' } } };
       const out = fn(data);
       eq(Array.isArray(out.pinned), true);
-      eq(out.schemaVersion, 2);
+      eq(out.schemaVersion, 3);
     });
 
     it('does not re-run migrations once schemaVersion is current', () => {
@@ -476,12 +476,12 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(Array.isArray(out.projects.p.brainmap.nodes.r.linkedItems), true);
-      eq(out.schemaVersion, 2);
+      eq(out.schemaVersion, 3);
     });
 
     it('v2 migration is idempotent', () => {
       const data = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         projects: {
           p: {
             brainmap: { rootId: 'r', nodes: { r: { id: 'r', linkedItems: [{ entityType: 'todo', entityId: 't1' }] } } }
@@ -490,7 +490,43 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(out.projects.p.brainmap.nodes.r.linkedItems.length, 1);
-      eq(out.schemaVersion, 2);
+      eq(out.schemaVersion, 3);
+    });
+
+    it('v3 backfills tags on every taggable entity type', () => {
+      const data = {
+        projects: {
+          p: {
+            todos:       [{ id: 't1', title: 'T' }],
+            notes:       [{ id: 'n1', title: 'N' }],
+            commitments: [{ id: 'c1', counterparty: 'X', description: 'd' }],
+            delegations: [{ id: 'd1', task: 'k' }],
+            dumps:       [{ id: 'm1', text: 'm' }],
+            reminders:   [{ id: 'r1', title: 'R' }]
+          }
+        }
+      };
+      const out = fn(data);
+      const p = out.projects.p;
+      eq(Array.isArray(p.todos[0].tags),       true);
+      eq(Array.isArray(p.notes[0].tags),       true);
+      eq(Array.isArray(p.commitments[0].tags), true);
+      eq(Array.isArray(p.delegations[0].tags), true);
+      eq(Array.isArray(p.dumps[0].tags),       true);
+      eq(Array.isArray(p.reminders[0].tags),   true);
+      eq(out.schemaVersion, 3);
+    });
+
+    it('v3 migration is idempotent (preserves existing tags)', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: {
+          p: { todos: [{ id: 't1', title: 'T', tags: ['q4', 'urgent'] }] }
+        }
+      };
+      const out = fn(data);
+      eq(out.projects.p.todos[0].tags.length, 2);
+      eq(out.projects.p.todos[0].tags[0], 'q4');
     });
   });
 

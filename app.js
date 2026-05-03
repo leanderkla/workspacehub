@@ -1044,7 +1044,7 @@ function openSettings() {
 // ===== SCHEMA VERSIONING + MIGRATIONS =====
 // Each migration brings data from version N-1 → N. Numbered, runs in order.
 // Add new migrations as new keys; never edit shipped ones.
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 const SCHEMA_MIGRATIONS = {
   // v1: consolidates everything migrateAttachments() used to do ad-hoc.
   // For fresh installs schemaVersion starts at 0 and runs through all.
@@ -1086,6 +1086,21 @@ const SCHEMA_MIGRATIONS = {
       for (const node of Object.values(nodes)) {
         if (!Array.isArray(node.linkedItems)) node.linkedItems = [];
       }
+    }
+    return data;
+  },
+  // v3: tags lift from notes-only to a workspace-wide layer. Backfills an
+  // empty `tags` array on every entity type that didn't have one. Notes
+  // already have tags from earlier; the Array.isArray guard makes the
+  // backfill a no-op for them, and idempotent on re-runs.
+  3: (data) => {
+    for (const proj of Object.values(data.projects || {})) {
+      (proj.todos       || []).forEach(t => { if (!Array.isArray(t.tags)) t.tags = []; });
+      (proj.notes       || []).forEach(n => { if (!Array.isArray(n.tags)) n.tags = []; });
+      (proj.commitments || []).forEach(c => { if (!Array.isArray(c.tags)) c.tags = []; });
+      (proj.delegations || []).forEach(d => { if (!Array.isArray(d.tags)) d.tags = []; });
+      (proj.dumps       || []).forEach(d => { if (!Array.isArray(d.tags)) d.tags = []; });
+      (proj.reminders   || []).forEach(r => { if (!Array.isArray(r.tags)) r.tags = []; });
     }
     return data;
   }
@@ -1646,6 +1661,7 @@ function spawnRueckbucherFollowups() {
       startDate: null,
       dueDate: item.dueDate,
       subprojectId: null,
+      tags: [],
       created: new Date(Date.now() + i).toISOString(),
       completedAt: null,
       attachments: [],
@@ -3107,6 +3123,7 @@ function captureFromPalette() {
     startDate: null,
     dueDate: parsed.dueDate,
     subprojectId: null,
+    tags: [],
     created: new Date().toISOString(),
     completedAt: null,
     attachments: [],
@@ -6654,6 +6671,7 @@ function renderOverview() {
             done: false,
             priority: t.priority,
             subprojectId: t.subprojectId,
+            tags: [...(t.tags || [])],
             startDate: null,
             dueDate: toDateString(next),
             created: new Date().toISOString(),
@@ -8467,6 +8485,7 @@ function spawnNextRecurringReminder(projectKey, r) {
     note: r.note || '',
     datetime: nextDay.toISOString(),
     fired: false,
+    tags: [...(r.tags || [])],
     recurrence: { ...r.recurrence, weekdays: r.recurrence.weekdays ? [...r.recurrence.weekdays] : undefined }
   };
   proj.reminders.push(clone);
@@ -8484,6 +8503,7 @@ function spawnNextRecurringTodo(t) {
     done: false,
     priority: t.priority,
     subprojectId: t.subprojectId,
+    tags: [...(t.tags || [])],
     startDate: null,
     dueDate: toDateString(next),
     created: new Date().toISOString(),
@@ -8976,7 +8996,7 @@ function addTodo() {
   }
   const proj = getProject();
   proj.todos.unshift({
-    id: generateId('todo'), title, done: false, priority, startDate, dueDate, subprojectId,
+    id: generateId('todo'), title, done: false, priority, startDate, dueDate, subprojectId, tags: [],
     created: new Date().toISOString(),
     attachments: [], steps: [], recurrence
   });
@@ -9715,7 +9735,7 @@ function addSubprojectTodo() {
   const proj = getProject();
   proj.todos.unshift({
     id: generateId('todo'), title, done: false, priority,
-    startDate, dueDate, subprojectId: state.activeSubproject,
+    startDate, dueDate, subprojectId: state.activeSubproject, tags: [],
     created: new Date().toISOString(),
     attachments: [], steps: [], recurrence
   });
@@ -10075,6 +10095,7 @@ function addTextDump(text, type = 'text') {
     text: trimmed,
     audio: null,
     subprojectId: state.pendingDumpSubprojectId || null,
+    tags: [],
     created: new Date().toISOString(),
     processed: false
   };
@@ -10092,6 +10113,7 @@ function addVoiceDump(attachment, durationSec, transcript) {
     text: (transcript || '').trim() || null,
     audio: attachment ? { relPath: attachment.relPath, name: attachment.name, size: attachment.size, durationSec: durationSec || null } : null,
     subprojectId: state.pendingDumpSubprojectId || null,
+    tags: [],
     created: new Date().toISOString(),
     processed: false
   };
@@ -10151,6 +10173,7 @@ function addSketchDump(attachment, width, height, actions) {
       actions: actions ? JSON.parse(JSON.stringify(actions)) : []
     },
     subprojectId: state.pendingDumpSubprojectId || null,
+    tags: [],
     created: new Date().toISOString(),
     processed: false
   };
@@ -10616,6 +10639,7 @@ function convertDumpToTodo(dumpId) {
       startDate: null,
       dueDate: null,
       subprojectId: dump.subprojectId || null,
+      tags: [...(dump.tags || [])],
       created: now,
       completedAt: null,
       attachments: att ? [att] : [],
@@ -10714,7 +10738,8 @@ function convertDumpToReminder(dumpId) {
       title: t,
       note: plainText && plainText !== t ? plainText : '',
       datetime,
-      fired: false
+      fired: false,
+      tags: [...(dump.tags || [])]
     });
     close();
     markDumpProcessed(dumpId);
@@ -11233,6 +11258,7 @@ function addDelegation({ task, delegated_to, delegated_on, due_date, context, no
     due_date: due_date || null,
     status: 'waiting',
     context: (context || '').trim(),
+    tags: [],
     last_update: now,
     notes: (notes || '').trim(),
     commitment_id: commitment_id || null,
@@ -11581,6 +11607,7 @@ function addCommitment({ direction, counterparty, description, due_date, context
     due_date: due_date || null,
     status: 'open',
     context: (context || '').trim(),
+    tags: [],
     notes: (notes || '').trim(),
     created_at: now,
     fulfilled_at: null,
@@ -12557,7 +12584,7 @@ function addReminder() {
   const datetime = new Date(`${date}T${time}`).toISOString();
   if (new Date(datetime) < new Date()) { showToast('Please pick a future time.', 'error'); return; }
   const proj = getProject();
-  const reminder = { id: generateId('rem'), title, note, datetime, fired: false };
+  const reminder = { id: generateId('rem'), title, note, datetime, fired: false, tags: [] };
   if (state.pendingReminderRecurrence) {
     reminder.recurrence = state.pendingReminderRecurrence;
     state.pendingReminderRecurrence = null;
@@ -14480,7 +14507,7 @@ function bmSubmitAdd(nodeId) {
     proj.todos = proj.todos || [];
     proj.todos.unshift({
       id: newId, title, done: false, priority,
-      startDate, dueDate, subprojectId,
+      startDate, dueDate, subprojectId, tags: [],
       created: new Date().toISOString(), attachments: [], steps: [], recurrence
     });
   } else if (type === 'note') {
@@ -14514,7 +14541,7 @@ function bmSubmitAdd(nodeId) {
     }
     newId = generateId('rem');
     proj.reminders = proj.reminders || [];
-    proj.reminders.push({ id: newId, title, note: '', datetime: datetime.toISOString(), fired: false });
+    proj.reminders.push({ id: newId, title, note: '', datetime: datetime.toISOString(), fired: false, tags: [] });
   } else if (type === 'commitment') {
     const cpInp  = document.getElementById('bm-dp-com-cp');
     const dueInp = document.getElementById('bm-dp-com-due');
