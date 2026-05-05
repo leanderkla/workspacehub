@@ -2697,7 +2697,11 @@ function __scrollKey() {
 }
 function setupMentionClickDelegate() {
   document.addEventListener('click', (e) => {
-    // Mention chips inside note bodies
+    // Mention chips inside note bodies (and now todo/reminder/commitment/
+    // delegation cards via §3.1's render-time decoration, plus smart-link
+    // mentions from §3.3). Routes to the entity's native surface and, for
+    // list-view types where the entity is a row in a long list, scrolls
+    // it into view + applies the brief highlight pulse from §3.1.
     const a = e.target.closest && e.target.closest('a.mention');
     if (a) {
       e.preventDefault();
@@ -2707,12 +2711,14 @@ function setupMentionClickDelegate() {
       const refId = a.dataset.mentionRef;
       if (!type || !projKey || !refId) return;
       if (projKey !== state.project) switchProject(projKey);
-      if (type === 'todo') showView('todos');
-      else if (type === 'note') { state.editingNote = refId; showView('notes'); }
-      else if (type === 'flow') { state.flowEditing = refId; showView('flows'); }
-      else if (type === 'subproject') { state.activeSubproject = refId; showView('subprojects'); }
-      else if (type === 'reminder') showView('reminders');
-      else if (type === 'project') showView('dashboard');
+      if      (type === 'todo')       { showView('todos');       bmHighlightTargetItem('todo', refId); }
+      else if (type === 'note')       { state.editingNote        = refId; showView('notes'); }
+      else if (type === 'flow')       { state.flowEditing        = refId; showView('flows'); }
+      else if (type === 'subproject') { state.activeSubproject   = refId; showView('subprojects'); }
+      else if (type === 'reminder')   { showView('reminders');   bmHighlightTargetItem('reminder', refId); }
+      else if (type === 'commitment') { state.expandedCommitment = refId; showView('commitments'); bmHighlightTargetItem('commitment', refId); }
+      else if (type === 'delegation') { state.expandedDelegation = refId; showView('delegations'); bmHighlightTargetItem('delegation', refId); }
+      else if (type === 'project')    { showView('dashboard'); }
       return;
     }
     // Backlink rows in any view's panel
