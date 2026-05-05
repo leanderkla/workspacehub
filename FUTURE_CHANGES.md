@@ -31,6 +31,16 @@ is git log.
   `@Label` patterns render with the same orange chip styling and
   click-through navigation everywhere (not just in note content).
 
+- **1.6 Smart link suggestions while typing** (`832cbb6`).
+  As the user types 4+ characters of an entity title or tag, a
+  popover suggests the full match below the caret. Tab inserts as a
+  mention (or `#tag` text). Wires onto every free-text surface
+  (todos / notes / reminders / commitments / delegations / dump /
+  flow node / note content). Conservative — prefix-only match, bails
+  on caret-after-/ or caret-after-@ so it doesn't compete with the
+  slash or mention completers. Index lazy-cached, invalidates on any
+  data change. Devtools surface at `window.__smartLink`.
+
 - **1.5 Tags as a workspace-wide layer** (5 commits, `e2a4ede` → `a460e3b`).
   - Schema v3: `tags: []` on todo/note/commitment/delegation/reminder/dump.
   - `#tag` chips render on every entity card.
@@ -94,16 +104,7 @@ layer further across the workspace.
 
 - **3.2 Tags as a workspace-wide layer** — *shipped, see §1.5.*
 
-- **3.3 Smart link suggestions while typing.**
-  When the user types "the proposal" anywhere, ghost-text whispers
-  `↗ Q4 Proposal · Energy Hero`. Tab inserts as `<a class="mention">`.
-  Reuse the slash-command ghost-text engine (`suggestSlashCompletion`
-  + overlay div + Tab handler) — same UX, different content source.
-
-  Heuristic: 3+ characters typed AND a fuzzy match against an existing
-  item title or tag. Match index: every entity title + every tag. Lazy
-  build, invalidate on entity create/delete (Phase 1 reverse-index pattern).
-  False positives kill trust — set the threshold conservatively.
+- **3.3 Smart link suggestions while typing** — *shipped, see §1.6.*
 
 ---
 
