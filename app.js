@@ -519,7 +519,12 @@ function renderTagsView() {
   });
   document.querySelectorAll('[data-tag-pick]').forEach(btn =>
     btn.addEventListener('click', () => {
-      state.tagFilter = btn.dataset.tagPick;
+      const next = btn.dataset.tagPick;
+      // No-op when the clicked chip is already the active filter — avoids
+      // a redundant renderApp / DOM thrash that was causing a tiny
+      // sidebar layout shift on repeat clicks.
+      if (state.tagFilter === next) return;
+      state.tagFilter = next;
       renderApp();
     }));
 }
