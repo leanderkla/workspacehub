@@ -15384,6 +15384,13 @@ function bmHighlightTargetItem(entityType, entityId) {
     delegation: `.del-card[data-del-id="${cssEscape(entityId)}"]`
   })[entityType];
   if (!selector) return;
+  // Clear the scroll-preservation memory for the current view so the
+  // MutationObserver in setupScrollPreservation doesn't restore the
+  // previous scroll position right after our scrollIntoView fires.
+  // (When navigating ACROSS views showView already clears this; the
+  // problem is same-view re-renders, e.g. clicking a @todo mention from
+  // inside the todos view.)
+  try { delete __scrollMemory[`${state.project}::${state.view}`]; } catch {}
   requestAnimationFrame(() => {
     const el = document.querySelector(selector);
     if (!el) return;
