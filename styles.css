@@ -1692,6 +1692,71 @@ a.mention.mention-orphan {
   max-height: 280px;
   overflow-y: auto;
 }
+
+/* Smart-link suggestion popover (§3.3). Single-row, lighter than the full
+ * mention completer. Sits below the caret and gives the user a Tab hint. */
+.smart-link-popover {
+  position: fixed;
+  z-index: 10499;
+  min-width: 240px;
+  max-width: 380px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font);
+  pointer-events: none;
+}
+.smart-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.smart-link-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.smart-link-main {
+  flex: 1;
+  min-width: 0;
+}
+.smart-link-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.smart-link-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.smart-link-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.smart-link-tab {
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: var(--card-bg);
+  flex-shrink: 0;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
 .mention-row {
   display: flex;
   align-items: center;

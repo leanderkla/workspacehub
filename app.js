@@ -616,6 +616,10 @@ async function _writeDataToDisk() {
 
 async function saveData() {
   pushUndoSnapshot();
+  // Smart-link suggestions key off entity titles + tags; any data change
+  // can shift the index. Invalidating here means the next refresh during
+  // typing rebuilds — sub-ms work, no UX impact.
+  if (typeof _invalidateSmartLinkIndex === 'function') _invalidateSmartLinkIndex();
   await _writeDataToDisk();
 }
 
@@ -7429,6 +7433,212 @@ function linkedNodesPanelHTML(entityType, entityId) {
 // ===== @-MENTIONS =====
 const mentionState = { open: false, results: [], activeIdx: 0, query: '', anchor: null };
 
+// Smart-link state — disjoint from mentionState. Only one popover is open
+// at a time; if the mention popover is open we suppress smart-link.
+// `_debug` is for the window.__smartLink surface — counters + last refresh
+// outcome so we can diagnose silent install/refresh failures from devtools
+// without needing to keep focus on the surface.
+const smartLinkState = {
+  open: false, suggestion: null, hostEl: null,
+  _debug: { installs: 0, refreshes: 0, lastRefresh: null }
+};
+const _smartLinkInstalledFor = new WeakSet();
+
+// Reads the current text and caret offset from an input/textarea OR a
+// contenteditable's text node. Returns null if the element isn't ready
+// (no caret, range across a selection, caret in a mention link, etc).
+function _smartLinkReadSurface(el) {
+  if (!el) return null;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+    const start = el.selectionStart;
+    const end   = el.selectionEnd;
+    if (start == null || start !== end) return null;
+    return { text: el.value || '', caretPos: start, isInput: true, input: el };
+  }
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed) return null;
+  const node = range.startContainer;
+  if (node.nodeType !== 3) return null;
+  // Don't trigger inside an existing mention link
+  let p = node.parentElement;
+  while (p && p !== document.body) {
+    if (p.tagName === 'A' && p.classList.contains('mention')) return null;
+    p = p.parentElement;
+  }
+  // Confirm the text node lives inside the surface we're driving — skip
+  // when the caret has moved out (e.g. into a sibling editor).
+  if (!el.contains(node)) return null;
+  return { text: node.textContent || '', caretPos: range.startOffset, isInput: false, node };
+}
+
+function _smartLinkPositionPopover(menu, anchor) {
+  let rect;
+  if (anchor.isInput) {
+    rect = anchor.input.getBoundingClientRect();
+  } else {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    rect = sel.getRangeAt(0).getBoundingClientRect();
+  }
+  const x = rect.left;
+  const y = rect.bottom + 4;
+  const menuRect = menu.getBoundingClientRect();
+  const maxX = window.innerWidth - menuRect.width - 8;
+  menu.style.left = `${Math.min(Math.max(8, x), maxX)}px`;
+  if (y + menuRect.height > window.innerHeight) {
+    menu.style.top = `${rect.top - menuRect.height - 4}px`;
+  } else {
+    menu.style.top = `${y}px`;
+  }
+}
+
+function _smartLinkRender(suggestion, anchor) {
+  let menu = document.getElementById('smart-link-popover');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'smart-link-popover';
+    menu.className = 'smart-link-popover';
+    document.body.appendChild(menu);
+  }
+  const icon = suggestion.kind === 'tag' ? '#' : '↗';
+  const ent = suggestion.entity;
+  const proj = ent ? state.data.projects?.[ent.projectKey] : null;
+  const projName = proj ? (proj.name || '') : '';
+  const projColor = proj ? (proj.color || '#16a34a') : 'var(--accent)';
+  const subtitle = suggestion.kind === 'tag' ? 'Tag' : (projName || 'Workspace');
+  menu.innerHTML = `
+    <div class="smart-link-row">
+      <span class="smart-link-icon">${icon}</span>
+      <div class="smart-link-main">
+        <div class="smart-link-title">${escapeHTML(suggestion.full)}</div>
+        <div class="smart-link-sub">${suggestion.kind === 'tag' ? '' : `<span class="smart-link-dot" style="background:${projColor}"></span>`}<span>${escapeHTML(subtitle)}</span></div>
+      </div>
+      <span class="smart-link-tab" title="Press Tab to accept">⇥ Tab</span>
+    </div>
+  `;
+  _smartLinkPositionPopover(menu, anchor);
+}
+
+function _smartLinkClose() {
+  smartLinkState.open = false;
+  smartLinkState.suggestion = null;
+  smartLinkState.hostEl = null;
+  const menu = document.getElementById('smart-link-popover');
+  if (menu) menu.remove();
+}
+
+// Replace the typed phrase with the suggested mention/tag at the recorded
+// offsets. Mirrors insertMentionFromCompleter for the contenteditable path
+// and falls back to plain `@Label` text in inputs (mention markup can't
+// live inside a value).
+function _smartLinkAccept(el) {
+  const sug = smartLinkState.suggestion;
+  if (!sug) return false;
+  const isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+  const insertText = sug.kind === 'tag' ? `#${sug.full} ` : `@${sug.full} `;
+
+  if (isInput) {
+    const before = el.value.slice(0, sug.startOffset);
+    const after  = el.value.slice(sug.endOffset);
+    el.value = before + insertText + after;
+    const newPos = before.length + insertText.length;
+    el.setSelectionRange(newPos, newPos);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    _smartLinkClose();
+    return true;
+  }
+
+  // Contenteditable path — re-read the current selection so we land on
+  // the same text node we measured (the suggestion was computed on this
+  // node's textContent, so the offsets line up).
+  const surface = _smartLinkReadSurface(el);
+  if (!surface || surface.isInput) { _smartLinkClose(); return false; }
+  const range = document.createRange();
+  try {
+    range.setStart(surface.node, sug.startOffset);
+    range.setEnd(surface.node, sug.endOffset);
+  } catch { _smartLinkClose(); return false; }
+  range.deleteContents();
+  if (sug.kind === 'tag') {
+    range.insertNode(document.createTextNode(insertText));
+  } else {
+    const a = document.createElement('a');
+    a.className = 'mention';
+    a.setAttribute('href', '#');
+    a.setAttribute('data-mention-type',    sug.entity.type);
+    a.setAttribute('data-mention-project', sug.entity.projectKey);
+    a.setAttribute('data-mention-ref',     sug.entity.refId);
+    a.textContent = '@' + sug.full;
+    range.insertNode(a);
+    const space = document.createTextNode(' ');
+    if (a.parentNode) a.parentNode.insertBefore(space, a.nextSibling);
+    const newRange = document.createRange();
+    newRange.setStartAfter(space);
+    newRange.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }
+  // Trigger input event on the surface so dirty-tracking / autosave fire.
+  let host = el;
+  while (host && !host.isContentEditable) host = host.parentElement;
+  if (host) host.dispatchEvent(new Event('input', { bubbles: true }));
+  _smartLinkClose();
+  return true;
+}
+
+function installSmartLinkCompleter(el) {
+  if (!el || _smartLinkInstalledFor.has(el)) return;
+  _smartLinkInstalledFor.add(el);
+  smartLinkState._debug.installs++;
+
+  const refresh = () => {
+    smartLinkState._debug.refreshes++;
+    const log = {
+      ts: Date.now(), elTag: el.tagName, elClass: el.className || '',
+      surfaceText: null, surfaceCaret: null, sug: null, bail: null
+    };
+    smartLinkState._debug.lastRefresh = log;
+    if (mentionState.open) { _smartLinkClose(); log.bail = 'mention-open'; return; }
+    const surface = _smartLinkReadSurface(el);
+    if (surface) { log.surfaceText = (surface.text || '').slice(0, 60); log.surfaceCaret = surface.caretPos; }
+    if (!surface) { _smartLinkClose(); log.bail = 'no-surface'; return; }
+    const sug = suggestSmartLink(surface.text, surface.caretPos);
+    log.sug = sug ? { full: sug.full, kind: sug.kind } : null;
+    if (!sug) { _smartLinkClose(); log.bail = 'no-suggestion'; return; }
+    smartLinkState.open = true;
+    smartLinkState.suggestion = sug;
+    smartLinkState.hostEl = el;
+    _smartLinkRender(sug, surface);
+  };
+
+  el.addEventListener('input', refresh);
+  el.addEventListener('focus', refresh);
+  el.addEventListener('click', refresh);
+  el.addEventListener('keyup', (e) => {
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) refresh();
+  });
+  el.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (smartLinkState.hostEl === el) _smartLinkClose();
+    }, 150);
+  });
+  el.addEventListener('keydown', (e) => {
+    if (!smartLinkState.open || smartLinkState.hostEl !== el) return;
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      _smartLinkAccept(el);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      _smartLinkClose();
+    }
+  }, true);  // capture so we beat per-surface handlers
+}
+
 // Workspace-wide label → entity index for plain-text mention decoration.
 // Built fresh per call (sub-ms even at 1000+ entities). The keys are
 // lowercased labels; sortedKeys sorts by length descending so a greedy
@@ -7492,6 +7702,98 @@ function decoratePlainTextMentions(str) {
     i++;
   }
   return out;
+}
+
+// ===== SMART LINK SUGGESTIONS (§3.3) =====
+// As the user types in any free-text surface, suggest a workspace entity
+// (or tag) whose name starts with the current "phrase". Tab inserts as a
+// mention (or `#tag` text). Conservative thresholds — false positives kill
+// trust faster than missing suggestions disappoint.
+
+const SMART_LINK_MIN_CHARS = 4;
+let _smartLinkIndexCache = null;
+let _smartLinkIndexDirty  = true;
+function _invalidateSmartLinkIndex() { _smartLinkIndexDirty = true; }
+
+// Workspace-wide list of `{ title, titleLC, kind, entity }` rows. Includes
+// every taggable / linkable entity title plus every distinct tag (synthesized
+// as kind:'tag' with the same shape so the suggester treats them uniformly).
+// Sorted by titleLC length desc so longer titles win ties (e.g. "Q4 Strategy"
+// beats "Q4" when the user typed enough chars to match both).
+function _buildSmartLinkIndex() {
+  if (!_smartLinkIndexDirty && _smartLinkIndexCache) return _smartLinkIndexCache;
+  const out = [];
+  const seenTags = new Set();
+  for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
+    if (proj.archived) continue;
+    if (proj.name) out.push({ title: proj.name, titleLC: proj.name.toLowerCase(), kind: 'entity', entity: { type: 'project', projectKey: pkey, refId: pkey } });
+    const pushEntity = (arr, type, titleField) => (arr || []).forEach(item => {
+      if (item.archived) return;
+      const title = (item[titleField] || '').trim();
+      if (!title) return;
+      out.push({ title, titleLC: title.toLowerCase(), kind: 'entity', entity: { type, projectKey: pkey, refId: item.id } });
+    });
+    pushEntity(proj.todos,       'todo',       'title');
+    pushEntity(proj.notes,       'note',       'title');
+    pushEntity(proj.flows,       'flow',       'name');
+    pushEntity(proj.subprojects, 'subproject', 'name');
+    pushEntity(proj.reminders,   'reminder',   'title');
+    pushEntity(proj.commitments, 'commitment', 'description');
+    pushEntity(proj.delegations, 'delegation', 'task');
+    const collectTags = (arr) => (arr || []).forEach(item => {
+      (item.tags || []).forEach(t => {
+        const lc = String(t).toLowerCase();
+        if (seenTags.has(lc)) return;
+        seenTags.add(lc);
+        out.push({ title: String(t), titleLC: lc, kind: 'tag', entity: null });
+      });
+    });
+    collectTags(proj.todos);
+    collectTags(proj.notes);
+    collectTags(proj.commitments);
+    collectTags(proj.delegations);
+    collectTags(proj.reminders);
+    collectTags(proj.dumps);
+  }
+  out.sort((a, b) => b.titleLC.length - a.titleLC.length);
+  _smartLinkIndexCache = out;
+  _smartLinkIndexDirty = false;
+  return out;
+}
+
+// Picks the current "phrase" from `text` ending at `caretPos`, looks up the
+// smart-link index for a strict prefix match. Returns null when the user
+// typed too little, the phrase is right after a `/` or `@` (other completers
+// own those), or no match. Also rejects self-suggestions when the editing
+// surface is itself the entity (currentEntityRef).
+function suggestSmartLink(text, caretPos, currentEntityRef) {
+  if (caretPos < SMART_LINK_MIN_CHARS) return null;
+  let start = caretPos;
+  while (start > 0) {
+    const ch = text[start - 1];
+    if (/[.,;:!?\n]/.test(ch)) break;
+    if (ch === '/' || ch === '@') return null;
+    start--;
+  }
+  while (start < caretPos && /\s/.test(text[start])) start++;
+  const phrase = text.slice(start, caretPos);
+  if (phrase.length < SMART_LINK_MIN_CHARS) return null;
+  const lc = phrase.toLowerCase();
+  const idx = _buildSmartLinkIndex();
+  const match = idx.find(e => e.titleLC.startsWith(lc) && e.titleLC.length > lc.length);
+  if (!match) return null;
+  if (currentEntityRef && match.entity
+      && match.entity.type === currentEntityRef.type
+      && match.entity.refId === currentEntityRef.refId) return null;
+  return {
+    typed: phrase,
+    suggestion: match.title.slice(phrase.length),
+    full: match.title,
+    kind: match.kind,
+    entity: match.entity,
+    startOffset: start,
+    endOffset: caretPos
+  };
 }
 
 function buildMentionResults(query) {
@@ -7833,8 +8135,24 @@ if (typeof document !== 'undefined') {
     const t = e.target;
     if (t && t.matches && t.matches(_mentionTargetSelectors)) {
       installMentionCompleter(t);
+      installSmartLinkCompleter(t);
     }
   });
+}
+
+// Devtools debug surface for §3.3. Same pattern as window.__nodeLinks —
+// always present, lets the user (and future sessions) poke the smart-link
+// engine without restoring source.
+if (typeof window !== 'undefined') {
+  window.__smartLink = {
+    state: smartLinkState,
+    buildIndex: _buildSmartLinkIndex,
+    invalidate: _invalidateSmartLinkIndex,
+    suggest: suggestSmartLink,
+    // Convenience: simulate a suggestion from a focused element. Returns
+    // the suggestion object or null. Doesn't render the popover.
+    test(text, caret) { return suggestSmartLink(text, caret == null ? text.length : caret); }
+  };
 }
 
 function setupNoteEditorEvents() {
