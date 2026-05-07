@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, dialog, shell, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -19,20 +19,31 @@ const gotSingleInstance = app.requestSingleInstanceLock();
 if (!gotSingleInstance) {
   app.quit();
 } else {
+  // Fired when a second instance was launched (e.g. user clicked the
+  // pinned taskbar shortcut, ran `npm start` again, or — once §1.2 ships
+  // — clicked the desktop/Start-menu shortcut). Defer to showMainWindow()
+  // so all four states (destroyed, hidden-to-tray, minimized, visible)
+  // route through one path. The pre-tray version only handled minimized;
+  // hidden-to-tray would silently fail to surface the window, making the
+  // pinned shortcut feel broken.
+  // showMainWindow is a function declaration further down — hoisted, so
+  // safe to reference here at module load time.
   app.on('second-instance', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    } else {
-      try { createWindow(); } catch (e) { console.error('recreate window failed', e); }
-    }
+    showMainWindow();
   });
 }
 
 let mainWindow;
+let tray;
 let dataPath;
 let projectsDir;
 let reminderInterval;
+// Tracks "the user actually wants out" vs "the user clicked the X button".
+// Set true by the tray's Quit item and by app.on('before-quit'). The 'close'
+// handler on mainWindow consults this to decide whether to hide-to-tray
+// (default) or let destruction proceed (true quit, OS shutdown, restart for
+// auto-updater, etc.).
+let isQuitting = false;
 
 // Personal-build flag. The plain `npm start` ships a generic "My Workspace"
 // project; `npm run start:personal` (which sets WORKSPACEHUB_PERSONAL=1) loads
@@ -432,6 +443,20 @@ function createWindow() {
   if (fs.existsSync(iconPath)) opts.icon = iconPath;
   mainWindow = new BrowserWindow(opts);
   mainWindow.loadFile('index.html');
+
+  // Hide-to-tray on user close. Lets the app stay process-resident so the
+  // global hotkey (§M1 §4.1b) can capture from anywhere even when the main
+  // window is hidden. isQuitting is set by the tray's Quit item, by
+  // app.on('before-quit'), and by future auto-updater restart flow.
+  // If the tray failed to construct (icon missing, permissions, etc.) we
+  // fall through to normal close so the user is never trapped without an
+  // exit path.
+  mainWindow.on('close', (e) => {
+    if (!isQuitting && tray && !tray.isDestroyed()) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 
   // Windows-only: tell the taskbar how to identify + relaunch this app when
@@ -453,6 +478,74 @@ function createWindow() {
   }
 }
 
+// ===== TRAY =====
+// Active in both personal and distribution builds. Reuses the existing
+// app icon at icons/workspacehub.ico (also used by the BrowserWindow and
+// by setAppDetails for taskbar identity). Single-click and "Open" menu
+// item bring the window back from hide-to-tray; "Quit" is the only way
+// to truly exit while the tray is alive.
+//
+// Packaging note (M1 §1.2): when we wire electron-builder, icons/** must
+// be added to asarUnpack — Tray construction reads the .ico via a native
+// handle and asar-internal paths are not always honored. Failure here
+// degrades gracefully: tray is skipped, hide-to-tray short-circuits, and
+// the X button quits as before.
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    try { createWindow(); } catch (e) { console.error('recreate window failed:', e); }
+    return;
+  }
+  // restore() before show() — handles the rare hidden+minimized combo
+  // (e.g. minimized first, then hidden into tray). show() alone doesn't
+  // always un-minimize on Windows.
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+  // moveTop() asserts z-order against Win11 focus-stealing prevention
+  // without touching the user's always-on-top preference (the Sticky
+  // Mode IPC owns that). Best-effort; no-op on macOS.
+  if (typeof mainWindow.moveTop === 'function') {
+    try { mainWindow.moveTop(); } catch {}
+  }
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, 'icons', 'workspacehub.ico');
+  if (!fs.existsSync(iconPath)) {
+    console.warn('Tray icon missing at', iconPath, '— tray skipped (close-X will quit as before)');
+    return;
+  }
+  try {
+    tray = new Tray(iconPath);
+  } catch (e) {
+    console.error('Tray construction failed — tray skipped:', e);
+    tray = null;
+    return;
+  }
+  tray.setToolTip('WorkspaceHub');
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Open WorkspaceHub', click: showMainWindow },
+    { type: 'separator' },
+    {
+      label: 'Quit WorkspaceHub',
+      click: () => {
+        // Setting isQuitting up front means the 'close' handler lets the
+        // window proceed to destruction instead of hiding it back to tray.
+        isQuitting = true;
+        app.quit();
+      }
+    }
+  ]);
+  tray.setContextMenu(contextMenu);
+
+  // Single-click reopen on Win/Linux. On macOS, single-click natively shows
+  // the context menu via setContextMenu — don't double-bind.
+  tray.on('click', () => {
+    if (process.platform !== 'darwin') showMainWindow();
+  });
+}
+
 app.whenReady().then(() => {
   // If another instance already holds the lock, skip bootstrapping entirely
   // — we're in the middle of quitting, and creating a window here is what
@@ -465,10 +558,29 @@ app.whenReady().then(() => {
     callback(false);
   });
   createWindow();
+  createTray();
   reminderInterval = setInterval(checkReminders, 60000);
 });
 
-app.on('window-all-closed', () => { clearInterval(reminderInterval); if (process.platform !== 'darwin') app.quit(); });
+// Set the quit flag before windows start closing so the 'close' interceptor
+// on mainWindow lets destruction through instead of hiding to tray. Fires
+// for app.quit(), OS shutdown, and (later) electron-updater's restart flow.
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
+app.on('window-all-closed', () => {
+  // With hide-to-tray, this event normally won't fire — closing X just
+  // hides. It DOES fire when isQuitting is true (real quit path), and on
+  // platforms/builds where the tray failed to construct (degraded mode:
+  // app behaves as before, X quits, no background residency).
+  if (process.platform === 'darwin') return;
+  clearInterval(reminderInterval);
+  if (tray && !tray.isDestroyed()) {
+    try { tray.destroy(); } catch (e) { console.error('tray.destroy failed:', e); }
+  }
+  app.quit();
+});
 
 ipcMain.handle('load-data', () => loadData());
 ipcMain.handle('save-data', (_, data) => saveData(data));
