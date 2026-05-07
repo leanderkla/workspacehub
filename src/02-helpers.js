@@ -132,9 +132,15 @@ function getTagCounts() {
 // Returns a flat list of every taggable entity (across types and projects)
 // matching `tag` case-insensitively. Each row carries enough metadata for
 // the Tags view to navigate to its native surface.
-function getEntitiesByTag(tag) {
+//
+// Archived projects are always skipped. Pass `{ excludeArchived: true }` to
+// also drop individually archived entities (todos/notes/etc. with
+// `.archived === true`); the default keeps current behavior so existing
+// callers continue to see archived items mixed in with live ones.
+function getEntitiesByTag(tag, options) {
   const lc = String(tag || '').toLowerCase();
   if (!lc) return [];
+  const excludeArchived = !!(options && options.excludeArchived);
   const out = [];
   const types = [
     { coll: 'todos',       kind: 'todo' },
@@ -149,6 +155,7 @@ function getEntitiesByTag(tag) {
     const projInfo = { key: pkey, name: proj.name, color: proj.color || '#16a34a' };
     for (const { coll, kind } of types) {
       (proj[coll] || []).forEach(item => {
+        if (excludeArchived && item.archived) return;
         if ((item.tags || []).some(t => String(t).toLowerCase() === lc)) {
           out.push({ kind, item, project: projInfo });
         }
