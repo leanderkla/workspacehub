@@ -83,7 +83,12 @@
       "PowerShell($start = Get-Date; npm test 2>&1 | Out-String; $end = Get-Date; \"ELAPSED_MS: $\\([int]\\($end - $start\\).TotalMilliseconds\\)\")",
       "Bash(grep -E '\\\\.\\(md|html\\)$|^drafts$|^previews$')",
       "Bash(grep -E '^\\(diff|@@|\\\\+\\\\+\\\\+|---|^\\\\+\\(\\\\s*//\\\\s*={3,}|\\\\s*function |\\\\s*const \\\\w+ = \\(function|async function|\\\\\\(\\) \\)\\)')",
-      "Bash(grep -E '^\\(\\\\+\\\\s*/\\\\*\\\\s*={3,}|\\\\+\\\\s*\\\\.\\\\w[\\\\w-]*\\\\s*\\\\{|\\\\+\\\\s*#[\\\\w-]+\\\\s*\\\\{\\)')"
+      "Bash(grep -E '^\\(\\\\+\\\\s*/\\\\*\\\\s*={3,}|\\\\+\\\\s*\\\\.\\\\w[\\\\w-]*\\\\s*\\\\{|\\\\+\\\\s*#[\\\\w-]+\\\\s*\\\\{\\)')",
+      "Bash(mv 'CYBERPUNK_THEME_DRAFTS v1.md' CYBERPUNK_THEME_DRAFTS.md CYBERPUNK_THEME_DRAFTS_HYBRID_GLASS_TACHIKOMA.md CYBERPUNK_THEME_DRAFTS_MAXIMALIST.md THEME_DRAFTS_BATCH3.md THEME_DRAFTS_GLASS_VARIANTS.md themes-explored/)",
+      "Bash(mv drafts *)",
+      "Bash(mv previews *)",
+      "Bash(grep -E '\\\\.\\(md|html\\)$|^drafts$|^previews$|^themes-explored$')",
+      "Bash(git restore *)"
     ],
     "additionalDirectories": [
       "\\tmp",
