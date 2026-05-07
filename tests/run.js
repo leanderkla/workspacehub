@@ -15,7 +15,28 @@ const ESC = String.fromCharCode(27);
 const GREEN = ESC + '[32m', RED = ESC + '[31m', RESET = ESC + '[0m';
 
 const projRoot = path.resolve(__dirname, '..');
-const appSrc = fs.readFileSync(path.join(projRoot, 'app.js'), 'utf8');
+
+// Modularization in progress: app.js is being incrementally split into
+// src/NN-name.js modules loaded via numeric-prefix script tags in index.html.
+// The harness mirrors that order: src/*.js (sorted ascending) is concatenated
+// before app.js, then everything is evaluated in one vm context — same realm
+// as the renderer at runtime, so cross-file globals resolve identically.
+// The `;\n` separator defends against the last line of one file being an
+// unterminated expression (rare but possible when a file ends in a `var`
+// declaration without a trailing semicolon).
+function loadAllSrc() {
+  const srcDir = path.join(projRoot, 'src');
+  const parts = [];
+  if (fs.existsSync(srcDir)) {
+    fs.readdirSync(srcDir)
+      .filter(f => f.endsWith('.js'))
+      .sort()
+      .forEach(f => parts.push(fs.readFileSync(path.join(srcDir, f), 'utf8')));
+  }
+  parts.push(fs.readFileSync(path.join(projRoot, 'app.js'), 'utf8'));
+  return parts.join('\n;\n');
+}
+const appSrc = loadAllSrc();
 
 const sandbox = {
   console, setTimeout, setInterval, clearTimeout, clearInterval,
