@@ -433,9 +433,24 @@ ipcMain.handle('save-data', (_, data) => saveData(data));
 ipcMain.handle('win-minimize', () => mainWindow && mainWindow.minimize());
 ipcMain.handle('win-maximize', () => { if (!mainWindow) return; mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(); });
 ipcMain.handle('win-close', () => { if (mainWindow) mainWindow.close(); });
+ipcMain.handle('win-toggle-fullscreen', () => {
+  if (!mainWindow) return false;
+  const next = !mainWindow.isFullScreen();
+  mainWindow.setFullScreen(next);
+  return next;
+});
 ipcMain.handle('win-set-always-on-top', (_, on) => {
   if (!mainWindow) return false;
-  mainWindow.setAlwaysOnTop(!!on, 'floating');
+  // 'pop-up-menu' beats Windows 11's recent focus-stealing behaviour where
+  // 'floating' loses the z-order battle to most user apps. It also sits
+  // above the taskbar — what users expect from a "pin to top" mode. On
+  // macOS the level is treated identically by the OS, so this also works
+  // there. moveTop() asserts the z-order immediately rather than waiting
+  // for the next focus event.
+  mainWindow.setAlwaysOnTop(!!on, 'pop-up-menu');
+  if (on && typeof mainWindow.moveTop === 'function') {
+    try { mainWindow.moveTop(); } catch {}
+  }
   return mainWindow.isAlwaysOnTop();
 });
 ipcMain.handle('win-set-sticky-bounds', (_, opts) => {

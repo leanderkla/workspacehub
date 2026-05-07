@@ -223,6 +223,11 @@ const state = {
   noteSearch: '',
   todayFilter: new Set(),  // {} or Set of 'overdue'|'today'|'reminders'|'waiting'|'upcoming'
   selectedTodos: new Set(),  // ids of bulk-selected todos in current project
+  selectedNotes: new Set(),  // ids of bulk-selected notes in current project
+  // Anchor row per list kind, used for Shift+Click range select like Windows
+  // Explorer. Null until the user clicks a row plain or with Ctrl. Cleared
+  // alongside the matching selection set on project switch / view leave.
+  bulkAnchors: { todos: null, notes: null },
   flowEditing: null,
   flowRunning: null,
   flowRunCurrent: null,
@@ -240,6 +245,9 @@ const state = {
   expandedTodos: new Set(),
   dashGanttExtendDays: 0,
   dashGanttExpanded: false,
+  // Overview "What needs you now" inbox: one of 'overdue'|'today'|'week'|'waiting'.
+  // null → render-time picks the highest-priority non-empty tab.
+  overviewInboxTab: null,
   pendingTodoRecurrence: null,
   pendingReminderRecurrence: null,
   pendingDumpSubprojectId: null,
@@ -747,29 +755,195 @@ function bmAncestorPath(nodeId) {
 }
 
 // ===== THEMES =====
+// Curated theme set — kept intentionally short. Adding to this list does
+// not require any other code changes; just include a matching CSS block in
+// styles.css under html[data-theme="<id>"].
+//
+// IDs are preserved (eh-sun / eh-sepia / ai5-cyan) so any project pinned
+// to one of those keeps its look — only the display names changed.
 const THEMES = [
-  { id: 'light',    name: 'Light',    swatches: ['#ffffff','#f1f5f9','#0f172a'] },
-  { id: 'dark',     name: 'Dark',     swatches: ['#1e293b','#0f172a','#e2e8f0'] },
-  { id: 'midnight', name: 'Midnight', swatches: ['#0b1220','#050914','#cbd5e1'] },
-  { id: 'sepia',    name: 'Sepia',    swatches: ['#fbf5e9','#f1e7d0','#3b2f1c'] },
-  { id: 'nord',     name: 'Nord',     swatches: ['#eceff4','#d8dee9','#2e3440'] },
-  { id: 'rose',     name: 'Rose',     swatches: ['#fff1f2','#ffe4e6','#881337'] },
-  { id: 'eh-sun',    name: 'EH Sun',    swatches: ['#F9A81A','#404A4F','#FFFFFF'], forceAccent: '#F9A81A' },
-  { id: 'eh-sunset', name: 'EH Sunset', swatches: ['#F75F1C','#FFE3D4','#404A4F'], forceAccent: '#F75F1C' },
-  { id: 'eh-ocean',  name: 'EH Ocean',  swatches: ['#00A99E','#9FD0E4','#404A4F'], forceAccent: '#00A99E' },
-  { id: 'eh-sepia',  name: 'EH Sepia',  swatches: ['#F9A81A','#f1e7d0','#3b2f1c'], forceAccent: '#F9A81A' },
-  { id: 'ai5-cyan',  name: 'AI5 Cyan',  swatches: ['#26c9e2','#0d0c12','#ffffff'], forceAccent: '#26c9e2' },
-  { id: 'ai5-dark',  name: 'AI5 Dark',  swatches: ['#26c9e2','#18171f','#e9f7fa'], forceAccent: '#26c9e2' },
-  { id: 'ai5-mist',  name: 'AI5 Mist',  swatches: ['#3499cd','#e8f3f7','#1c3540'], forceAccent: '#3499cd' },
-  { id: 'solarized', name: 'Solarized',  swatches: ['#268bd2','#fdf6e3','#586e75'], forceAccent: '#268bd2' },
-  { id: 'cyberpunk', name: 'Cyberpunk',  swatches: ['#ff00ff','#0a0014','#ffe6ff'], forceAccent: '#ff00ff' },
-  { id: 'forest',    name: 'Forest',     swatches: ['#2d6a4f','#f4f9f4','#1b2e23'], forceAccent: '#2d6a4f' },
-  { id: 'mono',      name: 'Mono',       swatches: ['#000000','#fafafa','#0a0a0a'], forceAccent: '#000000' },
-  { id: 'lavender',  name: 'Lavender',   swatches: ['#a78bfa','#f8f5ff','#3b0764'], forceAccent: '#a78bfa' },
-  { id: 'contrast',  name: 'High Contrast', swatches: ['#facc15','#000000','#ffffff'], forceAccent: '#facc15' },
-  { id: 'terracotta',name: 'Terracotta', swatches: ['#c2410c','#fbf5ef','#44221a'], forceAccent: '#c2410c' },
-  { id: 'glass',     name: 'Glass',      swatches: ['#ec4899','#4c1d95','#0ea5e9'], forceAccent: '#ec4899' }
+  { id: 'eh-sun',            name: 'Saffron',           swatches: ['#F9A81A','#404A4F','#FFFFFF'], forceAccent: '#F9A81A' },
+  { id: 'eh-sepia',          name: 'Vellum',            swatches: ['#F9A81A','#f1e7d0','#3b2f1c'], forceAccent: '#F9A81A' },
+  { id: 'ai5-cyan',          name: 'Capri',             swatches: ['#26c9e2','#0d0c12','#ffffff'], forceAccent: '#26c9e2' },
+  { id: 'glass',             name: 'Glass',             swatches: ['#ec4899','#4c1d95','#0ea5e9'], forceAccent: '#ec4899' },
+  { id: 'lavender',          name: 'Lavender',          swatches: ['#a78bfa','#f8f5ff','#3b0764'], forceAccent: '#a78bfa' },
+  { id: 'solarized',         name: 'Solarized',         swatches: ['#268bd2','#fdf6e3','#586e75'], forceAccent: '#268bd2' },
+  { id: 'operating-theatre', name: 'Operating Theatre', swatches: ['#1A73C9','#FBFCFE','#E6F0FB'], forceAccent: '#1A73C9' },
+  { id: 'stucco',            name: 'Stucco',            swatches: ['#D03A33','#FFF7F1','#FBE7DA'], forceAccent: '#D03A33' }
 ];
+
+// ===== CUSTOM GLASS THEMES =====
+// User-built variants of the `glass` theme: pick accent + base + 3
+// gradient stops, save, share the existing glass blur/treatment.
+//
+// Storage shape (localStorage.customGlassThemes — JSON array):
+//   { id, name, accent, base, g1: {color, alpha}, g2: ..., g3: ... }
+// Alpha is a 0-100 percent integer.
+//
+// Lifecycle:
+//   * loadCustomGlassThemesIntoMain()  — called at boot, also after any
+//     mutation. Strips previous customs from THEMES and re-pushes them
+//     so the picker grid + per-project picker show them. Also rewrites
+//     the runtime <style> block.
+//   * customGlassThemeToCSS(t) — emits the rule that overrides colour
+//     vars + body backdrop for one custom theme.
+
+const DEFAULT_NEW_GLASS = {
+  name:   'My Glass',
+  accent: '#ec4899',
+  base:   '#0b0f1e',
+  g1: { color: '#4c1d95', alpha: 75 },
+  g2: { color: '#db2777', alpha: 70 },
+  g3: { color: '#0ea5e9', alpha: 50 }
+};
+
+function loadCustomGlassThemes() {
+  try {
+    const raw = localStorage.getItem('customGlassThemes');
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function saveCustomGlassThemesArr(arr) {
+  localStorage.setItem('customGlassThemes', JSON.stringify(arr));
+}
+
+function loadCustomGlassThemesIntoMain() {
+  // Strip previous customs in place (keep array reference — many places
+  // capture THEMES at module scope).
+  for (let i = THEMES.length - 1; i >= 0; i--) {
+    if (THEMES[i].isCustom) THEMES.splice(i, 1);
+  }
+  loadCustomGlassThemes().forEach(t => {
+    THEMES.push({
+      id: t.id,
+      name: t.name || 'Custom glass',
+      // Picker preview — accent + a sample of the gradient palette.
+      swatches: [t.accent, t.g1?.color || t.base, t.g2?.color || t.accent],
+      forceAccent: t.accent,
+      isCustom: true
+    });
+  });
+  applyCustomGlassThemesStyleTag();
+}
+
+function applyCustomGlassThemesStyleTag() {
+  let tag = document.getElementById('custom-glass-themes');
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = 'custom-glass-themes';
+    document.head.appendChild(tag);
+  }
+  tag.textContent = loadCustomGlassThemes().map(customGlassThemeToCSS).join('\n');
+}
+
+function customGlassThemeToCSS(t) {
+  const a = (hex, frac) => _hexWithAlpha(hex, frac);
+  const text = _pickGlassTextColor(t.base);
+  // Mirrors the existing `glass` rule's variable shape so anywhere that
+  // reads var(--card-bg) etc. behaves the same; only the values change.
+  return `
+html[data-glass-id="${t.id}"] {
+  --accent: ${t.accent};
+  --accent-light: ${a(t.accent, 0.30)};
+  --accent-dark: color-mix(in srgb, ${t.accent} 70%, black);
+  --accent-faint: ${a(t.accent, 0.12)};
+  --accent-soft: ${a(t.accent, 0.06)};
+  --sidebar-bg: ${a(t.base, 0.55)};
+  --sidebar-hover: ${a(text, 0.06)};
+  --sidebar-active: ${a(t.accent, 0.18)};
+  --content-bg: transparent;
+  --card-bg: ${a(text, 0.06)};
+  --text-primary: ${text};
+  --text-secondary: ${a(text, 0.72)};
+  --text-muted: ${a(text, 0.50)};
+  --border: ${a(text, 0.10)};
+  --border-strong: ${a(text, 0.20)};
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow: 0 4px 12px rgba(0,0,0,0.40);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.40);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,0.50);
+  /* Modals + completer popovers need a much higher alpha than --card-bg
+     so text behind them doesn't bleed through. Tinted from the theme's
+     base so each custom variant gets a popup in its own palette. */
+  --popover-bg: ${a(t.base, 0.92)};
+}
+html[data-glass-id="${t.id}"] body {
+  background:
+    radial-gradient(at 15% 10%, ${a(t.g1.color, t.g1.alpha / 100)} 0%, transparent 50%),
+    radial-gradient(at 85%  5%, ${a(t.g2.color, t.g2.alpha / 100)} 0%, transparent 45%),
+    radial-gradient(at 60% 100%, ${a(t.g3.color, t.g3.alpha / 100)} 0%, transparent 55%),
+    ${t.base};
+  background-attachment: fixed;
+}`;
+}
+
+function _hexWithAlpha(hex, frac) {
+  if (!hex || hex[0] !== '#' || hex.length !== 7) return `rgba(0,0,0,${frac})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, frac)).toFixed(3)})`;
+}
+
+function _relLuminance(hex) {
+  if (!hex || hex[0] !== '#' || hex.length !== 7) return 0;
+  const c = (n) => {
+    const v = n / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * c(parseInt(hex.slice(1, 3), 16))
+       + 0.7152 * c(parseInt(hex.slice(3, 5), 16))
+       + 0.0722 * c(parseInt(hex.slice(5, 7), 16));
+}
+
+// Glass themes assume a dark base — for very dark bases pick a light cream
+// text colour, otherwise fall back to dark slate. The 0.45 threshold is
+// conservative so even mid-dark bases still get the cream treatment that
+// the existing `glass` theme (#0b0f1e base) uses.
+function _pickGlassTextColor(baseHex) {
+  return _relLuminance(baseHex) < 0.45 ? '#f1f5ff' : '#0f172a';
+}
+
+// CRUD on the saved-list, each call regenerates the style tag + THEMES.
+function upsertCustomGlassTheme(theme) {
+  if (!theme || !theme.id) return null;
+  const arr = loadCustomGlassThemes();
+  const idx = arr.findIndex(t => t.id === theme.id);
+  if (idx >= 0) arr[idx] = theme; else arr.push(theme);
+  saveCustomGlassThemesArr(arr);
+  loadCustomGlassThemesIntoMain();
+  return theme;
+}
+
+function deleteCustomGlassTheme(id) {
+  const arr = loadCustomGlassThemes().filter(t => t.id !== id);
+  saveCustomGlassThemesArr(arr);
+  loadCustomGlassThemesIntoMain();
+  // If the deleted theme was active, fall back to default.
+  if (localStorage.getItem('theme') === id) applyTheme('glass');
+  // Same for any project that pinned it.
+  let projChanged = false;
+  for (const proj of Object.values(state.data?.projects || {})) {
+    if (proj.theme === id) { proj.theme = null; projChanged = true; }
+  }
+  if (projChanged) saveData();
+  applyCurrentTheme();
+}
+
+function newCustomGlassTheme(seed = DEFAULT_NEW_GLASS) {
+  // Deep-clone so callers can't accidentally mutate DEFAULT_NEW_GLASS.
+  return {
+    id: 'glass-' + Date.now().toString(36),
+    name: seed.name,
+    accent: seed.accent,
+    base:   seed.base,
+    g1: { ...seed.g1 },
+    g2: { ...seed.g2 },
+    g3: { ...seed.g3 }
+  };
+}
 
 function loadTheme() {
   const saved = localStorage.getItem('theme') || 'light';
@@ -783,21 +957,41 @@ function getEffectiveThemeId() {
   return THEMES.some(t => t.id === saved) ? saved : 'light';
 }
 
+// Custom glass themes opt into the existing `glass` ruleset by setting
+// data-theme="glass" AND a data-glass-id attribute pointing at the saved
+// theme's id. The `<style id="custom-glass-themes">` block in <head>
+// (emitted by applyCustomGlassThemesStyleTag) targets the data-glass-id
+// attribute and overrides only the colour variables + body backdrop.
+// All blur / shadow / surface treatment comes from the static glass
+// rules in styles.css — those stay untouched.
+function _setThemeAttrs(id) {
+  const isCustomGlass = typeof id === 'string' && id.startsWith('glass-') && id !== 'glass';
+  if (isCustomGlass) {
+    document.documentElement.setAttribute('data-theme', 'glass');
+    document.documentElement.setAttribute('data-glass-id', id);
+  } else {
+    document.documentElement.setAttribute('data-theme', id);
+    document.documentElement.removeAttribute('data-glass-id');
+  }
+}
+
 function applyTheme(id, persist = true) {
   const valid = THEMES.some(t => t.id === id) ? id : 'light';
-  document.documentElement.setAttribute('data-theme', valid);
+  _setThemeAttrs(valid);
   if (persist) localStorage.setItem('theme', valid);
   reapplyAccent();
 }
 
 function applyCurrentTheme() {
   const id = getEffectiveThemeId();
-  document.documentElement.setAttribute('data-theme', id);
+  _setThemeAttrs(id);
   reapplyAccent();
 }
 
 function reapplyAccent() {
-  const id = document.documentElement.getAttribute('data-theme') || 'light';
+  // Reads the persisted/effective theme id (which may be a custom-glass id),
+  // not the data-theme attribute (which folds custom-glass to "glass").
+  const id = getEffectiveThemeId();
   const theme = THEMES.find(t => t.id === id);
   const proj = state.data?.projects?.[state.project];
   if (theme && theme.forceAccent) {
@@ -874,10 +1068,154 @@ function themeSelectHTML(key, proj) {
   </div>`;
 }
 
+// ===== CUSTOM GLASS — settings UI =====
+// State: `state.editingGlassDraft` holds the in-flight theme being edited.
+// null means the editor is closed; an object with an `id` means it's open.
+// New themes get `_isNew: true` so Save knows to mint a fresh id; editing
+// existing ones keeps the id so Save updates the same row.
+
+function settingsCustomGlassHTML() {
+  const customs = loadCustomGlassThemes();
+  const draft = state.editingGlassDraft;
+  return `
+    <div class="settings-section">
+      <div class="settings-section-title">Custom glass themes</div>
+      <div class="settings-hint">Build your own variant of the Glass theme — pick the accent, base, and three gradient stops. Saves into the picker above.</div>
+
+      ${customs.length === 0
+        ? '<div class="custom-glass-empty">No custom glass themes yet.</div>'
+        : `<div class="custom-glass-list">
+            ${customs.map(t => `
+              <div class="custom-glass-row">
+                <span class="custom-glass-row-swatches">
+                  <span class="custom-glass-row-swatch" style="background:${escapeHTML(t.accent)}" title="accent"></span>
+                  <span class="custom-glass-row-swatch" style="background:${escapeHTML(t.g1.color)}" title="grad 1"></span>
+                  <span class="custom-glass-row-swatch" style="background:${escapeHTML(t.g2.color)}" title="grad 2"></span>
+                  <span class="custom-glass-row-swatch" style="background:${escapeHTML(t.g3.color)}" title="grad 3"></span>
+                </span>
+                <span class="custom-glass-row-name">${escapeHTML(t.name)}</span>
+                <span class="custom-glass-row-actions">
+                  <button class="btn btn-ghost btn-sm" data-glass-apply="${t.id}">Apply</button>
+                  <button class="btn btn-ghost btn-sm" data-glass-edit="${t.id}">Edit</button>
+                  <button class="btn btn-ghost btn-sm" data-glass-delete="${t.id}" style="color:#dc2626">Delete</button>
+                </span>
+              </div>`).join('')}
+          </div>`}
+
+      ${draft
+        ? customGlassEditorHTML(draft)
+        : '<button class="btn btn-secondary" id="custom-glass-new" style="margin-top:8px">+ New custom glass</button>'}
+    </div>`;
+}
+
+// Mutates the inline styles of #custom-glass-preview and its children so the
+// preview tracks the editor's current draft live, without a re-render. This
+// is intentionally separate from customGlassThemeToCSS — the preview lives
+// inside the settings modal which has its own surrounding styles, and we
+// only need to paint the gradient backdrop + a couple of tinted cards.
+function paintCustomGlassPreview(draft) {
+  const root = document.getElementById('custom-glass-preview');
+  if (!root || !draft) return;
+  const a = (hex, frac) => _hexWithAlpha(hex, frac);
+  const text = _pickGlassTextColor(draft.base);
+  root.style.background =
+    `radial-gradient(at 15% 10%, ${a(draft.g1.color, draft.g1.alpha / 100)} 0%, transparent 50%),`
+    + `radial-gradient(at 85% 5%, ${a(draft.g2.color, draft.g2.alpha / 100)} 0%, transparent 45%),`
+    + `radial-gradient(at 60% 100%, ${a(draft.g3.color, draft.g3.alpha / 100)} 0%, transparent 55%),`
+    + draft.base;
+  root.style.color = text;
+
+  root.querySelectorAll('.cgp-card').forEach(card => {
+    card.style.background = a(text, 0.06);
+    card.style.borderColor = a(text, 0.18);
+  });
+  const title = root.querySelector('.cgp-card-title');
+  if (title) title.style.color = text;
+  root.querySelectorAll('.cgp-row-title').forEach(el => { el.style.color = text; });
+  root.querySelectorAll('.cgp-card-meta').forEach(el => { el.style.color = a(text, 0.65); });
+
+  const rule = root.querySelector('.cgp-rule');
+  if (rule) rule.style.background = draft.accent;
+  root.querySelectorAll('.cgp-row-badge:not(.cgp-row-badge-muted)').forEach(badge => {
+    badge.style.background = draft.accent;
+    badge.style.color = draft.base;
+  });
+  root.querySelectorAll('.cgp-row-badge-muted').forEach(badge => {
+    badge.style.background = a(text, 0.10);
+    badge.style.color = a(text, 0.85);
+    badge.style.borderColor = a(text, 0.20);
+  });
+}
+
+function customGlassEditorHTML(draft) {
+  const isNew = !!draft._isNew;
+  return `
+    <div class="custom-glass-editor" id="custom-glass-editor">
+
+      <div class="custom-glass-preview-wrap">
+        <div class="custom-glass-preview" id="custom-glass-preview">
+          <div class="cgp-card cgp-card-1">
+            <div class="cgp-card-title">Pull</div>
+            <div class="cgp-card-meta">14 things want attention</div>
+          </div>
+          <div class="cgp-card cgp-card-2">
+            <div class="cgp-card-row cgp-active">
+              <span class="cgp-rule"></span>
+              <span class="cgp-row-title">Call Lukas re: Q4 proposal</span>
+              <span class="cgp-row-badge">HIGH</span>
+            </div>
+            <div class="cgp-card-row">
+              <span class="cgp-row-title">Send onboarding doc</span>
+              <span class="cgp-row-badge cgp-row-badge-muted">Med</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="custom-glass-form">
+        <label class="custom-glass-field">
+          <span class="custom-glass-field-label">Name</span>
+          <input type="text" class="form-input custom-glass-input" data-glass-field="name" value="${escapeHTML(draft.name)}" maxlength="40" placeholder="My Glass">
+        </label>
+
+        <div class="custom-glass-row-fields">
+          <label class="custom-glass-field custom-glass-field-color">
+            <span class="custom-glass-field-label">Accent</span>
+            <input type="color" data-glass-field="accent" value="${escapeHTML(draft.accent)}">
+            <span class="custom-glass-hex" data-glass-hex-for="accent">${escapeHTML(draft.accent)}</span>
+          </label>
+          <label class="custom-glass-field custom-glass-field-color">
+            <span class="custom-glass-field-label">Base</span>
+            <input type="color" data-glass-field="base" value="${escapeHTML(draft.base)}">
+            <span class="custom-glass-hex" data-glass-hex-for="base">${escapeHTML(draft.base)}</span>
+          </label>
+        </div>
+
+        ${[1, 2, 3].map(i => {
+          const stop = draft['g' + i];
+          return `
+            <div class="custom-glass-stop">
+              <div class="custom-glass-stop-label">Gradient ${i}</div>
+              <input type="color" data-glass-field="g${i}.color" value="${escapeHTML(stop.color)}">
+              <span class="custom-glass-hex" data-glass-hex-for="g${i}.color">${escapeHTML(stop.color)}</span>
+              <input type="range" min="0" max="100" step="1" data-glass-field="g${i}.alpha" value="${stop.alpha}" class="custom-glass-alpha">
+              <span class="custom-glass-alpha-val" data-glass-alpha-for="g${i}.alpha">${stop.alpha}%</span>
+            </div>`;
+        }).join('')}
+
+        <div class="custom-glass-actions">
+          <button class="btn btn-ghost" id="custom-glass-cancel">Cancel</button>
+          <button class="btn btn-primary" id="custom-glass-save">${isNew ? 'Create theme' : 'Save changes'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function settingsAppearanceHTML() {
   const projectEntries = Object.entries(state.data.projects);
   return `
     ${settingsAppearanceGlobalHTML()}
+    ${settingsCustomGlassHTML()}
     <div class="settings-section">
       <div class="settings-section-title">Per-project color scheme</div>
       <div class="settings-hint">Each project can use its own scheme or inherit the global one. The colored dot is the project's identity color.</div>
@@ -1066,6 +1404,97 @@ function openSettings() {
         // The Appearance tab shows tri-color previews that inherit the global theme — keep them in sync.
         renderKeepingScroll();
       }));
+
+    // ----- Custom glass: list actions + editor wiring -----
+    overlay.querySelectorAll('[data-glass-apply]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        applyTheme(btn.dataset.glassApply);
+        applyCurrentTheme();
+        renderKeepingScroll();
+      }));
+    overlay.querySelectorAll('[data-glass-edit]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const t = loadCustomGlassThemes().find(x => x.id === btn.dataset.glassEdit);
+        if (!t) return;
+        // Deep clone so input edits don't mutate the saved theme until Save is clicked.
+        state.editingGlassDraft = {
+          ...t, g1: { ...t.g1 }, g2: { ...t.g2 }, g3: { ...t.g3 }
+        };
+        renderKeepingScroll();
+        // Paint preview immediately on open so user sees the starting palette.
+        requestAnimationFrame(() => paintCustomGlassPreview(state.editingGlassDraft));
+      }));
+    overlay.querySelectorAll('[data-glass-delete]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const t = loadCustomGlassThemes().find(x => x.id === btn.dataset.glassDelete);
+        if (!t) return;
+        if (!confirm(`Delete custom glass theme "${t.name}"?`)) return;
+        deleteCustomGlassTheme(t.id);
+        renderKeepingScroll();
+      }));
+
+    document.getElementById('custom-glass-new')?.addEventListener('click', () => {
+      state.editingGlassDraft = { ...newCustomGlassTheme(DEFAULT_NEW_GLASS), _isNew: true };
+      renderKeepingScroll();
+      requestAnimationFrame(() => paintCustomGlassPreview(state.editingGlassDraft));
+    });
+
+    document.getElementById('custom-glass-cancel')?.addEventListener('click', () => {
+      state.editingGlassDraft = null;
+      renderKeepingScroll();
+    });
+
+    document.getElementById('custom-glass-save')?.addEventListener('click', () => {
+      const d = state.editingGlassDraft;
+      if (!d) return;
+      const cleaned = {
+        id: d.id,
+        name: (d.name || '').trim() || 'My Glass',
+        accent: d.accent,
+        base:   d.base,
+        g1: { color: d.g1.color, alpha: Math.max(0, Math.min(100, parseInt(d.g1.alpha, 10) || 0)) },
+        g2: { color: d.g2.color, alpha: Math.max(0, Math.min(100, parseInt(d.g2.alpha, 10) || 0)) },
+        g3: { color: d.g3.color, alpha: Math.max(0, Math.min(100, parseInt(d.g3.alpha, 10) || 0)) }
+      };
+      upsertCustomGlassTheme(cleaned);
+      // Auto-apply on save so the user sees their work — picker grid stays in sync.
+      applyTheme(cleaned.id);
+      applyCurrentTheme();
+      state.editingGlassDraft = null;
+      showToast(`Saved "${cleaned.name}"`, 'success');
+      renderKeepingScroll();
+    });
+
+    // Live preview: every input event mutates the draft + repaints the
+    // preview, but does NOT re-render the modal — that would lose focus
+    // mid-typing. Hex/alpha labels next to each input are also patched
+    // here for the same reason.
+    overlay.querySelectorAll('[data-glass-field]').forEach(input =>
+      input.addEventListener('input', () => {
+        const d = state.editingGlassDraft;
+        if (!d) return;
+        const path = input.dataset.glassField;
+        const val = input.value;
+        if (path.includes('.')) {
+          const [obj, key] = path.split('.');
+          d[obj][key] = (key === 'alpha') ? parseInt(val, 10) : val;
+        } else {
+          d[path] = val;
+        }
+        // Patch hex / alpha display labels next to the input.
+        const hexLabel = overlay.querySelector(`[data-glass-hex-for="${CSS.escape(path)}"]`);
+        if (hexLabel) hexLabel.textContent = val;
+        const alphaLabel = overlay.querySelector(`[data-glass-alpha-for="${CSS.escape(path)}"]`);
+        if (alphaLabel) alphaLabel.textContent = val + '%';
+        // Range inputs use a CSS variable to render the filled portion
+        // of the track (Chromium has no equivalent of Firefox's ::range-progress).
+        if (input.type === 'range') input.style.setProperty('--cga-fill', val + '%');
+        paintCustomGlassPreview(d);
+      }));
+    // Initial fill paint for any range inputs that already exist.
+    overlay.querySelectorAll('input[type="range"][data-glass-field]').forEach(r => {
+      r.style.setProperty('--cga-fill', r.value + '%');
+    });
 
     // Custom theme dropdown — open/close + select.
     const closeAllThemeMenus = () => {
@@ -2505,8 +2934,16 @@ async function init() {
   applyListPanelWidth();
   applyGanttLabelWidth();
   applySidebarWidth();
+  applySidebarCollapsedFromStorage();
+  applyZoomFromStorage();
   if (isDeveloperMode() && isAskForBackups()) startBackupPromptTimer();
   document.body.setAttribute('data-project', state.project);
+  // Bootstrap user-saved glass variants — registers them in THEMES (so the
+  // picker grid shows them) and emits the runtime <style> block (so the
+  // colour overrides bind once a custom theme is selected). MUST run
+  // before applyCurrentTheme so a project pinned to a custom theme finds
+  // it on first paint.
+  loadCustomGlassThemesIntoMain();
   applyCurrentTheme();
   // Overview is the only landing now. Pull / Today / Universe live in the
   // sidebar's Lab section and are reached on demand. Within-session
@@ -2514,6 +2951,10 @@ async function init() {
   try {
     if (state.project) {
       state.view = 'overview';
+      // Seed the back/forward stack with the landing view so Alt+← can walk
+      // here from later destinations without falling off the start.
+      __viewHistory.push({ project: state.project, view: 'overview' });
+      __viewHistoryIdx = 0;
     }
     // Sweep up keys from prior landing-mode iterations (no current consumers).
     // A future "remember last view" feature can introduce its own well-named
@@ -2537,12 +2978,73 @@ const KEY_SHORTCUTS = [
     group: 'Global',
     items: [
       { keys: ['Ctrl', 'K'],          desc: 'Open command palette · search & quick capture' },
+      { keys: ['Ctrl', 'P'],          desc: 'Open palette (project / quick switcher)' },
+      { keys: ['Ctrl', 'Shift', 'F'], desc: 'Open palette (full-text search alias)' },
+      { keys: ['Ctrl', 'Shift', 'T'], desc: 'Quick capture todo' },
+      { keys: ['Ctrl', 'Shift', 'N'], desc: 'New note' },
+      { keys: ['Ctrl', ','],          desc: 'Open settings' },
+      { keys: ['Ctrl', 'B'],          desc: 'Collapse / expand sidebar' },
+      { keys: ['Ctrl', 'Shift', 'P'], desc: 'Toggle pinned mode' },
       { keys: ['Ctrl', 'Z'],          desc: 'Undo last change' },
       { keys: ['Ctrl', 'Y'],          desc: 'Redo' },
       { keys: ['Ctrl', 'Shift', 'Z'], desc: 'Redo (alternative)' },
       { keys: ['Ctrl', 'R'],          desc: 'Refresh app' },
+      { keys: ['Ctrl', '+'],          desc: 'Zoom in' },
+      { keys: ['Ctrl', '-'],          desc: 'Zoom out' },
+      { keys: ['Ctrl', '0'],          desc: 'Reset zoom' },
+      { keys: ['F11'],                desc: 'Toggle fullscreen' },
       { keys: ['?'],                  desc: 'Open this cheatsheet' },
-      { keys: ['Esc'],                desc: 'Close any modal / palette / menu' }
+      { keys: ['Esc'],                desc: 'Close any modal / palette / menu · also dismisses lingering toasts' }
+    ]
+  },
+  {
+    group: 'Navigation',
+    items: [
+      { keys: ['Alt', '0'],           desc: 'Jump to Overview' },
+      { keys: ['Alt', '1', '…', '9'], desc: 'Jump to the 1st…9th visible sidebar item' },
+      { keys: ['Alt', '←'],           desc: 'Go back (in-session view history)' },
+      { keys: ['Alt', '→'],           desc: 'Go forward' },
+      { keys: ['Ctrl', 'Tab'],        desc: 'Cycle to next workspace view' },
+      { keys: ['Ctrl', 'Shift', 'Tab'], desc: 'Cycle to previous workspace view' },
+      { keys: ['g', 'o'],             desc: 'Go to Overview' },
+      { keys: ['g', 'i'],             desc: 'Go to Dump Zone (inbox)' },
+      { keys: ['g', 'd'],             desc: 'Go to Dashboard' },
+      { keys: ['g', 'n'],             desc: 'Go to Notes' },
+      { keys: ['g', 't'],             desc: 'Go to Todos' },
+      { keys: ['g', 'c'],             desc: 'Go to Commitments' },
+      { keys: ['g', 'g'],             desc: 'Go to Delegations' },
+      { keys: ['g', 's'],             desc: 'Go to Spark Map' },
+      { keys: ['g', 'r'],             desc: 'Go to Reminders' },
+      { keys: ['g', 'f'],             desc: 'Go to Flows' },
+      { keys: ['g', 'b'],             desc: 'Go to Subprojects' },
+      { keys: ['g', 'h'],             desc: 'Go to Tags' }
+    ]
+  },
+  {
+    group: 'Lists (Notes, Todos, Commitments, Delegations, Reminders, Flows, Tags)',
+    items: [
+      { keys: ['↑', '↓'],            desc: 'Move row selection (also j / k)' },
+      { keys: ['Home', 'End'],        desc: 'Jump to first / last row' },
+      { keys: ['Enter'],              desc: 'Open the selected row' },
+      { keys: ['/'],                  desc: 'Focus the view’s search box' },
+      { keys: ['D'],                  desc: 'Mark selected row done (where supported)' },
+      { keys: ['S'],                  desc: 'Snooze selected todo' },
+      { keys: ['E'],                  desc: 'Edit selected row' },
+      { keys: ['Del'],                desc: 'Delete / archive selected row' }
+    ]
+  },
+  {
+    group: 'Multi-select (Todos & Notes lists)',
+    items: [
+      { keys: ['Click ☑'],            desc: 'Toggle that one row in the bulk selection · sets the anchor' },
+      { keys: ['Shift', 'Click ☑'],   desc: 'Select the range from the anchor to the clicked row (additive)' },
+      { keys: ['Ctrl', 'Click ☑'],    desc: 'Toggle (alias for plain click — File-Explorer parity)' }
+    ]
+  },
+  {
+    group: 'Forms',
+    items: [
+      { keys: ['Ctrl', 'Enter'],      desc: 'Submit primary action in modals & multi-line forms' }
     ]
   },
   {
@@ -2968,6 +3470,7 @@ function setupPalette() {
   host.querySelector('.palette-backdrop').addEventListener('click', closePalette);
 }
 
+const PALETTE_DEFAULT_PLACEHOLDER = "Search or capture — e.g. 'call Lukas tomorrow @eh'";
 function openPalette() {
   setupPalette();
   paletteState.open = true;
@@ -2976,6 +3479,9 @@ function openPalette() {
   const host = document.getElementById('palette');
   const input = document.getElementById('palette-input');
   input.value = '';
+  // Quick-capture flows mutate the placeholder; restore it so the next
+  // ordinary Ctrl+K open shows the regular hint.
+  input.placeholder = PALETTE_DEFAULT_PLACEHOLDER;
   host.classList.add('open');
   renderPaletteResults();
   setTimeout(() => input.focus(), 0);
@@ -3925,39 +4431,444 @@ function setupTitleBar() {
   document.getElementById('btn-minimize').onclick = () => window.api.winMinimize();
   document.getElementById('btn-maximize').onclick = () => window.api.winMaximize();
   document.getElementById('btn-close').onclick = () => window.api.winClose();
-  window.addEventListener('keydown', (e) => {
-    const ctrl = e.ctrlKey || e.metaKey;
-    if (ctrl && e.key.toLowerCase() === 'r') {
+  window.addEventListener('keydown', globalKeyHandler);
+}
+
+// ===== GLOBAL KEYBOARD =====
+// All app-wide shortcuts route through globalKeyHandler. View-scoped handlers
+// (sticky, brainmap, palette) bind earlier with capture and stopPropagation,
+// so the global handler only sees keys they didn't consume. The text-input
+// guard mirrors what the original Ctrl+Z handler did — power-user keys must
+// never steal characters from the user's typing.
+
+function isTextInputTarget(tgt) {
+  if (!tgt) return false;
+  const tag = tgt.tagName;
+  return tgt.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+let __gChordActive = false;
+let __gChordTimer = null;
+function armGChord() {
+  __gChordActive = true;
+  clearTimeout(__gChordTimer);
+  __gChordTimer = setTimeout(() => { __gChordActive = false; }, 1500);
+  // Subtle hint so the user knows we're listening for the second key.
+  showToast('g — pick a destination (o overview · i inbox · d dashboard · n notes · t todos · c commitments · g delegations · s spark · r reminders · f flows · b subprojects · #/h tags)', 'info');
+}
+function disarmGChord() {
+  __gChordActive = false;
+  clearTimeout(__gChordTimer);
+}
+
+// Maps the second key of a `g X` chord to a view name. `g g` doubles up on
+// delegations because `d` is already dashboard. `h` is a hash-friendlier
+// stand-in for the Tags view since `#` requires Shift on most layouts.
+const G_CHORD_MAP = {
+  'o': 'overview',
+  'i': 'dumpzone',
+  'd': 'dashboard',
+  'n': 'notes',
+  't': 'todos',
+  'c': 'commitments',
+  'g': 'delegations',
+  's': 'brainmap',
+  'r': 'reminders',
+  'f': 'flows',
+  'b': 'subprojects',
+  'h': 'tags'
+};
+
+function globalKeyHandler(e) {
+  // Only sticky owns *all* plain keys — its bullseye keymap reuses single
+  // letters (D / N / S / G) that would clash with our chord layer. Brainmap
+  // and Molecular each consume the specific keys they care about (Tab /
+  // Enter / arrows / etc.) via stopPropagation in their own handlers, so
+  // unrelated plain keys like `g` or `/` can still fall through to here.
+  const viewOwnsPlainKeys = state.stickyMode;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+  const tgt = e.target;
+  const inText = isTextInputTarget(tgt);
+
+  // ---- F11 fullscreen (works regardless of focus) ----
+  if (e.key === 'F11' && !ctrl && !e.altKey && !e.shiftKey) {
+    e.preventDefault();
+    if (window.api && typeof window.api.winToggleFullscreen === 'function') {
+      try { window.api.winToggleFullscreen(); } catch (err) { showToast('Fullscreen failed: ' + err.message, 'error'); }
+    } else {
+      // The IPC handler ships in main.js + preload.js. Both are loaded once
+      // at app start, so a hot-edit of those files needs a restart before
+      // F11 can wire up. The user sees a clear toast instead of silent
+      // nothing.
+      showToast('F11 wiring needs an app restart (main process / preload changed).', 'info');
+    }
+    return;
+  }
+
+  // ---- Ctrl + ... ----
+  if (ctrl && !e.altKey) {
+    const k = (e.key || '').toLowerCase();
+
+    if (k === 'r' && !e.shiftKey) { e.preventDefault(); refreshApp(); return; }
+    if (k === 'k' && !e.shiftKey) {
       e.preventDefault();
-      refreshApp();
+      if (paletteState.open) closePalette(); else openPalette();
       return;
     }
-    if (ctrl && e.key.toLowerCase() === 'k') {
+    if (e.key === ',' && !e.shiftKey) { e.preventDefault(); openSettings(); return; }
+    // Ctrl+B doubles as the browser's native "bold" inside contenteditable /
+    // <input> / <textarea>; let it pass through there so the note editor's
+    // formatting still works. Outside inputs it collapses the sidebar.
+    if (k === 'b' && !e.shiftKey) {
+      if (inText) return;
+      e.preventDefault(); toggleSidebarCollapsed(); return;
+    }
+    if (k === 'p' && e.shiftKey)  { e.preventDefault(); toggleStickyMode(); return; }
+    if (k === 'p' && !e.shiftKey) { e.preventDefault(); openPalette(); return; }
+    if (k === 'f' && e.shiftKey)  { e.preventDefault(); openPalette(); return; }
+    if (k === 't' && e.shiftKey)  { e.preventDefault(); quickCaptureTodo(); return; }
+    if (k === 'n' && e.shiftKey)  { e.preventDefault(); quickCaptureNote(); return; }
+    if (e.key === 'Tab')          { e.preventDefault(); cycleView(e.shiftKey ? -1 : 1); return; }
+    // Ctrl+= / Ctrl++ zoom in. Ctrl+- zoom out. Ctrl+0 reset.
+    if (k === '=' || k === '+')   { e.preventDefault(); adjustZoom(0.1); return; }
+    if (k === '-')                { e.preventDefault(); adjustZoom(-0.1); return; }
+    if (k === '0' && !e.shiftKey) { e.preventDefault(); resetZoom(); return; }
+    // Ctrl+Enter — submit the focused form's primary button (commitments,
+    // delegations, dump-zone, etc. all use multi-line inputs where a bare
+    // Enter inserts a newline).
+    if (e.key === 'Enter' && inText) {
+      if (trySubmitPrimaryForTarget(tgt)) { e.preventDefault(); return; }
+    }
+    // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z (existing behaviour, kept verbatim).
+    if (k === 'z' || k === 'y') {
+      if (inText) return;
       e.preventDefault();
-      if (paletteState.open) closePalette();
-      else openPalette();
+      if (k === 'y' || (k === 'z' && e.shiftKey)) redo(); else undo();
       return;
     }
-    if (ctrl && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
-      const tgt = e.target;
-      const tag = tgt && tgt.tagName;
-      // Don't fight the browser's native text-undo inside editable fields.
-      if (tgt && (tgt.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
+  }
+
+  // ---- Alt + ... ----
+  if (e.altKey && !ctrl) {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); navigateBack(); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); navigateForward(); return; }
+    if (/^[0-9]$/.test(e.key))  { e.preventDefault(); jumpToNavIndex(parseInt(e.key, 10)); return; }
+  }
+
+  // ---- ? cheatsheet (kept) ----
+  if (e.key === '?' && !ctrl && !e.altKey) {
+    if (inText) return;
+    if (paletteState.open) return;
+    e.preventDefault();
+    openShortcutsCheatsheet();
+    return;
+  }
+
+  // ---- Plain-key shortcuts (only when not typing into an input) ----
+  if (inText || ctrl || e.altKey || e.metaKey) return;
+  // Brainmap / molecular reuse plain keys (arrows, Tab, Space, etc.) — bail
+  // before touching them, but keep Ctrl+ / Alt+ shortcuts above this gate
+  // so Alt+1..9 / Ctrl+B etc. still work to leave those views.
+  if (viewOwnsPlainKeys) return;
+
+  // g-chord — second key resolves to a view jump.
+  if (__gChordActive) {
+    const target = G_CHORD_MAP[(e.key || '').toLowerCase()];
+    disarmGChord();
+    if (target) { e.preventDefault(); showView(target); }
+    return;
+  }
+  if (e.key === 'g') {
+    e.preventDefault();
+    armGChord();
+    return;
+  }
+
+  // / focuses the current view's search input.
+  if (e.key === '/') {
+    const sb = document.querySelector('.view.active .search-input, .view.active input[type="search"]');
+    if (sb) {
       e.preventDefault();
-      if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) redo();
-      else undo();
+      sb.focus();
+      try { sb.select(); } catch {}
       return;
     }
-    if (e.key === '?' && !ctrl && !e.altKey) {
-      const tgt = e.target;
-      const tag = tgt && tgt.tagName;
-      if (tgt && (tgt.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return;
-      if (paletteState.open) return;
-      e.preventDefault();
-      openShortcutsCheatsheet();
+  }
+
+  // Esc dismisses lingering toasts when nothing else is consuming Escape.
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('modal-overlay');
+    const overlayOpen = overlay && !overlay.classList.contains('hidden');
+    if (!overlayOpen && !paletteState.open) {
+      const tc = document.getElementById('toast-container');
+      if (tc && tc.children.length) {
+        tc.querySelectorAll('.toast').forEach(t => t.remove());
+        e.preventDefault();
+        return;
+      }
+    }
+  }
+
+  // List keynav — last so explicit shortcuts win. Suppressed while the
+  // palette is open since arrows there steer palette results, not the
+  // (covered) underlying list.
+  if (paletteState.open) return;
+  if (handleKeynav(e)) return;
+}
+
+// ===== JUMPS / VIEW CYCLING =====
+function jumpToNavIndex(digit) {
+  // Alt+0 → Overview (cross-project landing). Alt+1..9 → that index in the
+  // visible workspace nav. Lab items are excluded — they're explicitly tucked
+  // away and not part of muscle-memory positions.
+  if (digit === 0) { showView('overview'); return; }
+  const items = (typeof getOrderedNavItems === 'function')
+    ? getOrderedNavItems().filter(n => n.visible)
+    : [];
+  const item = items[digit - 1];
+  if (item) showView(item.id);
+}
+
+function cycleView(delta) {
+  const items = (typeof getOrderedNavItems === 'function')
+    ? getOrderedNavItems().filter(n => n.visible)
+    : [];
+  if (!items.length) return;
+  let idx = items.findIndex(n => n.id === state.view);
+  if (idx < 0) idx = 0;
+  const next = (idx + delta + items.length) % items.length;
+  showView(items[next].id);
+}
+
+// ===== SIDEBAR COLLAPSE =====
+function toggleSidebarCollapsed() {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch {}
+}
+function applySidebarCollapsedFromStorage() {
+  try {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+  } catch {}
+}
+
+// ===== ZOOM =====
+// Backed by Electron's webFrame so the whole viewport scales (otherwise
+// document.body.style.zoom leaves a dark band below when zooming out).
+// Levels mirror Chromium's convention: 0 = 100 %, ±1 ≈ ±20 %, capped at the
+// usual ±5 to keep things sane.
+const ZOOM_MIN = -5;
+const ZOOM_MAX = 5;
+function _zoomPercent(level) {
+  return Math.round(Math.pow(1.2, level) * 100);
+}
+function adjustZoom(deltaSteps) {
+  // Older preload bundles (before this build) won't have zoomSet — fall back
+  // to the renderer-only path so the shortcut still does *something* until
+  // the user restarts.
+  if (!window.api || typeof window.api.zoomSet !== 'function') {
+    const cur = parseFloat(document.body.style.zoom || '1') || 1;
+    const next = Math.max(0.5, Math.min(2, Math.round((cur + deltaSteps) * 10) / 10));
+    document.body.style.zoom = String(next);
+    try { localStorage.setItem('appZoom', String(next)); } catch {}
+    showToast(`Zoom: ${Math.round(next * 100)}%  (restart for proper zoom)`, 'info');
+    return;
+  }
+  const dir = deltaSteps > 0 ? 1 : -1;
+  const cur = window.api.zoomGet();
+  const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur + dir));
+  window.api.zoomSet(next);
+  try { localStorage.setItem('appZoomLevel', String(next)); } catch {}
+  showToast(`Zoom: ${_zoomPercent(next)}%`, 'info');
+}
+function resetZoom() {
+  if (window.api && typeof window.api.zoomSet === 'function') {
+    window.api.zoomSet(0);
+  }
+  document.body.style.zoom = '';
+  try {
+    localStorage.removeItem('appZoom');
+    localStorage.removeItem('appZoomLevel');
+  } catch {}
+  showToast('Zoom: 100%', 'info');
+}
+function applyZoomFromStorage() {
+  try {
+    const lvl = parseInt(localStorage.getItem('appZoomLevel'), 10);
+    if (Number.isFinite(lvl) && window.api && typeof window.api.zoomSet === 'function') {
+      window.api.zoomSet(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, lvl)));
       return;
     }
-  });
+    // Legacy fallback — value persisted under the old document.body.style.zoom
+    // scheme. Honour it once so users don't lose their setting on upgrade.
+    const z = parseFloat(localStorage.getItem('appZoom'));
+    if (Number.isFinite(z) && z >= 0.5 && z <= 2) document.body.style.zoom = String(z);
+  } catch {}
+}
+
+// ===== QUICK CAPTURE =====
+// Both reuse the palette so all routing/parse rules stay in one place. The
+// only difference is the seed text: `+ ` flips the palette into capture mode
+// (parseQuickCapture treats the `+` prefix as "definitely capture") and the
+// note variant deep-links to the new-note editor instead.
+function quickCaptureTodo() {
+  openPalette();
+  setTimeout(() => {
+    const input = document.getElementById('palette-input');
+    if (!input) return;
+    input.value = '';
+    paletteState.query = '';
+    input.focus();
+    // Force capture-mode framing in the placeholder so the user knows what
+    // Enter will do without typing anything yet.
+    input.placeholder = 'New todo — e.g. "call Lukas tomorrow @eh"';
+  }, 0);
+}
+function quickCaptureNote() {
+  state.editingNote = 'new';
+  showView('notes');
+}
+
+// ===== Ctrl+Enter SUBMIT =====
+// Best-effort: walk up to a bounding container and click its primary button.
+// Honours an explicit [data-primary-submit] override before falling back to
+// the first .btn-primary or [type=submit] in scope.
+function trySubmitPrimaryForTarget(tgt) {
+  const scope = tgt.closest('.modal, form, .palette-box, .com-card, .del-card, .reminder-form, .flow-edit-card, .dump-input-wrap, .notes-editor-panel');
+  if (!scope) return false;
+  const btn = scope.querySelector('[data-primary-submit], .btn-primary, button[type="submit"]');
+  if (btn && !btn.disabled) { btn.click(); return true; }
+  return false;
+}
+
+// ===== LIST KEYNAV =====
+// Generic selection layer for views with row-style lists. View renderers
+// don't need to know about it — we just look up the rows by class. The
+// selected row gets a CSS hook (.keynav-selected) and we synthesize clicks
+// for activation, so each view's existing click handlers do the real work.
+
+// Class patterns used by the renderers, in priority order. The first match
+// wins for a given view.
+const KEYNAV_VIEWS = {
+  notes:       { selector: '.note-list-item',  idAttr: 'data-id',          kind: 'note' },
+  todos:       { selector: '.todo-card',       idAttr: 'data-todo-id',     kind: 'todo' },
+  commitments: { selector: '.com-card',        idAttr: 'data-com-id',      kind: 'commitment' },
+  delegations: { selector: '.del-card',        idAttr: 'data-del-id',      kind: 'delegation' },
+  reminders:   { selector: '.reminder-item',   idAttr: 'data-reminder-id', kind: 'reminder' },
+  flows:       { selector: '.flow-card',       idAttr: 'data-flow-id',     kind: 'flow' },
+  tags:        { selector: '.tag-match-row',   idAttr: 'data-tag-match-id', kind: 'tag-match' }
+};
+
+let keynavIdx = -1;
+function resetKeynavSelection() {
+  keynavIdx = -1;
+  document.querySelectorAll('.keynav-selected').forEach(el => el.classList.remove('keynav-selected'));
+}
+
+function getKeynavRows() {
+  const cfg = KEYNAV_VIEWS[state.view];
+  if (!cfg) return { cfg: null, rows: [] };
+  // Scope to the active view so we don't accidentally hit duplicate row
+  // classes rendered elsewhere on the page.
+  const root = document.querySelector('.view.active') || document;
+  const rows = Array.from(root.querySelectorAll(cfg.selector));
+  return { cfg, rows };
+}
+
+function paintKeynavSelection(rows) {
+  rows.forEach((r, i) => r.classList.toggle('keynav-selected', i === keynavIdx));
+  const sel = rows[keynavIdx];
+  if (sel && typeof sel.scrollIntoView === 'function') {
+    sel.scrollIntoView({ block: 'nearest', behavior: 'instant' in window ? 'instant' : 'auto' });
+  }
+}
+
+function moveKeynav(delta) {
+  const { rows } = getKeynavRows();
+  if (!rows.length) return false;
+  if (keynavIdx < 0) keynavIdx = delta > 0 ? 0 : rows.length - 1;
+  else keynavIdx = Math.max(0, Math.min(rows.length - 1, keynavIdx + delta));
+  paintKeynavSelection(rows);
+  return true;
+}
+
+function setKeynavEdge(end) {
+  const { rows } = getKeynavRows();
+  if (!rows.length) return false;
+  keynavIdx = end === 'first' ? 0 : rows.length - 1;
+  paintKeynavSelection(rows);
+  return true;
+}
+
+// Try to fire an item-level action by hunting for a button with a known
+// data-attr inside the selected row. Returns true if an action fired.
+function fireRowAction(row, kind, action) {
+  // For todos we try the existing action buttons first ("✓ Done", snooze).
+  // Falls back to clicking the row itself for activation.
+  const SELECTORS = {
+    todo: {
+      done:   '[data-action="toggle-done"], .todo-checkbox, [data-today-action="done"]',
+      snooze: '[data-today-action="snooze"], [data-action="snooze-1"]',
+      edit:   '.todo-title, .todo-edit-btn',
+      del:    '[data-action="archive"], [data-action="delete"], .todo-delete-btn'
+    },
+    commitment: {
+      done: '[data-com-action="close"], .com-mark-done',
+      del:  '[data-com-action="delete"]',
+      edit: '.com-title, .com-edit-btn'
+    },
+    delegation: {
+      done: '[data-del-action="done"]',
+      del:  '[data-del-action="delete"]',
+      edit: '.del-title'
+    },
+    reminder: {
+      done: '[data-reminder-action="done"]',
+      del:  '[data-reminder-action="delete"]'
+    }
+  };
+  const map = SELECTORS[kind] || {};
+  const sel = map[action];
+  if (sel) {
+    const btn = row.querySelector(sel);
+    if (btn) { btn.click(); return true; }
+  }
+  return false;
+}
+
+function activateKeynavRow(row, kind) {
+  // Notes need a click on the row itself (the renderer wires that to "open
+  // editor"). Todos toggle expansion on row-click which is also the desired
+  // Enter behaviour. Tag-match rows similarly. So a synthetic click is the
+  // safest universal activator.
+  row.click();
+}
+
+function handleKeynav(e) {
+  const cfg = KEYNAV_VIEWS[state.view];
+  if (!cfg) return false;
+  const k = e.key;
+
+  if (k === 'ArrowDown' || k === 'j') { if (moveKeynav(1))  { e.preventDefault(); return true; } }
+  if (k === 'ArrowUp'   || k === 'k') { if (moveKeynav(-1)) { e.preventDefault(); return true; } }
+  if (k === 'Home')                   { if (setKeynavEdge('first')) { e.preventDefault(); return true; } }
+  if (k === 'End')                    { if (setKeynavEdge('last'))  { e.preventDefault(); return true; } }
+
+  // Item-level actions need a current selection.
+  const { rows } = getKeynavRows();
+  const row = rows[keynavIdx];
+  if (!row) return false;
+
+  if (k === 'Enter')                  { e.preventDefault(); activateKeynavRow(row, cfg.kind); return true; }
+  if (k === 'd' || k === 'D')         { if (fireRowAction(row, cfg.kind, 'done'))   { e.preventDefault(); return true; } }
+  if (k === 's' || k === 'S')         { if (fireRowAction(row, cfg.kind, 'snooze')) { e.preventDefault(); return true; } }
+  if (k === 'e' || k === 'E')         { if (fireRowAction(row, cfg.kind, 'edit'))   { e.preventDefault(); return true; } }
+  if (k === 'Delete' || k === 'Backspace') {
+    if (fireRowAction(row, cfg.kind, 'del')) { e.preventDefault(); return true; }
+  }
+  return false;
 }
 
 function setupReminderListener() {
@@ -4007,6 +4918,11 @@ function switchProject(key) {
   state.noteSearch = '';
   state.activeSubproject = null;
   state.editingSubproject = null;
+  // Bulk selections are project-scoped — drop them so the next project
+  // doesn't inherit phantom IDs that no longer resolve.
+  state.selectedTodos.clear();
+  state.selectedNotes.clear();
+  state.bulkAnchors = { todos: null, notes: null };
   state.project = key;
   document.body.setAttribute('data-project', key);
   applyCurrentTheme();
@@ -4014,13 +4930,60 @@ function switchProject(key) {
   saveData();
 }
 
+// Lightweight in-session navigation history for Alt+←/→. Each entry is a
+// { project, view } snapshot. We capture before mutating state.view so the
+// stack reflects the *visited* sequence. Internal back/forward calls flip
+// __viewHistorySkip to avoid re-pushing themselves.
+const __viewHistory = [];
+let __viewHistoryIdx = -1;
+let __viewHistorySkip = false;
+const VIEW_HISTORY_MAX = 50;
+
 function showView(name) {
   if (state.view === 'brainmap' && name !== 'brainmap') { saveBrainmap(); teardownBrainmap(); }
   if (state.view === 'molecular' && name !== 'molecular') { teardownMolecular(); }
   if (state.view !== name) delete __scrollMemory[`${state.project}::${name}`];
+  if (!__viewHistorySkip) {
+    // Drop any forward entries when a fresh navigation happens — same model
+    // browsers use. Avoid stacking duplicates of the same view back-to-back.
+    if (__viewHistoryIdx < __viewHistory.length - 1) {
+      __viewHistory.length = __viewHistoryIdx + 1;
+    }
+    const last = __viewHistory[__viewHistory.length - 1];
+    if (!last || last.project !== state.project || last.view !== name) {
+      __viewHistory.push({ project: state.project, view: name });
+      if (__viewHistory.length > VIEW_HISTORY_MAX) __viewHistory.shift();
+      __viewHistoryIdx = __viewHistory.length - 1;
+    }
+  }
   state.view = name;
+  resetKeynavSelection();
   renderContent();
   renderSidebar();
+}
+
+function navigateBack() {
+  if (__viewHistoryIdx <= 0) return false;
+  __viewHistoryIdx--;
+  const entry = __viewHistory[__viewHistoryIdx];
+  __viewHistorySkip = true;
+  try {
+    if (entry.project !== state.project) switchProject(entry.project);
+    if (state.view !== entry.view) showView(entry.view);
+  } finally { __viewHistorySkip = false; }
+  return true;
+}
+
+function navigateForward() {
+  if (__viewHistoryIdx >= __viewHistory.length - 1) return false;
+  __viewHistoryIdx++;
+  const entry = __viewHistory[__viewHistoryIdx];
+  __viewHistorySkip = true;
+  try {
+    if (entry.project !== state.project) switchProject(entry.project);
+    if (state.view !== entry.view) showView(entry.view);
+  } finally { __viewHistorySkip = false; }
+  return true;
 }
 
 function renderContent() {
@@ -6685,15 +7648,82 @@ function handleTodayAction(action, projKey, todoId) {
 }
 
 // ===== OVERVIEW (ALL PROJECTS) =====
+// "What needs you now" inbox: groups buildTodayBuckets() output by project
+// and renders one segmented panel above the project grid. Tabs reuse the
+// Today view's data-today-action wiring so done/+1d behave identically.
+
+function overviewInboxGroupByProject(items) {
+  // items each have { projectKey, projectName, projectColor, ... }
+  const m = new Map();
+  for (const it of items) {
+    let g = m.get(it.projectKey);
+    if (!g) {
+      g = { projectKey: it.projectKey, projectName: it.projectName, projectColor: it.projectColor || '#16a34a', items: [] };
+      m.set(it.projectKey, g);
+    }
+    g.items.push(it);
+  }
+  return [...m.values()];
+}
+
+function overviewInboxTodoRowHTML(item, kind) {
+  const t = item.todo;
+  const dueLabel = kind === 'overdue'
+    ? `⚠ ${daysOverdueLabel(t.dueDate)}`
+    : kind === 'today' ? 'today' : formatDate(t.dueDate);
+  const metaCls = kind === 'overdue' ? 'overdue' : '';
+  const prio = t.priority === 'high'
+    ? '<span class="overview-inbox-prio">High</span>'
+    : '';
+  return `<div class="overview-inbox-row" data-today-jump-todo="${t.id}" data-today-jump-project="${item.projectKey}">
+    <button class="overview-inbox-check" data-today-action="done" data-todo-id="${t.id}" data-project-key="${item.projectKey}" title="Mark done"></button>
+    <span class="overview-inbox-title">${escapeHTML(t.title)}</span>
+    ${prio}
+    <span class="overview-inbox-meta ${metaCls}">${dueLabel}</span>
+    <button class="overview-inbox-push btn btn-ghost btn-sm" data-today-action="snooze" data-todo-id="${t.id}" data-project-key="${item.projectKey}" title="Push due date by 1 day">+1d</button>
+  </div>`;
+}
+
+function overviewInboxWaitingRowHTML(item) {
+  if (item.commitment) {
+    const c = item.commitment;
+    const arrow = c.direction === 'they_owe' ? '←' : '→';
+    const ageLabel = c.due_date ? (isOverdue(c.due_date) ? `⚠ ${daysOverdueLabel(c.due_date)}` : formatDate(c.due_date)) : '';
+    return `<div class="overview-inbox-row overview-inbox-row--waiting" data-today-jump-commitment="${c.id}" data-today-jump-project="${item.projectKey}">
+      <span class="overview-inbox-prefix">${arrow} ${escapeHTML(c.counterparty)}:</span>
+      <span class="overview-inbox-title">${escapeHTML(c.description)}</span>
+      <span class="overview-inbox-meta overdue">${ageLabel}</span>
+    </div>`;
+  }
+  if (item.delegation) {
+    const d = item.delegation;
+    const ageLabel = d.due_date ? (isOverdue(d.due_date) ? `⚠ ${daysOverdueLabel(d.due_date)}` : formatDate(d.due_date)) : '';
+    return `<div class="overview-inbox-row overview-inbox-row--waiting" data-today-jump-delegation="${d.id}" data-today-jump-project="${item.projectKey}">
+      <span class="overview-inbox-prefix">→ ${escapeHTML(d.delegated_to)}:</span>
+      <span class="overview-inbox-title">${escapeHTML(d.task)}</span>
+      <span class="overview-inbox-meta overdue">${ageLabel}</span>
+    </div>`;
+  }
+  return '';
+}
+
+function overviewInboxGroupHTML(group, renderRow) {
+  return `<div class="overview-inbox-group">
+    <div class="overview-inbox-group-head">
+      <span class="overview-inbox-group-dot" style="background:${group.projectColor}"></span>
+      <span class="overview-inbox-group-name">${escapeHTML(group.projectName)}</span>
+      <span class="overview-inbox-group-count">· ${group.items.length}</span>
+    </div>
+    ${group.items.map(renderRow).join('')}
+  </div>`;
+}
+
 function renderOverview() {
   const projects = state.data.projects;
   // Overview is the cross-project dashboard — archived projects are intentionally excluded.
   // The user can restore them from the sidebar to bring them back in.
   const entries = Object.entries(projects).filter(([, proj]) => !proj.archived);
   const archivedCount = Object.values(projects).filter(p => p.archived).length;
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const in7d = new Date(today); in7d.setDate(in7d.getDate() + 7);
 
   const perProject = entries.map(([key, proj]) => {
     const notes = proj.notes || [];
@@ -6736,27 +7766,29 @@ function renderOverview() {
     commitmentsOverdue: a.commitmentsOverdue + p.counts.commitmentsOverdue
   }), { notes:0, todosOpen:0, todosDone:0, overdue:0, subprojects:0, reminders:0, commitmentsOpen:0, commitmentsOverdue:0 });
 
-  const allOverdueCommitments = entries.flatMap(([key, proj]) =>
-    (proj.commitments || []).filter(c => c.status === 'open' && isCommitmentOverdue(c))
-      .map(c => ({ ...c, projectKey: key, projectName: proj.name, projectColor: proj.color }))
-  ).sort((a,b) => new Date(a.due_date||'9999') - new Date(b.due_date||'9999')).slice(0, 6);
-
   const allReminders = entries.flatMap(([key, proj]) =>
     (proj.reminders || []).filter(r => !r.fired && r.datetime).map(r => ({ ...r, projectKey: key, projectName: proj.name, projectColor: proj.color }))
   ).sort((a,b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 6);
 
-  const allOverdue = entries.flatMap(([key, proj]) =>
-    (proj.todos || []).filter(t => !t.done && t.dueDate && isOverdue(t.dueDate))
-      .map(t => ({ ...t, projectKey: key, projectName: proj.name, projectColor: proj.color }))
-  ).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 6);
-
-  const allDueSoon = entries.flatMap(([key, proj]) =>
-    (proj.todos || []).filter(t => {
-      if (t.done || !t.dueDate) return false;
-      const d = new Date(t.dueDate); d.setHours(0,0,0,0);
-      return d >= today && d <= in7d;
-    }).map(t => ({ ...t, projectKey: key, projectName: proj.name, projectColor: proj.color }))
-  ).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 6);
+  // ── "What needs you now" inbox data ──
+  // Reuse the Today view's bucket builder so semantics stay aligned across both
+  // surfaces (overdue / today / due 1–7d / overdue commitments+delegations).
+  // No 6-cap: the inbox shows full lists, grouped by project.
+  const inboxBuckets = buildTodayBuckets();
+  const inboxCounts = {
+    overdue: inboxBuckets.overdueTodos.length,
+    today:   inboxBuckets.todayTodos.length,
+    week:    inboxBuckets.upcomingTodos.length,
+    waiting: inboxBuckets.overdueCommitments.length + inboxBuckets.overdueDelegations.length
+  };
+  // Default tab = highest-priority non-empty tab. If user has clicked one, honour
+  // it as long as the bucket isn't empty; if it became empty (e.g. they cleared
+  // overdue), fall through to the next non-empty bucket.
+  const tabPriority = ['overdue', 'today', 'week', 'waiting'];
+  let inboxTab = state.overviewInboxTab;
+  if (!inboxTab || !inboxCounts[inboxTab]) {
+    inboxTab = tabPriority.find(k => inboxCounts[k] > 0) || 'overdue';
+  }
 
   document.getElementById('content').innerHTML = `
     <div class="view active" id="view-overview">
@@ -6776,6 +7808,80 @@ function renderOverview() {
           <div class="overview-stat"><div class="overview-stat-num">${totals.reminders}</div><div class="overview-stat-label">Reminders</div></div>
           <div class="overview-stat"><div class="overview-stat-num">${totals.subprojects}</div><div class="overview-stat-label">Subprojects</div></div>
         </div>
+
+        ${(() => {
+          // ── "What needs you now" inbox ───────────────────────────────────
+          // The dominant block above the project grid: one segmented panel
+          // covering the four buckets that actually need action right now.
+          // No 6-cap; rows are grouped by project. Default tab = highest-
+          // priority non-empty bucket, sticky via state.overviewInboxTab.
+          const totalUrgent = inboxCounts.overdue + inboxCounts.today + inboxCounts.week + inboxCounts.waiting;
+          const allClear = totalUrgent === 0;
+          const tabs = [
+            { key: 'overdue', label: '⚠ Overdue', alert: true },
+            { key: 'today',   label: 'Today',     alert: false },
+            { key: 'week',    label: 'Due this week', alert: false },
+            { key: 'waiting', label: 'Waiting on',    alert: inboxCounts.waiting > 0 }
+          ];
+          // Meta line under the title summarises the active tab.
+          let metaLine = '';
+          if (inboxTab === 'overdue' && inboxCounts.overdue > 0) {
+            const oldest = inboxBuckets.overdueTodos[0]?.todo?.dueDate;
+            metaLine = `${inboxCounts.overdue} overdue${oldest ? ` · oldest ${daysOverdueLabel(oldest)}` : ''}`;
+          } else if (inboxTab === 'today') {
+            metaLine = inboxCounts.today === 0 ? 'Nothing due today' : `${inboxCounts.today} due today`;
+          } else if (inboxTab === 'week') {
+            metaLine = inboxCounts.week === 0 ? 'Nothing due in the next 7 days' : `${inboxCounts.week} due in the next 7 days`;
+          } else if (inboxTab === 'waiting') {
+            metaLine = inboxCounts.waiting === 0 ? 'No-one overdue' : `${inboxCounts.waiting} commitment${inboxCounts.waiting===1?'':'s'} / delegation${inboxCounts.waiting===1?'':'s'} overdue`;
+          }
+
+          // Active pane content.
+          let paneHTML = '';
+          if (inboxTab === 'overdue') {
+            paneHTML = inboxCounts.overdue
+              ? overviewInboxGroupByProject(inboxBuckets.overdueTodos)
+                  .map(g => overviewInboxGroupHTML(g, it => overviewInboxTodoRowHTML(it, 'overdue'))).join('')
+              : `<div class="overview-inbox-empty">🎉 Nothing overdue. You're on top of things.</div>`;
+          } else if (inboxTab === 'today') {
+            paneHTML = inboxCounts.today
+              ? overviewInboxGroupByProject(inboxBuckets.todayTodos)
+                  .map(g => overviewInboxGroupHTML(g, it => overviewInboxTodoRowHTML(it, 'today'))).join('')
+              : `<div class="overview-inbox-empty">Nothing scheduled for today.</div>`;
+          } else if (inboxTab === 'week') {
+            paneHTML = inboxCounts.week
+              ? overviewInboxGroupByProject(inboxBuckets.upcomingTodos)
+                  .map(g => overviewInboxGroupHTML(g, it => overviewInboxTodoRowHTML(it, 'upcoming'))).join('')
+              : `<div class="overview-inbox-empty">Nothing due in the next 7 days.</div>`;
+          } else if (inboxTab === 'waiting') {
+            const waiting = [...inboxBuckets.overdueCommitments, ...inboxBuckets.overdueDelegations];
+            paneHTML = waiting.length
+              ? overviewInboxGroupByProject(waiting)
+                  .map(g => overviewInboxGroupHTML(g, overviewInboxWaitingRowHTML)).join('')
+              : `<div class="overview-inbox-empty">No-one's owing you anything overdue.</div>`;
+          }
+
+          return `<div class="overview-inbox ${allClear ? 'overview-inbox--clear' : ''} ${inboxCounts.overdue > 0 ? 'overview-inbox--alert' : ''}">
+            <div class="overview-inbox-head">
+              <span class="overview-inbox-title-main">What needs you now</span>
+              <span class="overview-inbox-meta-line">${escapeHTML(metaLine)}</span>
+              <div style="flex:1"></div>
+              <button class="btn btn-ghost btn-sm" id="btn-overview-open-today" title="Open the focused Today view">Open Today view</button>
+            </div>
+            <div class="overview-inbox-tabs" role="tablist">
+              ${tabs.map(tab => {
+                const count = inboxCounts[tab.key];
+                const active = tab.key === inboxTab;
+                const hasCount = count > 0;
+                return `<button class="overview-inbox-tab ${active ? 'active' : ''} ${tab.alert && hasCount ? 'danger' : ''}" data-overview-inbox-tab="${tab.key}" role="tab" aria-selected="${active}">
+                  <span class="overview-inbox-tab-label">${tab.label}</span>
+                  <span class="overview-inbox-tab-num">${count}</span>
+                </button>`;
+              }).join('')}
+            </div>
+            <div class="overview-inbox-body">${paneHTML}</div>
+          </div>`;
+        })()}
 
         <div class="overview-section-title">Projects</div>
         <div class="overview-project-grid">
@@ -6801,52 +7907,8 @@ function renderOverview() {
         </div>
 
         <div class="overview-grid">
-          <div class="dash-section">
-            <div class="dash-section-header">
-              <span class="dash-section-title">Overdue todos</span>
-            </div>
-            ${allOverdue.length ? allOverdue.map(t => `
-              <div class="overview-list-item" data-jump-project="${t.projectKey}" data-jump-view="todos">
-                <button class="overview-todo-check" data-overview-todo-check="${t.id}" data-overview-todo-project="${t.projectKey}" title="Mark done"></button>
-                <span class="overview-list-dot" style="background:${t.projectColor || '#16a34a'}"></span>
-                <span class="overview-list-title">${escapeHTML(t.title)}</span>
-                <span class="overview-list-meta overview-list-meta-alert">${formatDate(t.dueDate)}</span>
-                <span class="overview-list-project">${escapeHTML(t.projectName)}</span>
-              </div>`).join('') : '<div class="empty-state">Nothing overdue 🎉</div>'}
-          </div>
-
-          <div class="dash-section">
-            <div class="dash-section-header">
-              <span class="dash-section-title">Due this week</span>
-            </div>
-            ${allDueSoon.length ? allDueSoon.map(t => `
-              <div class="overview-list-item" data-jump-project="${t.projectKey}" data-jump-view="todos">
-                <button class="overview-todo-check" data-overview-todo-check="${t.id}" data-overview-todo-project="${t.projectKey}" title="Mark done"></button>
-                <span class="overview-list-dot" style="background:${t.projectColor || '#16a34a'}"></span>
-                <span class="overview-list-title">${escapeHTML(t.title)}</span>
-                <span class="overview-list-meta">${formatDate(t.dueDate)}</span>
-                <span class="overview-list-project">${escapeHTML(t.projectName)}</span>
-              </div>`).join('') : '<div class="empty-state">Nothing due in the next 7 days</div>'}
-          </div>
-
-          ${allOverdueCommitments.length ? `
-          <div class="dash-section">
-            <div class="dash-section-header">
-              <span class="dash-section-title" style="color:#dc2626">⚠ Overdue commitments</span>
-            </div>
-            ${allOverdueCommitments.map(c => {
-              const dir = c.direction === 'i_owe' ? 'I owe →' : '← They owe:';
-              return `<div class="overview-list-item" data-jump-project="${c.projectKey}" data-jump-view="commitments">
-                <span class="overview-list-dot" style="background:#dc2626"></span>
-                <span class="overview-list-title"><span style="font-size:10px;color:var(--text-muted)">${dir}</span> ${escapeHTML(c.counterparty)} — ${escapeHTML(c.description)}</span>
-                ${c.due_date ? `<span class="overview-list-meta overview-list-meta-alert">${formatDate(c.due_date)}</span>` : ''}
-                <span class="overview-list-project">${escapeHTML(c.projectName)}</span>
-              </div>`;
-            }).join('')}
-          </div>` : ''}
-
           ${(() => {
-            // Quietly slipping — counterweight to the urgency block above. The
+            // Quietly slipping — counterweight to the urgency inbox above. The
             // 3 stalest items across the workspace (todos / notes / reminders)
             // ranked by inverse touch weight. Reuses the Pull view's row markup
             // and click delegation so the slipping component looks identical
@@ -6938,9 +8000,11 @@ function renderOverview() {
       if (key && key !== state.project) switchProject(key);
       if (view) showView(view);
     }));
+  // .overview-list-item is now only used for Upcoming reminders. The old check
+  // button (data-overview-todo-check) was removed when the inbox replaced the
+  // overdue cards, so no inner-button guard is needed here.
   document.querySelectorAll('.overview-list-item[data-jump-project]').forEach(el =>
-    el.addEventListener('click', (e) => {
-      if (e.target.closest('.overview-todo-check')) return;
+    el.addEventListener('click', () => {
       const key = el.dataset.jumpProject;
       const v = el.dataset.jumpView || 'dashboard';
       if (key && key !== state.project) switchProject(key);
@@ -6952,43 +8016,44 @@ function renderOverview() {
     el.addEventListener('click', () => {
       navigateToPullItem(el.dataset.pullKind, el.dataset.pullProject, el.dataset.pullId);
     }));
-  document.querySelectorAll('.overview-todo-check[data-overview-todo-check]').forEach(btn =>
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const projKey = btn.dataset.overviewTodoProject;
-      const todoId = btn.dataset.overviewTodoCheck;
-      const proj = state.data.projects[projKey];
-      if (!proj) return;
-      const t = (proj.todos || []).find(x => x.id === todoId);
-      if (!t) return;
-      t.done = true;
-      t.completedAt = new Date().toISOString();
-      if (t.recurrence) {
-        // Spawn next recurrence into the correct project (not necessarily the active one)
-        const base = t.dueDate ? new Date(t.dueDate) : new Date();
-        const next = computeNextOccurrence(t.recurrence, base);
-        if (next) {
-          proj.todos.unshift({
-            id: generateId('todo'),
-            title: t.title,
-            done: false,
-            priority: t.priority,
-            subprojectId: t.subprojectId,
-            tags: [...(t.tags || [])],
-            startDate: null,
-            dueDate: toDateString(next),
-            created: new Date().toISOString(),
-            completedAt: null,
-            attachments: [],
-            steps: (t.steps || []).map(s => ({ id: generateId('step'), title: s.title, done: false, created: new Date().toISOString() })),
-            recurrence: { ...t.recurrence, weekdays: t.recurrence.weekdays ? [...t.recurrence.weekdays] : undefined }
-          });
-        }
-      }
-      saveData();
-      showToast(`Marked "${t.title}" as done.`, 'success');
+  // ── "What needs you now" inbox handlers ──
+  // Tab switch — sticky via state so it survives re-renders triggered by
+  // done/+1d actions inside the inbox.
+  document.querySelectorAll('[data-overview-inbox-tab]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      state.overviewInboxTab = btn.dataset.overviewInboxTab;
       renderOverview();
     }));
+  // Done / +1d (snooze) — reuse the Today view's action handler so behaviour
+  // (recurrence spawn, project switch, toast, re-render) stays identical.
+  document.querySelectorAll('#view-overview [data-today-action]').forEach(btn =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleTodayAction(btn.dataset.todayAction, btn.dataset.projectKey, btn.dataset.todoId);
+    }));
+  // Row click → jump to the relevant project's view.
+  document.querySelectorAll('#view-overview [data-today-jump-todo]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const projKey = el.dataset.todayJumpProject;
+      if (projKey && projKey !== state.project) switchProject(projKey);
+      showView('todos');
+    }));
+  document.querySelectorAll('#view-overview [data-today-jump-commitment]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const projKey = el.dataset.todayJumpProject;
+      if (projKey && projKey !== state.project) switchProject(projKey);
+      showView('commitments');
+    }));
+  document.querySelectorAll('#view-overview [data-today-jump-delegation]').forEach(el =>
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const projKey = el.dataset.todayJumpProject;
+      if (projKey && projKey !== state.project) switchProject(projKey);
+      showView('delegations');
+    }));
+  document.getElementById('btn-overview-open-today')?.addEventListener('click', () => showView('today'));
   document.querySelectorAll('[data-overview-open-project]').forEach(btn =>
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -7172,6 +8237,7 @@ function renderNotes() {
                 </div>
               </div>` : ''}
           </div>
+          ${notesBulkBarHTML(filtered)}
           <div class="notes-list-items">
             ${filtered.length
               ? filtered.map(noteListItemHTML).join('')
@@ -7197,9 +8263,120 @@ function renderNotes() {
     state.editingNote = null;
     renderNotes();
   });
+  // Body class lets CSS keep the bulk-select circles visible even when the
+  // user moves the cursor away from a row — same trick as todos-has-selection.
+  document.body.classList.toggle('notes-has-selection', state.selectedNotes && state.selectedNotes.size > 0);
+
+  // Bulk-select checkbox: stop propagation so clicking the ☑ doesn't also
+  // open the note in the editor pane. Plain click toggles, Shift+Click
+  // extends from the anchor (Windows Explorer style).
+  document.querySelectorAll('.note-bulk-select').forEach(el =>
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bulkSelectHandler({
+        kind: 'notes',
+        id: el.dataset.bulkId,
+        event: e,
+        scopeSelector: '.notes-list-items',
+        rowSelector: '.note-bulk-select',
+        idAttr: 'data-bulk-id'
+      });
+      renderNotes();
+    }));
   document.querySelectorAll('.note-list-item').forEach(el =>
-    el.addEventListener('click', () => { state.editingNote = el.dataset.id; renderNotes(); }));
+    el.addEventListener('click', (e) => {
+      // Don't open the editor when the click landed on the select checkbox
+      // (already handled above) or any other interactive child.
+      if (e.target.closest('.note-bulk-select')) return;
+      state.editingNote = el.dataset.id;
+      renderNotes();
+    }));
+  document.querySelectorAll('[data-notes-bulk]').forEach(btn =>
+    btn.addEventListener('click', () => handleNotesBulk(btn.dataset.notesBulk)));
   setupNoteEditorEvents();
+}
+
+// ===== NOTES BULK ACTIONS =====
+function notesBulkBarHTML(visibleNotes) {
+  if (!(state.selectedNotes instanceof Set)) state.selectedNotes = new Set();
+  // Drop ids that are no longer in the visible set (filter / archive toggle
+  // could have hidden them) — we only ever want a "selected" count that
+  // matches what the user can actually see.
+  const visibleIds = new Set((visibleNotes || []).map(n => n.id));
+  for (const id of state.selectedNotes) {
+    if (!visibleIds.has(id)) state.selectedNotes.delete(id);
+  }
+  const n = state.selectedNotes.size;
+  if (n === 0) return '';
+  const allSelected = n === visibleNotes.length;
+  const archiving = !state.noteShowArchived;
+  return `<div class="bulk-bar bulk-bar-notes">
+    <div class="bulk-bar-count">${n} selected</div>
+    <div class="bulk-bar-actions">
+      <button class="btn btn-secondary btn-sm" data-notes-bulk="archive">📦 ${archiving ? 'Archive' : 'Restore'}</button>
+      <button class="btn btn-secondary btn-sm" data-notes-bulk="delete" style="color:#dc2626">✕ Delete</button>
+      <button class="btn btn-ghost btn-sm" data-notes-bulk="select-all">${allSelected ? 'Deselect all' : 'Select all'}</button>
+      <button class="btn btn-ghost btn-sm" data-notes-bulk="clear">Clear</button>
+    </div>
+  </div>`;
+}
+
+function _bulkSelectedNoteObjects() {
+  const proj = getProject();
+  if (!proj) return [];
+  return (proj.notes || []).filter(n => state.selectedNotes.has(n.id));
+}
+
+function handleNotesBulk(action) {
+  const proj = getProject();
+  if (!proj) return;
+  const notes = _bulkSelectedNoteObjects();
+  if (action === 'clear') {
+    state.selectedNotes.clear();
+    state.bulkAnchors.notes = null;
+    renderNotes();
+    return;
+  }
+  if (action === 'select-all') {
+    // Toggle: select all visible if not already, otherwise clear.
+    const visible = document.querySelectorAll('.note-bulk-select');
+    const ids = Array.from(visible).map(el => el.dataset.bulkId);
+    const allOn = ids.length > 0 && ids.every(id => state.selectedNotes.has(id));
+    if (allOn) state.selectedNotes.clear();
+    else ids.forEach(id => state.selectedNotes.add(id));
+    renderNotes();
+    return;
+  }
+  if (!notes.length) return;
+  if (action === 'archive') {
+    // Mirror the "showArchived → restore, else archive" semantics from todos.
+    const restoring = state.noteShowArchived;
+    notes.forEach(n => { n.archived = !restoring; n.updated = Date.now(); });
+    saveData();
+    state.selectedNotes.clear();
+    state.bulkAnchors.notes = null;
+    showToast(`${notes.length} note${notes.length === 1 ? '' : 's'} ${restoring ? 'restored' : 'archived'}.`, 'info');
+    renderNotes();
+    return;
+  }
+  if (action === 'delete') {
+    showConfirmModal({
+      title: `Delete ${notes.length} note${notes.length === 1 ? '' : 's'}?`,
+      body: 'This cannot be undone from the menu, but you can <strong>Ctrl+Z</strong> to restore. Tip: archive (📦) instead if you might want them back later.',
+      confirmLabel: `Delete ${notes.length}`,
+      onConfirm: () => {
+        const ids = new Set(notes.map(n => n.id));
+        proj.notes = (proj.notes || []).filter(n => !ids.has(n.id));
+        ids.forEach(id => cleanupNodeLinksOnEntityDelete(state.project, 'note', id));
+        if (state.editingNote && ids.has(state.editingNote)) state.editingNote = null;
+        state.selectedNotes.clear();
+        state.bulkAnchors.notes = null;
+        saveData();
+        showToast(`${notes.length} note${notes.length === 1 ? '' : 's'} deleted.`, 'info');
+        renderNotes();
+      }
+    });
+  }
 }
 
 /**
@@ -7329,7 +8506,9 @@ function noteListItemHTML(n) {
   const active = state.editingNote === n.id ? 'active' : '';
   const preview = noteContentText(n.content).split('\n')[0].slice(0, 60);
   const sp = (getProject().subprojects || []).find(s => s.id === n.subprojectId);
-  return `<div class="note-list-item ${active} ${n.archived?'archived':''}" data-id="${n.id}">
+  const isSelected = state.selectedNotes && state.selectedNotes.has(n.id);
+  return `<div class="note-list-item ${active} ${n.archived?'archived':''} ${isSelected?'bulk-selected':''}" data-id="${n.id}">
+    <span class="note-bulk-select ${isSelected?'on':''}" data-bulk-id="${n.id}" title="Select for bulk actions · Shift+Click for range">${isSelected?'✓':''}</span>
     <div class="note-item-header">
       <span class="note-item-title">${escapeHTML(n.title)}</span>
       ${pinToggleButtonHTML('note', state.project, n.id, 'pin-toggle-inline')}
@@ -7611,7 +8790,11 @@ function installSmartLinkCompleter(el) {
     const surface = _smartLinkReadSurface(el);
     if (surface) { log.surfaceText = (surface.text || '').slice(0, 60); log.surfaceCaret = surface.caretPos; }
     if (!surface) { _smartLinkClose(); log.bail = 'no-surface'; return; }
-    const sug = suggestSmartLink(surface.text, surface.caretPos);
+    // Pass the host element's entity (if it's a todo/commitment/etc. card)
+    // so the suggester rejects "you've just clicked into your own title"
+    // matches — refresh fires on focus AND click, not only typing.
+    const self = _resolveSelfEntityForElement(el);
+    const sug = suggestSmartLink(surface.text, surface.caretPos, self);
     log.sug = sug ? { full: sug.full, kind: sug.kind } : null;
     if (!sug) { _smartLinkClose(); log.bail = 'no-suggestion'; return; }
     smartLinkState.open = true;
@@ -7633,7 +8816,9 @@ function installSmartLinkCompleter(el) {
   });
   el.addEventListener('keydown', (e) => {
     if (!smartLinkState.open || smartLinkState.hostEl !== el) return;
-    if (e.key === 'Tab' && !e.shiftKey) {
+    // Tab and Enter both accept — matches the mention completer's behaviour
+    // so users don't have to remember which surface they're in.
+    if ((e.key === 'Tab' && !e.shiftKey) || e.key === 'Enter') {
       e.preventDefault();
       e.stopImmediatePropagation();
       _smartLinkAccept(el);
@@ -7802,40 +8987,90 @@ function suggestSmartLink(text, caretPos, currentEntityRef) {
   };
 }
 
-function buildMentionResults(query) {
+// Walk up from `el` looking for the closest container that identifies the
+// entity the caret is editing. Returns { type, projectKey, refId } or null.
+// Used by both the @-mention completer (to skip "you can't mention yourself"
+// rows) and the smart-link suggester (to skip "this todo already exists" hits
+// when you've just clicked into the todo whose title is the matched phrase).
+//
+// Falls back to state.editingNote when the caret is inside #notes-editor-panel
+// — the note editor doesn't tag its container with a data-id.
+function _resolveSelfEntityForElement(el) {
+  if (!el) return null;
+  const projKey = state.project;
+  for (let cur = el; cur && cur !== document.body; cur = cur.parentElement) {
+    const ds = cur.dataset;
+    if (!ds) continue;
+    if (ds.todoId)     return { type: 'todo',       projectKey: projKey, refId: ds.todoId };
+    if (ds.comId)      return { type: 'commitment', projectKey: projKey, refId: ds.comId };
+    if (ds.delId)      return { type: 'delegation', projectKey: projKey, refId: ds.delId };
+    if (ds.reminderId) return { type: 'reminder',   projectKey: projKey, refId: ds.reminderId };
+    if (ds.flowId)     return { type: 'flow',       projectKey: projKey, refId: ds.flowId };
+  }
+  if (state.editingNote && state.editingNote !== 'new') {
+    for (let cur = el; cur && cur !== document.body; cur = cur.parentElement) {
+      if (cur.id === 'notes-editor-panel' || (cur.classList && cur.classList.contains('notes-editor-panel'))) {
+        return { type: 'note', projectKey: projKey, refId: state.editingNote };
+      }
+    }
+  }
+  return null;
+}
+
+function _mentionAnchorSelfEntity(anchor) {
+  if (!anchor) return null;
+  const el = anchor.isInput ? anchor.input
+           : (anchor.node && anchor.node.nodeType === 3 ? anchor.node.parentElement : anchor.node);
+  return _resolveSelfEntityForElement(el);
+}
+
+function buildMentionResults(query, selfEntity) {
   const q = (query || '').toLowerCase();
   const out = [];
   const seenLimit = 25;
+  // selfEntity is { type, projectKey, refId } when the caret sits inside an
+  // existing entity — that one row is omitted so the user doesn't get
+  // offered themselves as a mention target.
+  const isSelf = (type, pkey, refId) =>
+    !!selfEntity
+    && selfEntity.type === type
+    && selfEntity.projectKey === pkey
+    && selfEntity.refId === refId;
   for (const [pkey, proj] of Object.entries(state.data.projects || {})) {
     if (out.length >= seenLimit) break;
     if (proj.archived) continue;
-    if ((proj.name || '').toLowerCase().includes(q)) {
+    if ((proj.name || '').toLowerCase().includes(q) && !isSelf('project', pkey, pkey)) {
       out.push({ type: 'project', projectKey: pkey, refId: pkey, label: proj.name, projectName: proj.name, projectColor: proj.color || '#16a34a' });
     }
     (proj.todos || []).forEach(t => {
       if (t.archived) return;
+      if (isSelf('todo', pkey, t.id)) return;
       if ((t.title || '').toLowerCase().includes(q)) {
         out.push({ type: 'todo', projectKey: pkey, refId: t.id, label: t.title, projectName: proj.name, projectColor: proj.color || '#16a34a', done: !!t.done });
       }
     });
     (proj.notes || []).forEach(n => {
       if (n.archived) return;
+      if (isSelf('note', pkey, n.id)) return;
       const title = (n.title || '').trim();
       if (title.toLowerCase().includes(q)) {
         out.push({ type: 'note', projectKey: pkey, refId: n.id, label: title || '(untitled)', projectName: proj.name, projectColor: proj.color || '#16a34a' });
       }
     });
     (proj.flows || []).forEach(f => {
+      if (isSelf('flow', pkey, f.id)) return;
       if ((f.name || '').toLowerCase().includes(q)) {
         out.push({ type: 'flow', projectKey: pkey, refId: f.id, label: f.name, projectName: proj.name, projectColor: proj.color || '#16a34a' });
       }
     });
     (proj.subprojects || []).forEach(s => {
+      if (isSelf('subproject', pkey, s.id)) return;
       if ((s.name || '').toLowerCase().includes(q)) {
         out.push({ type: 'subproject', projectKey: pkey, refId: s.id, label: s.name, projectName: proj.name, projectColor: proj.color || '#16a34a' });
       }
     });
     (proj.reminders || []).forEach(r => {
+      if (isSelf('reminder', pkey, r.id)) return;
       if ((r.title || '').toLowerCase().includes(q)) {
         out.push({ type: 'reminder', projectKey: pkey, refId: r.id, label: r.title, projectName: proj.name, projectColor: proj.color || '#16a34a', done: !!r.doneAt || !!r.fired });
       }
@@ -7909,7 +9144,8 @@ function openMentionCompleter(anchor) {
   mentionState.anchor = anchor;
   mentionState.query = anchor.query;
   mentionState.activeIdx = 0;
-  mentionState.results = buildMentionResults(anchor.query);
+  // Skip the entity the caret is in — no value in offering yourself as a mention.
+  mentionState.results = buildMentionResults(anchor.query, _mentionAnchorSelfEntity(anchor));
   renderMentionMenu();
   positionMentionMenu();
 }
@@ -8122,6 +9358,7 @@ const _mentionTargetSelectors = [
   '.todo-title',                                           // todo card title (contenteditable)
   '.todo-step-title',                                      // todo step (contenteditable)
   '#dump-input',                                           // dump zone capture (contenteditable)
+  '.dump-text-edit',                                       // dump card inline editor (contenteditable)
   '.flow-node-text',                                       // flow node text (contenteditable)
   '#todo-input',                                           // todo add form input
   '#rem-title', '#rem-note',                               // reminder add form
@@ -8277,6 +9514,41 @@ function deleteNote() {
   saveData();
   showToast('Note deleted.', 'info');
   renderNotes();
+}
+
+// ===== SHARED MULTI-SELECT (todos / notes lists) =====
+// Click semantics mirror Windows Explorer's "shift extends a range":
+//   - Plain click           → toggle that one, set anchor
+//   - Shift + click         → fill the range from the anchor (additive — keeps
+//                             whatever was already selected outside the range)
+//   - Ctrl  + click         → toggle that one, set anchor (alias for plain so
+//                             muscle memory from File Explorer still works)
+//   - Ctrl  + Shift + click → same as Shift+Click (additive range)
+// The visible/ordered list is read straight from the DOM at click time, so
+// the helper doesn't need to know about each view's filter/sort plumbing.
+function bulkSelectHandler(opts) {
+  const { kind, id, event, scopeSelector, rowSelector, idAttr } = opts;
+  const set = state[kind === 'todos' ? 'selectedTodos' : 'selectedNotes'];
+  if (!(set instanceof Set)) return;
+  const scope = scopeSelector ? document.querySelector(scopeSelector) : document;
+  if (!scope) return;
+  const rows = Array.from(scope.querySelectorAll(rowSelector));
+  const ids = rows.map(r => r.getAttribute(idAttr));
+  const clickedIdx = ids.indexOf(id);
+  if (clickedIdx < 0) return;
+
+  const anchorId = state.bulkAnchors[kind];
+  const anchorIdx = anchorId ? ids.indexOf(anchorId) : -1;
+
+  if (event && event.shiftKey && anchorIdx >= 0) {
+    const [lo, hi] = anchorIdx <= clickedIdx ? [anchorIdx, clickedIdx] : [clickedIdx, anchorIdx];
+    for (let i = lo; i <= hi; i++) set.add(ids[i]);
+    // Anchor stays put — successive Shift+Clicks pivot off the same point,
+    // matching File Explorer's behaviour.
+  } else {
+    if (set.has(id)) set.delete(id); else set.add(id);
+    state.bulkAnchors[kind] = id;
+  }
 }
 
 // ===== TODOS =====
@@ -8704,13 +9976,20 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
   const scope = document.querySelector(scopeSelector);
   if (!scope) return;
   toggleFrom = toggleFrom || 'todos';
-  // Bulk-select toggle on each row
+  // Bulk-select on each row — plain click toggles, Shift+Click extends from
+  // the last anchor (Windows Explorer style). Ctrl is treated as plain so
+  // users coming from File Explorer's Ctrl+Click still get a toggle.
   scope.querySelectorAll('.todo-bulk-select').forEach(el =>
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      const id = el.dataset.bulkId;
-      if (state.selectedTodos.has(id)) state.selectedTodos.delete(id);
-      else state.selectedTodos.add(id);
+      bulkSelectHandler({
+        kind: 'todos',
+        id: el.dataset.bulkId,
+        event: e,
+        scopeSelector: scopeSelector,
+        rowSelector: '.todo-bulk-select',
+        idAttr: 'data-bulk-id'
+      });
       renderTodos();
     }));
   scope.querySelectorAll('.todo-checkbox').forEach(cb =>
@@ -10766,6 +12045,20 @@ function setDumpSubproject(dumpId, spId) {
   return true;
 }
 
+// Persists an inline edit from a dump card's contenteditable text region.
+// Called on every input event (mirrors flowUpdateNodeText) — saveData() also
+// pushes an undo snapshot, so granular edits are reversible step-by-step.
+function updateDumpText(dumpId, html) {
+  const proj = getProject();
+  const dump = (proj.dumps || []).find(d => d.id === dumpId);
+  if (!dump) return false;
+  const next = (html || '').trim();
+  if (dump.text === next) return false;
+  dump.text = next;
+  saveData();
+  return true;
+}
+
 function deleteDump(dumpId) {
   const proj = getProject();
   const idx = (proj.dumps || []).findIndex(d => d.id === dumpId);
@@ -11584,7 +12877,7 @@ function renderDumpZone() {
         ${image && image.width && image.height ? `<span class="dump-time">· ${image.width}×${image.height}</span>` : ''}
         ${!processedMode ? subprojectSelectHTML(d.subprojectId, 'data-dump-sp-id', d.id) : (d.subprojectId && spById[d.subprojectId] ? `<span class="todo-sp-chip" style="background:${spById[d.subprojectId].color}22;color:${spById[d.subprojectId].color};border:1px solid ${spById[d.subprojectId].color}44;margin-left:auto">${escapeHTML(spById[d.subprojectId].name)}</span>` : '')}
       </div>
-      ${d.text ? `<div class="dump-text">${noteContentInitialHTML(d.text)}</div>` : ''}
+      ${d.text ? `<div class="dump-text dump-text-edit" contenteditable="true" data-dump-text-id="${d.id}" data-placeholder="(empty)">${noteContentInitialHTML(d.text)}</div>` : ''}
       ${audio ? `<button class="btn btn-ghost btn-sm dump-play" data-audio-rel="${escapeHTML(audio.relPath)}" data-audio-mime="${audio.relPath.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm'}">▶ Play voice memo</button>
         <div class="dump-audio-container" data-audio-container="${d.id}"></div>` : ''}
       ${image ? `<div class="dump-sketch"><img class="dump-sketch-img" data-sketch-rel="${escapeHTML(image.relPath)}" data-sketch-edit-id="${d.id}" alt="sketch" title="${(image.actions && image.actions.length) ? 'Click to edit' : 'Click to view'}"></div>` : ''}
@@ -11703,6 +12996,23 @@ function renderDumpZone() {
     sel.addEventListener('click', ev => ev.stopPropagation());
     sel.addEventListener('change', () => {
       if (setDumpSubproject(sel.dataset.dumpSpId, sel.value)) renderDumpZone();
+    });
+  });
+
+  // Inline editing of dump text. Mirrors the flow-node-text pattern:
+  // every input persists immediately so edits survive view switches and
+  // app restarts. Re-rendering (subproject change, archive, etc.) blows
+  // away focus — that's tolerable because those actions are click-driven,
+  // and the user-initiated text edit doesn't trigger any re-render itself.
+  document.querySelectorAll('[data-dump-text-id]').forEach(el => {
+    installRichEditorPaste(el);
+    el.addEventListener('input', () => {
+      updateDumpText(el.dataset.dumpTextId, el.innerHTML || '');
+    });
+    // Ctrl+Enter inside an editable dump should NOT reach the global
+    // submit handler — there's no primary button to fire here.
+    el.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') e.stopPropagation();
     });
   });
 
@@ -13959,6 +15269,11 @@ function setupBrainmapEvents() {
 function bmWindowKeyHandler(e) {
   if (state.view !== 'brainmap') return;
   if (paletteState && paletteState.open) return;
+  // Modifier-bearing keys are reserved for app-wide shortcuts (Ctrl+Tab to
+  // cycle views, Alt+1..9 to jump out, Ctrl+Z to undo, etc.). Without this
+  // skip, Ctrl+Tab would also be eaten as "add child" because Tab matches
+  // below regardless of modifiers.
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   const tgt = e.target;
   if (tgt && tgt.classList && tgt.classList.contains('bm-rename-input')) {
     if (e.key === 'Tab') {

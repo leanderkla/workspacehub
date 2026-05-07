@@ -28,74 +28,6 @@
   --transition: 150ms ease;
 }
 
-/* ===== THEMES ===== */
-html[data-theme="dark"] {
-  --content-bg: #0f172a;
-  --card-bg: #1e293b;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border: #334155;
-  --border-strong: #475569;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.6), 0 4px 6px rgba(0,0,0,0.5);
-}
-
-html[data-theme="midnight"] {
-  --sidebar-bg: #050914;
-  --sidebar-hover: #0b1324;
-  --sidebar-active: #0b1324;
-  --content-bg: #050914;
-  --card-bg: #0b1220;
-  --text-primary: #cbd5e1;
-  --text-secondary: #7c8ca4;
-  --text-muted: #4b5a72;
-  --border: #15223a;
-  --border-strong: #1f2f4a;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.6);
-  --shadow: 0 1px 3px rgba(0,0,0,0.7), 0 1px 2px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.7);
-  --shadow-lg: 0 10px 20px rgba(0,0,0,0.8);
-}
-
-html[data-theme="sepia"] {
-  --sidebar-bg: #2a1f10;
-  --sidebar-hover: #3a2c18;
-  --sidebar-active: #3a2c18;
-  --content-bg: #f1e7d0;
-  --card-bg: #fbf5e9;
-  --text-primary: #3b2f1c;
-  --text-secondary: #6b5a3f;
-  --text-muted: #9d8a66;
-  --border: #e4d4b4;
-  --border-strong: #d0bc93;
-}
-
-html[data-theme="nord"] {
-  --sidebar-bg: #2e3440;
-  --sidebar-hover: #3b4252;
-  --sidebar-active: #3b4252;
-  --content-bg: #d8dee9;
-  --card-bg: #eceff4;
-  --text-primary: #2e3440;
-  --text-secondary: #4c566a;
-  --text-muted: #7b8494;
-  --border: #c8ced9;
-  --border-strong: #a9b1bf;
-}
-
-html[data-theme="rose"] {
-  --content-bg: #ffe4e6;
-  --card-bg: #fff1f2;
-  --text-primary: #881337;
-  --text-secondary: #9f1239;
-  --text-muted: #be185d;
-  --border: #fecdd3;
-  --border-strong: #fda4af;
-}
-
 /* Energy Hero — Sun (yellow/orange on slate) */
 html[data-theme="eh-sun"] {
   --accent: #F9A81A;
@@ -111,40 +43,6 @@ html[data-theme="eh-sun"] {
   --text-muted: #94A3B8;
   --border: #E5EAED;
   --border-strong: #C9D1D6;
-}
-
-/* Energy Hero — Sunset (red-orange, warm cream) */
-html[data-theme="eh-sunset"] {
-  --accent: #F75F1C;
-  --accent-light: #FFE3D4;
-  --accent-dark: #A83C00;
-  --sidebar-bg: #2B2220;
-  --sidebar-hover: #3D2F2B;
-  --sidebar-active: #3D2F2B;
-  --content-bg: #FFF8F3;
-  --card-bg: #FFFFFF;
-  --text-primary: #404A4F;
-  --text-secondary: #6B5B55;
-  --text-muted: #A08B83;
-  --border: #F5D7C4;
-  --border-strong: #E6B89A;
-}
-
-/* Energy Hero — Ocean (teal + light blue) */
-html[data-theme="eh-ocean"] {
-  --accent: #00A99E;
-  --accent-light: #CFEEEA;
-  --accent-dark: #006F68;
-  --sidebar-bg: #264B53;
-  --sidebar-hover: #365F68;
-  --sidebar-active: #365F68;
-  --content-bg: #EAF4F8;
-  --card-bg: #FFFFFF;
-  --text-primary: #1F3A42;
-  --text-secondary: #4F6A73;
-  --text-muted: #7C949B;
-  --border: #CCE3EB;
-  --border-strong: #A6CBD8;
 }
 
 /* Energy Hero — Sepia (warm paper + EH orange accent) */
@@ -181,44 +79,6 @@ html[data-theme="ai5-cyan"] {
   --border-strong: #a3d9e4;
 }
 
-/* AI5 — Dark (cyan accent on deep dark) */
-html[data-theme="ai5-dark"] {
-  --accent: #26c9e2;
-  --accent-light: #0d3a42;
-  --accent-dark: #9fecf6;
-  --sidebar-bg: #0d0c12;
-  --sidebar-hover: #1f1e28;
-  --sidebar-active: #1f1e28;
-  --content-bg: #18171f;
-  --card-bg: #23222d;
-  --text-primary: #e9f7fa;
-  --text-secondary: #a3d9e4;
-  --text-muted: #6c7580;
-  --border: #2d2c38;
-  --border-strong: #3d3c48;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-  --shadow: 0 1px 3px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.6);
-  --shadow-lg: 0 10px 20px rgba(0,0,0,0.8);
-}
-
-/* AI5 — Mist (soft sky blue palette) */
-html[data-theme="ai5-mist"] {
-  --accent: #3499cd;
-  --accent-light: #e3f4f8;
-  --accent-dark: #1f6a8e;
-  --sidebar-bg: #1c3540;
-  --sidebar-hover: #2d4a58;
-  --sidebar-active: #2d4a58;
-  --content-bg: #e8f3f7;
-  --card-bg: #f7fcfd;
-  --text-primary: #0d0c12;
-  --text-secondary: #4c636d;
-  --text-muted: #8aa5b0;
-  --border: #c4dde6;
-  --border-strong: #91d8e2;
-}
-
 /* Solarized (classic warm light) */
 html[data-theme="solarized"] {
   --accent: #268bd2;
@@ -236,61 +96,6 @@ html[data-theme="solarized"] {
   --border-strong: #d8d3c0;
 }
 
-/* Cyberpunk (neon pink on deep purple) */
-html[data-theme="cyberpunk"] {
-  --accent: #ff00ff;
-  --accent-light: #3a003a;
-  --accent-dark: #ff9cff;
-  --sidebar-bg: #0a0014;
-  --sidebar-hover: #1a0028;
-  --sidebar-active: #1a0028;
-  --content-bg: #100018;
-  --card-bg: #1a0028;
-  --text-primary: #ffe6ff;
-  --text-secondary: #c0a0e0;
-  --text-muted: #806088;
-  --border: #2d0044;
-  --border-strong: #4a0073;
-  --shadow-sm: 0 1px 2px rgba(255,0,255,0.2);
-  --shadow: 0 2px 6px rgba(255,0,255,0.25);
-  --shadow-md: 0 4px 12px rgba(255,0,255,0.3);
-  --shadow-lg: 0 10px 30px rgba(255,0,255,0.35);
-}
-
-/* Forest (deep evergreen) */
-html[data-theme="forest"] {
-  --accent: #2d6a4f;
-  --accent-light: #d8f3dc;
-  --accent-dark: #1b4332;
-  --sidebar-bg: #1b4332;
-  --sidebar-hover: #2d5a46;
-  --sidebar-active: #2d5a46;
-  --content-bg: #f4f9f4;
-  --card-bg: #ffffff;
-  --text-primary: #1b2e23;
-  --text-secondary: #4a6456;
-  --text-muted: #7c9489;
-  --border: #d9e8df;
-  --border-strong: #b7d3c0;
-}
-
-/* Mono (pure grayscale) */
-html[data-theme="mono"] {
-  --accent: #000000;
-  --accent-light: #e5e5e5;
-  --accent-dark: #404040;
-  --sidebar-bg: #171717;
-  --sidebar-hover: #262626;
-  --sidebar-active: #262626;
-  --content-bg: #fafafa;
-  --card-bg: #ffffff;
-  --text-primary: #0a0a0a;
-  --text-secondary: #525252;
-  --text-muted: #a3a3a3;
-  --border: #e5e5e5;
-  --border-strong: #d4d4d4;
-}
-
 /* Lavender (soft purple pastel) */
 html[data-theme="lavender"] {
   --accent: #a78bfa;
@@ -306,40 +111,6 @@ html[data-theme="lavender"] {
   --text-muted: #a68dcc;
   --border: #ede2ff;
   --border-strong: #d8c5ff;
-}
-
-/* High Contrast (sharp black/white with yellow accent) */
-html[data-theme="contrast"] {
-  --accent: #facc15;
-  --accent-light: #fef9c3;
-  --accent-dark: #a16207;
-  --sidebar-bg: #000000;
-  --sidebar-hover: #171717;
-  --sidebar-active: #171717;
-  --content-bg: #ffffff;
-  --card-bg: #ffffff;
-  --text-primary: #000000;
-  --text-secondary: #262626;
-  --text-muted: #525252;
-  --border: #000000;
-  --border-strong: #000000;
-}
-
-/* Terracotta (warm earth tones) */
-html[data-theme="terracotta"] {
-  --accent: #c2410c;
-  --accent-light: #fde4d1;
-  --accent-dark: #7c2d12;
-  --sidebar-bg: #44221a;
-  --sidebar-hover: #5c3223;
-  --sidebar-active: #5c3223;
-  --content-bg: #fbf5ef;
-  --card-bg: #ffffff;
-  --text-primary: #44221a;
-  --text-secondary: #7a4e3c;
-  --text-muted: #b08470;
-  --border: #f0dfcc;
-  --border-strong: #dcc3a8;
 }
 
 html[data-theme="glass"] {
@@ -428,11 +199,39 @@ html[data-theme="glass"] .dash-overdue-extend:hover {
   color: #fecaca;
 }
 
+/* Floating panels need a much higher alpha than --card-bg gives, otherwise
+   text behind them shows through. The default value here matches the
+   existing pink-glass tone; custom-glass themes override --popover-bg
+   from their own base colour via the runtime <style> block. */
+html[data-theme="glass"] {
+  --popover-bg: rgba(20, 18, 38, 0.92);
+}
+/* Every floating panel that gets `position: fixed/absolute` AND uses
+   var(--card-bg) for its background needs to opt in here — otherwise
+   the 6 %-alpha card-bg renders the panel almost invisible against the
+   gradient backdrop. The complete sweep:
+     · .modal                — settings, confirm, etc.
+     · .palette-box          — Ctrl+K command palette
+     · #project-context-menu — right-click on a project in the sidebar
+     · .sv3-filter-menu      — sticky-mode project filter
+     · .mention-menu         — @-completer dropdown
+     · .smart-link-popover   — single-row link suggestion
+     · .theme-select-menu    — per-project theme dropdown
+     · .todo-overflow-menu   — `⋯` menu on a todo card
+     · .bm-context-menu      — spark-map node context menu
+     · .node-link-chip-popover — list of items linked to a spark-map node
+*/
 html[data-theme="glass"] .modal,
 html[data-theme="glass"] .palette-box,
 html[data-theme="glass"] #project-context-menu,
-html[data-theme="glass"] .sv3-filter-menu {
-  background: rgba(20, 18, 38, 0.92);
+html[data-theme="glass"] .sv3-filter-menu,
+html[data-theme="glass"] .mention-menu,
+html[data-theme="glass"] .smart-link-popover,
+html[data-theme="glass"] .theme-select-menu,
+html[data-theme="glass"] .todo-overflow-menu,
+html[data-theme="glass"] .bm-context-menu,
+html[data-theme="glass"] .node-link-chip-popover {
+  background: var(--popover-bg, rgba(20, 18, 38, 0.92));
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -446,6 +245,84 @@ html[data-theme="glass"] .modal textarea,
 html[data-theme="glass"] .modal select {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+/* === Shared discipline overrides ========================================
+ * All three hybrids inherit Tachikoma Standby's "accent reserved for the
+ * focused row" rule: chip backgrounds desaturate to silvery glass by
+ * default; lime restored on hover or focus-within. Using [data-theme^="..."]
+ * to match every cp-hybrid-* theme in one selector group. */
+
+html[data-theme^="cp-hybrid-"] a.mention {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme^="cp-hybrid-"] a.mention:hover {
+  background: color-mix(in srgb, #a3e635 14%, transparent);
+  color: #a3e635;
+  border-color: color-mix(in srgb, #a3e635 30%, transparent);
+}
+html[data-theme^="cp-hybrid-"] .tag-chip {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+html[data-theme^="cp-hybrid-"] .tag-chip:hover,
+html[data-theme^="cp-hybrid-"] .tag-chip:focus-visible {
+  background: color-mix(in srgb, #a3e635 12%, transparent);
+  color: #a3e635;
+  border-color: color-mix(in srgb, #a3e635 30%, transparent);
+}
+
+/* :focus-within (or .expanded) on a card revives the accent on its chips —
+ * the "you're working in this row" cue. Note bodies always show mention
+ * markup as accent because the user is always "in" them when reading. */
+html[data-theme^="cp-hybrid-"] .todo-card:focus-within a.mention,
+html[data-theme^="cp-hybrid-"] .com-card:focus-within a.mention,
+html[data-theme^="cp-hybrid-"] .com-card.expanded a.mention,
+html[data-theme^="cp-hybrid-"] .del-card:focus-within a.mention,
+html[data-theme^="cp-hybrid-"] .del-card.expanded a.mention,
+html[data-theme^="cp-hybrid-"] .reminder-item:focus-within a.mention,
+html[data-theme^="cp-hybrid-"] .flow-card:focus-within a.mention,
+html[data-theme^="cp-hybrid-"] .note-rich a.mention {
+  background: color-mix(in srgb, #a3e635 12%, transparent);
+  color: #a3e635;
+  border-color: color-mix(in srgb, #a3e635 30%, transparent);
+}
+html[data-theme^="cp-hybrid-"] .todo-card:focus-within .tag-chip,
+html[data-theme^="cp-hybrid-"] .com-card:focus-within .tag-chip,
+html[data-theme^="cp-hybrid-"] .com-card.expanded .tag-chip,
+html[data-theme^="cp-hybrid-"] .del-card:focus-within .tag-chip,
+html[data-theme^="cp-hybrid-"] .del-card.expanded .tag-chip,
+html[data-theme^="cp-hybrid-"] .reminder-item:focus-within .tag-chip {
+  background: color-mix(in srgb, #a3e635 10%, transparent);
+  color: #a3e635;
+  border-color: color-mix(in srgb, #a3e635 28%, transparent);
+}
+
+/* Modals and popovers — match Glass's pattern of giving them a darker glass
+ * background + heavy backdrop blur so they read as "focused surface above
+ * the ambient." All three hybrids share this treatment. */
+html[data-theme^="cp-hybrid-"] .modal,
+html[data-theme^="cp-hybrid-"] .palette-box,
+html[data-theme^="cp-hybrid-"] #project-context-menu,
+html[data-theme^="cp-hybrid-"] .sv3-filter-menu {
+  background: rgba(15, 20, 28, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+html[data-theme^="cp-hybrid-"] .modal .modal-input,
+html[data-theme^="cp-hybrid-"] .modal input[type="text"],
+html[data-theme^="cp-hybrid-"] .modal input[type="date"],
+html[data-theme^="cp-hybrid-"] .modal input[type="time"],
+html[data-theme^="cp-hybrid-"] .modal textarea,
+html[data-theme^="cp-hybrid-"] .modal select {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
   color: var(--text-primary);
 }
 
@@ -6530,28 +6407,6 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   min-width: 0;
 }
 .overview-list-item:hover { background: var(--content-bg); }
-.overview-todo-check {
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid var(--border-strong);
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  padding: 0;
-  transition: all var(--transition);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-}
-.overview-todo-check:hover {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-.overview-todo-check:hover::after { content: '✓'; }
 .overview-list-dot {
   width: 8px;
   height: 8px;
@@ -6594,6 +6449,177 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ── "What needs you now" inbox ───────────────────────────────────────────
+   Segmented panel sitting between the stats strip and the project grid.
+   Groups buildTodayBuckets() output by project and shows the FULL list
+   (no 6-cap). Reuses Today's data-today-action wiring for done/+1d. */
+.overview-inbox {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0 0 22px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+/* Red top stripe when the active tab is Overdue and there's anything overdue.
+   Subtle but unmistakable — the whole point of the redesign. */
+.overview-inbox--alert {
+  border-top: 3px solid #dc2626;
+}
+.overview-inbox--clear {
+  border-top: 3px solid var(--accent);
+}
+.overview-inbox-head {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 14px 18px 0;
+  flex-wrap: wrap;
+}
+.overview-inbox-title-main {
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+}
+.overview-inbox-meta-line {
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+.overview-inbox-tabs {
+  display: flex; gap: 0;
+  margin: 12px 18px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.overview-inbox-tab {
+  background: transparent; border: none; cursor: pointer;
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: color var(--transition), border-color var(--transition);
+}
+.overview-inbox-tab:hover { color: var(--text-primary); }
+.overview-inbox-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+.overview-inbox-tab.active.danger {
+  color: #dc2626;
+  border-bottom-color: #dc2626;
+}
+.overview-inbox-tab.danger:not(.active) { color: #b91c1c; }
+.overview-inbox-tab-num {
+  background: var(--content-bg);
+  color: var(--text-secondary);
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.overview-inbox-tab.active .overview-inbox-tab-num,
+.overview-inbox-tab.danger .overview-inbox-tab-num {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+.overview-inbox-tab.active:not(.danger) .overview-inbox-tab-num {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.overview-inbox-body {
+  padding: 6px 10px 12px;
+}
+.overview-inbox-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.overview-inbox-group { padding: 6px 6px 4px; }
+.overview-inbox-group + .overview-inbox-group {
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+.overview-inbox-group-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 6px 6px;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+.overview-inbox-group-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+}
+.overview-inbox-group-name { color: var(--text-primary); }
+.overview-inbox-group-count { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+.overview-inbox-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  min-width: 0;
+}
+.overview-inbox-row:hover { background: var(--content-bg); }
+.overview-inbox-check {
+  width: 17px; height: 17px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--card-bg);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 11px; font-weight: 700;
+  transition: all var(--transition);
+}
+.overview-inbox-check:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.overview-inbox-check:hover::after { content: '✓'; }
+.overview-inbox-title {
+  flex: 1; min-width: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.overview-inbox-prefix {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.overview-inbox-prio {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.overview-inbox-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.overview-inbox-meta.overdue {
+  color: #dc2626;
+  font-weight: 700;
+}
+.overview-inbox-push {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 2px 8px;
+  opacity: 0.65;
+}
+.overview-inbox-row:hover .overview-inbox-push { opacity: 1; }
+.overview-inbox-row--waiting { padding-left: 12px; }
 
 .new-project-modal .settings-label { margin-top: 4px; display: block; }
 .new-project-modal .modal-input { margin-bottom: 12px; }
@@ -8049,7 +8075,6 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   justify-content: center;
 }
 
-
 .todo-card.archived {
   opacity: 0.55;
   background: linear-gradient(180deg, rgba(148,163,184,0.06), transparent);
@@ -8185,6 +8210,29 @@ body.sidebar-compact .pin-row .pin-drag-handle { display: none; }
 .dump-text li { margin: 0.05em 0; }
 .dump-text b, .dump-text strong { font-weight: 600; }
 
+/* Inline edit affordance: invisible at rest so cards still read as
+   read-only at a glance; on hover/focus we hint editability. */
+.dump-text-edit {
+  outline: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 0 -4px 8px;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+  cursor: text;
+}
+.dump-text-edit:hover {
+  background: var(--card-bg-hover, rgba(127,127,127,0.06));
+}
+.dump-text-edit:focus {
+  background: var(--card-bg-hover, rgba(127,127,127,0.06));
+  box-shadow: inset 0 0 0 1px var(--accent, #6366f1);
+}
+.dump-text-edit:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Flow step text — contenteditable replacement for the old textarea */
 .flow-node-text {
   display: block;
@@ -8213,3 +8261,680 @@ body.sidebar-compact .pin-row .pin-drag-handle { display: none; }
   margin-left: auto;
   opacity: 0.85;
 }
+
+/* ============================================================
+   POWER-USER KEYBOARD: list keynav highlight + sidebar collapse
+   ============================================================ */
+
+/* When the user moves through a list with ↑/↓/j/k, the active row gets
+   .keynav-selected. We render a subtle accent ring rather than reusing the
+   bulk-selected look so users can tell "I'm focused here" apart from "I've
+   ticked this for batch action". */
+.note-list-item.keynav-selected,
+.todo-card.keynav-selected,
+.com-card.keynav-selected,
+.del-card.keynav-selected,
+.reminder-item.keynav-selected,
+.flow-card.keynav-selected,
+.tag-match-row.keynav-selected {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+  position: relative;
+  z-index: 1;
+}
+
+/* Ctrl+B toggles this. We collapse to zero width and hide overflow so the
+   content area expands smoothly. The resizer/handle is hidden too — the
+   stored sidebarWidth is preserved so toggling restores the previous size. */
+body.sidebar-collapsed #sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right-width: 0 !important;
+  overflow: hidden;
+}
+body.sidebar-collapsed #sidebar > * { display: none; }
+
+/* ============================================================
+   NOTES BULK-SELECT (Shift+Click range, like File Explorer)
+   ============================================================ */
+
+/* The ☑ on each note row mirrors the todo bulk-select circle so muscle
+   memory transfers between views. Hidden until you hover the row, sticks
+   open once anything is selected so you don't lose your place.
+
+   The row gets extra left padding so the checkbox sits in its own gutter
+   instead of overlapping the title — and the .active variant keeps the
+   3 px accent border by trimming an equal amount off the padding. */
+.note-list-item { position: relative; padding-left: 32px; }
+.note-list-item.active { padding-left: 29px; }
+.note-bulk-select {
+  position: absolute;
+  top: 10px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--border-strong, #cbd5e1);
+  background: transparent;
+  color: var(--accent, #38bdf8);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition, 120ms), border-color var(--transition, 120ms), background var(--transition, 120ms);
+  z-index: 2;
+}
+.note-list-item:hover .note-bulk-select,
+.note-bulk-select.on,
+body.notes-has-selection .note-bulk-select { opacity: 1; }
+.note-bulk-select.on {
+  background: var(--accent, #38bdf8);
+  border-color: var(--accent, #38bdf8);
+  border-style: solid;
+  color: #fff;
+}
+.note-list-item.bulk-selected {
+  box-shadow: inset 3px 0 0 var(--accent, #38bdf8);
+  background: var(--accent-soft, rgba(56, 189, 248, 0.08));
+}
+
+/* The notes bulk action bar reuses the .bulk-bar layout from todos but
+   sits inside the narrow notes list panel — tighten the margins so it
+   doesn't clip the filter chips above it. */
+.bulk-bar.bulk-bar-notes {
+  margin: 8px 12px 8px;
+  padding: 8px 12px;
+}
+
+/* ============================================================
+   THEME — Operating Theatre
+   ============================================================
+   Surgical lighting × Apple Health. White sidebar, ice-blue flag,
+   12 px rounded, generous whitespace, near-zero shadow. The base
+   styles assume a dark sidebar (hardcoded #0f172a / #1e293b text +
+   light sidebar-text colors), so the theme block below ALSO overrides
+   #sidebar bg, .nav-item, .project-btn, .pin-row, .overview-btn,
+   .sidebar-divider, .nav-count, .lab-summary, etc. — every place the
+   default stylesheet bakes in a dark-sidebar assumption. Inter is
+   declared as a font preference but falls back to system-ui (most
+   modern OSes ship a clean sans-serif there); the theme reads cleanly
+   without the named font.
+
+   Contrast (verified): body 15.4:1 · muted 5.4:1 · accent 4.7:1 ·
+   white-on-accent 4.8:1 — all AA or better.                          */
+
+html[data-theme="operating-theatre"] {
+  --accent:           #1A73C9;
+  --accent-light:     #E6F0FB;
+  --accent-dark:      #0E5295;
+  --accent-faint:     rgba(26, 115, 201, 0.10);
+  --accent-soft:      rgba(26, 115, 201, 0.05);
+
+  --sidebar-bg:       #FFFFFF;
+  --sidebar-hover:    #F0F4F9;
+  --sidebar-active:   #E6F0FB;
+
+  --content-bg:       #FBFCFE;
+  --card-bg:          #FFFFFF;
+
+  --text-primary:     #0E2438;
+  --text-secondary:   #475669;
+  --text-muted:       #5C6A7E;
+
+  --border:           #E4EAF1;
+  --border-strong:    #C5D0DD;
+
+  --radius:           12px;
+  --radius-sm:        8px;
+  --radius-lg:        16px;
+
+  --transition:       250ms ease;
+
+  --font:             'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Cards stay flat; only modals and popovers get a soft lift. */
+  --shadow-sm:        none;
+  --shadow:           none;
+  --shadow-md:        0 2px 12px rgba(14, 36, 56, 0.05);
+  --shadow-lg:        0 8px 24px rgba(14, 36, 56, 0.07);
+}
+
+/* Sidebar surface — the base #sidebar rule hardcodes #0f172a, so we
+   restate the surface, the right-edge border, and every text/hover/
+   active state that would otherwise render light text on a now-white
+   bg. */
+html[data-theme="operating-theatre"] #sidebar {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border);
+}
+
+html[data-theme="operating-theatre"] .nav-item               { color: var(--text-secondary); }
+html[data-theme="operating-theatre"] .nav-item:hover         { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="operating-theatre"] .nav-item.active        { color: var(--accent-dark); }
+html[data-theme="operating-theatre"] .nav-item.active .nav-count { background: var(--accent); color: #fff; }
+html[data-theme="operating-theatre"] .nav-count              { background: var(--accent-faint); color: var(--accent-dark); }
+html[data-theme="operating-theatre"] .nav-count.overdue      { background: rgba(220, 38, 38, 0.10); color: #b91c1c; }
+html[data-theme="operating-theatre"] .nav-section-label,
+html[data-theme="operating-theatre"] .project-label,
+html[data-theme="operating-theatre"] .pinned-label,
+html[data-theme="operating-theatre"] .lab-summary            { color: var(--text-muted); }
+html[data-theme="operating-theatre"] .lab-summary:hover      { color: var(--text-primary); }
+
+html[data-theme="operating-theatre"] .project-btn            { color: var(--text-secondary); }
+html[data-theme="operating-theatre"] .project-btn:hover      { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="operating-theatre"] .project-btn.active     { background: var(--sidebar-active); color: var(--accent-dark); }
+html[data-theme="operating-theatre"] .project-btn-new        { color: var(--text-muted); }
+html[data-theme="operating-theatre"] .project-btn-new:hover  { color: var(--text-primary); }
+html[data-theme="operating-theatre"] .project-dot-new        { border-color: var(--border-strong); color: var(--text-muted); }
+
+html[data-theme="operating-theatre"] .overview-btn           { color: var(--accent-dark); }
+html[data-theme="operating-theatre"] .sidebar-divider        { background: var(--border); }
+
+html[data-theme="operating-theatre"] .pin-row                { color: var(--text-secondary); }
+html[data-theme="operating-theatre"] .pin-row:hover          { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="operating-theatre"] .pin-row .pin-star      { color: var(--text-muted); }
+html[data-theme="operating-theatre"] .pinned-add             { color: var(--text-muted); }
+html[data-theme="operating-theatre"] .pinned-add:hover       { background: var(--sidebar-hover); color: var(--accent); }
+
+/* Titlebar — flipped from the default dark `#0a0f1e` background to white.
+   The base stylesheet sets every titlebar text + control colour to a light
+   shade (suitable for a dark bar); each is restated here so nothing renders
+   as light-on-white. The palette-trigger pill in particular uses
+   rgba(255,255,255,…) for its background AND border AND text — invisible
+   on white — so all three are restated. */
+html[data-theme="operating-theatre"] #titlebar {
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border);
+}
+html[data-theme="operating-theatre"] #titlebar-title       { color: var(--text-primary); }
+html[data-theme="operating-theatre"] .tb-center-name       { color: var(--text-primary); }
+html[data-theme="operating-theatre"] .tb-center-sub        { color: var(--text-muted); }
+html[data-theme="operating-theatre"] .tb-center-sub .overdue-pill { color: #b91c1c; }
+
+html[data-theme="operating-theatre"] #palette-trigger {
+  background: var(--content-bg);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+html[data-theme="operating-theatre"] #palette-trigger:hover {
+  background: #FFFFFF;
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+html[data-theme="operating-theatre"] .palette-trigger-kbd {
+  color: var(--accent-dark);
+  background: var(--accent-faint);
+  border-color: var(--accent-light);
+}
+
+html[data-theme="operating-theatre"] #titlebar-controls button       { color: var(--text-muted); }
+html[data-theme="operating-theatre"] #titlebar-controls button:hover { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="operating-theatre"] #btn-sticky.active              { background: var(--accent); color: #fff; }
+
+/* Native <select> popups still render on the OS — give them a sensible
+   white background so the option list doesn't fall back to dark. */
+html[data-theme="operating-theatre"] select option,
+html[data-theme="operating-theatre"] .form-select option,
+html[data-theme="operating-theatre"] .todo-priority-select option,
+html[data-theme="operating-theatre"] .todo-project-select option,
+html[data-theme="operating-theatre"] .todo-sp-select option {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   THEME — Stucco
+   ============================================================
+   Whitewashed Mediterranean village at noon. Coral on warm cream,
+   terracotta-tinted sidebar, soft warm-pink shadows, 14–20 px round
+   corners, bouncy 220 ms motion. Multi-accent: turquoise lives as a
+   secondary fill (chip backgrounds with dark text inside) — never as
+   text on cream, since the contrast doesn't pass at body sizes.
+
+   Same light-sidebar override block as Operating Theatre because the
+   sidebar is also a light surface. Plus Jakarta Sans is the font
+   preference; falls back to system-ui cleanly.
+
+   Contrast (verified): body 15.6:1 · muted 6.2:1 · coral 4.6:1 ·
+   white-on-coral 4.8:1 — all AA. Turquoise is fill-only.            */
+
+html[data-theme="stucco"] {
+  --accent:           #D03A33;
+  --accent-light:     #FCE0DD;
+  --accent-dark:      #8E1F19;
+  --accent-faint:     rgba(208, 58, 51, 0.10);
+  --accent-soft:      rgba(208, 58, 51, 0.05);
+
+  /* Turquoise — fill-only secondary; accessed via the variable for
+     any future theming work but not used by the base stylesheet. */
+  --accent-secondary: #2EAFB0;
+
+  --sidebar-bg:       #FBE7DA;
+  --sidebar-hover:    #F5D4C0;
+  --sidebar-active:   #F2CAB1;
+
+  --content-bg:       #FFF7F1;
+  --card-bg:          #FFFFFF;
+
+  --text-primary:     #2A1B16;
+  --text-secondary:   #6F564B;
+  --text-muted:       #735746;
+
+  --border:           #F2DFD0;
+  --border-strong:    #E0BFAA;
+
+  --radius:           14px;
+  --radius-sm:        10px;
+  --radius-lg:        20px;
+
+  --transition:       220ms cubic-bezier(.2, .9, .3, 1);
+
+  --font:             'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Soft warm-pink shadows — the sun catching the side of a card. */
+  --shadow-sm:        0 1px 3px rgba(208, 58, 51, 0.08);
+  --shadow:           0 4px 12px rgba(208, 58, 51, 0.10);
+  --shadow-md:        0 6px 20px rgba(208, 58, 51, 0.12);
+  --shadow-lg:        0 16px 36px rgba(208, 58, 51, 0.16);
+}
+
+/* Sidebar overrides — same shape as Operating Theatre, retargeted at
+   the cream/terracotta surface. */
+html[data-theme="stucco"] #sidebar {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border-strong);
+}
+
+html[data-theme="stucco"] .nav-item               { color: var(--text-secondary); }
+html[data-theme="stucco"] .nav-item:hover         { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="stucco"] .nav-item.active        { color: var(--accent-dark); }
+html[data-theme="stucco"] .nav-item.active .nav-count { background: var(--accent); color: #fff; }
+html[data-theme="stucco"] .nav-count              { background: var(--accent-faint); color: var(--accent-dark); }
+html[data-theme="stucco"] .nav-count.overdue      { background: rgba(208, 58, 51, 0.18); color: var(--accent-dark); }
+html[data-theme="stucco"] .nav-section-label,
+html[data-theme="stucco"] .project-label,
+html[data-theme="stucco"] .pinned-label,
+html[data-theme="stucco"] .lab-summary            { color: var(--text-muted); }
+html[data-theme="stucco"] .lab-summary:hover      { color: var(--text-primary); }
+
+html[data-theme="stucco"] .project-btn            { color: var(--text-secondary); }
+html[data-theme="stucco"] .project-btn:hover      { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="stucco"] .project-btn.active     { background: #FFFFFF; color: var(--accent-dark); box-shadow: 0 2px 6px rgba(208, 58, 51, 0.10); }
+html[data-theme="stucco"] .project-btn-new        { color: var(--text-muted); }
+html[data-theme="stucco"] .project-btn-new:hover  { color: var(--text-primary); }
+html[data-theme="stucco"] .project-dot-new        { border-color: var(--border-strong); color: var(--text-muted); }
+
+html[data-theme="stucco"] .overview-btn           { color: var(--accent-dark); }
+html[data-theme="stucco"] .sidebar-divider        { background: var(--border-strong); }
+
+html[data-theme="stucco"] .pin-row                { color: var(--text-secondary); }
+html[data-theme="stucco"] .pin-row:hover          { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="stucco"] .pin-row .pin-star      { color: var(--text-muted); }
+html[data-theme="stucco"] .pinned-add             { color: var(--text-muted); }
+html[data-theme="stucco"] .pinned-add:hover       { background: var(--sidebar-hover); color: var(--accent); }
+
+/* Titlebar — same kind of comprehensive override as Operating Theatre:
+   the default titlebar text + palette-trigger styles all assume a dark
+   background and use rgba(255,255,255,…) values that vanish on cream. */
+html[data-theme="stucco"] #titlebar {
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border-strong);
+}
+html[data-theme="stucco"] #titlebar-title       { color: var(--text-primary); }
+html[data-theme="stucco"] .tb-center-name       { color: var(--text-primary); }
+html[data-theme="stucco"] .tb-center-sub        { color: var(--text-muted); }
+html[data-theme="stucco"] .tb-center-sub .overdue-pill { color: var(--accent-dark); font-weight: 600; }
+
+html[data-theme="stucco"] #palette-trigger {
+  background: #FFFFFF;
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+html[data-theme="stucco"] #palette-trigger:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+html[data-theme="stucco"] .palette-trigger-kbd {
+  color: var(--accent-dark);
+  background: var(--accent-faint);
+  border-color: var(--accent-light);
+}
+
+html[data-theme="stucco"] #titlebar-controls button       { color: var(--text-muted); }
+html[data-theme="stucco"] #titlebar-controls button:hover { background: var(--sidebar-hover); color: var(--text-primary); }
+html[data-theme="stucco"] #btn-sticky.active             { background: var(--accent); color: #fff; }
+
+html[data-theme="stucco"] select option,
+html[data-theme="stucco"] .form-select option,
+html[data-theme="stucco"] .todo-priority-select option,
+html[data-theme="stucco"] .todo-project-select option,
+html[data-theme="stucco"] .todo-sp-select option {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   CUSTOM GLASS THEME EDITOR  (Settings → Appearance)
+   ============================================================ */
+
+.custom-glass-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+  padding: 8px 0 12px;
+}
+
+.custom-glass-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.custom-glass-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+}
+.custom-glass-row-swatches {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.custom-glass-row-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+.custom-glass-row-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custom-glass-row-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* Editor panel — preview on the left, form on the right.
+   minmax(0, 1fr) lets the form column shrink below its intrinsic
+   content width, otherwise the range sliders (which want a wide
+   track) push the whole grid past the modal edge. */
+.custom-glass-editor {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .custom-glass-editor { grid-template-columns: 1fr; }
+  .custom-glass-preview-wrap { position: static; }
+}
+.custom-glass-form { min-width: 0; }
+
+/* Preview surface — a freestanding mini-app inside the editor. The
+   gradient + card colors are mutated by paintCustomGlassPreview() on
+   every keystroke; the layout / sizes here are fixed. */
+.custom-glass-preview-wrap {
+  position: sticky;
+  top: 0;
+}
+.custom-glass-preview {
+  height: 200px;
+  border-radius: var(--radius);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.20);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+  /* default — will be overridden inline */
+  background: #0b0f1e;
+  color: #f1f5ff;
+  font-family: var(--font);
+}
+.cgp-card {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px 12px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  /* background filled in inline */
+}
+.cgp-card-1 .cgp-card-title {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.cgp-card-meta { font-size: 11px; }
+
+.cgp-card-2 { padding: 0; }
+.cgp-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cgp-card-row:last-child { border-bottom: none; }
+.cgp-active { position: relative; }
+.cgp-rule {
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+}
+.cgp-row-title {
+  flex: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cgp-row-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+.cgp-row-badge-muted { border: 1px solid; }
+
+/* Form column */
+.custom-glass-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.custom-glass-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.custom-glass-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.custom-glass-input { width: 100%; }
+.custom-glass-row-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.custom-glass-field-color {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.custom-glass-field-color > .custom-glass-field-label {
+  grid-column: 1 / -1;
+}
+.custom-glass-field-color input[type="color"] {
+  width: 32px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.custom-glass-field-color input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+.custom-glass-field-color input[type="color"]::-webkit-color-swatch { border-radius: 3px; border: none; }
+
+/* Stop row layout — two visual rows so the slider gets the full width
+   and doesn't fight the colour-picker / hex / alpha-val labels for
+   space. Row 1: label + colour swatch + hex. Row 2: slider + percent. */
+.custom-glass-stop {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+.custom-glass-stop > * { min-width: 0; }
+.custom-glass-stop-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.custom-glass-stop input[type="color"] {
+  grid-row: 2;
+  grid-column: 1;
+  width: 32px; height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.custom-glass-stop .custom-glass-hex {
+  grid-row: 2;
+  grid-column: 2;
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+.custom-glass-stop .custom-glass-alpha {
+  grid-row: 2;
+  grid-column: 3;
+  width: 100%;
+  min-width: 0;
+}
+.custom-glass-stop .custom-glass-alpha-val {
+  grid-row: 2;
+  grid-column: 4;
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Custom-styled range thumb + track — without these, Chromium renders
+   a near-invisible 2px grey track and the thumb looks like a stray
+   dot on the form. */
+.custom-glass-alpha {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;        /* gives the thumb room without inflating the row */
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  margin: 0;
+}
+.custom-glass-alpha::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    var(--accent) 0%, var(--accent) var(--cga-fill, 50%),
+    var(--border-strong) var(--cga-fill, 50%), var(--border-strong) 100%);
+}
+.custom-glass-alpha::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.custom-glass-alpha::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.custom-glass-alpha::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  margin-top: -5px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+.custom-glass-alpha::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+.custom-glass-alpha:focus { outline: none; }
+.custom-glass-alpha:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-faint), 0 1px 2px rgba(0,0,0,0.25);
+}
+
+/* Top accent / base row — same min-width guard so its inner colour
+   inputs don't push the grid past the modal edge. */
+.custom-glass-row-fields { min-width: 0; }
+.custom-glass-row-fields > * { min-width: 0; }
+.custom-glass-field-color .custom-glass-hex {
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.custom-glass-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
