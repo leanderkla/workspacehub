@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stucco — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #D03A33;
+  --accent-light:     #FCE0DD;
+  --accent-dark:      #8E1F19;
+  --accent-secondary: #2EAFB0;
+  --sidebar-bg:       #FBE7DA;
+  --sidebar-hover:    #F5D4C0;
+  --sidebar-active:   #F2CAB1;
+  --content-bg:       #FFF7F1;
+  --card-bg:          #FFFFFF;
+  --text-primary:     #2A1B16;
+  --text-secondary:   #6F564B;
+  --text-muted:       #735746;
+  --border:           #F2DFD0;
+  --border-strong:    #E0BFAA;
+  --font:             'Plus Jakarta Sans', system-ui, sans-serif;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: -10vh -10vw;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(252, 224, 221, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 0%, rgba(46, 175, 176, 0.10) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.app {
+  display: grid; grid-template-columns: 230px 1fr;
+  height: 100vh;
+  position: relative; z-index: 1;
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--sidebar-bg);
+  padding: 22px 0 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border-strong);
+}
+.sb-brand {
+  padding: 0 22px 18px;
+  display: flex; align-items: center; gap: 12px;
+}
+.sb-logo {
+  width: 32px; height: 32px;
+  border-radius: 16px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.sb-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.sb-overview {
+  margin: 4px 16px 12px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-light) 100%);
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(208, 58, 51, 0.10);
+}
+.sb-overview-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent-dark);
+}
+.sb-overview-count {
+  background: var(--accent);
+  color: #fff;
+  padding: 3px 11px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sb-section {
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 18px 24px 8px;
+}
+.sb-item {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 11px 24px;
+  margin: 0 12px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(.2, .9, .3, 1);
+}
+.sb-item:hover {
+  background: rgba(255,255,255,0.5);
+  color: var(--text-primary);
+}
+.sb-item.active {
+  background: #fff;
+  color: var(--accent-dark);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(208, 58, 51, 0.12);
+}
+.sb-icon {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border-radius: 8px;
+  background: rgba(208, 58, 51, 0.10);
+  color: var(--accent);
+  text-align: center;
+  margin-right: 10px;
+  font-size: 13px;
+  line-height: 22px;
+}
+.sb-item.active .sb-icon { background: var(--accent); color: #fff; }
+.sb-count {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 9px;
+  border-radius: 99px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name { font-weight: 700; font-size: 15px; color: var(--text-primary); }
+.topbar-mid {
+  font-size: 13px; color: var(--text-secondary);
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(208, 58, 51, 0.4);
+}
+.topbar-search {
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  font-family: var(--font);
+  font-size: 13.5px;
+  padding: 10px 16px;
+  width: 320px;
+  color: var(--text-primary);
+}
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(208, 58, 51, 0.12);
+}
+
+.content { flex: 1; overflow: auto; padding: 36px 44px 56px; }
+
+/* View header */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 32px;
+}
+.view-title {
+  font-weight: 700;
+  font-size: 36px;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+.view-title::before {
+  content: '☼';
+  display: inline-block;
+  margin-right: 14px;
+  color: var(--accent);
+  font-size: 32px;
+}
+.view-sub {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.view-sub-strong {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 30px;
+}
+.stat {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 12px rgba(208, 58, 51, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+.stat::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 64px; height: 64px;
+  background: var(--accent-light);
+  border-radius: 50%;
+  transform: translate(30%, -50%);
+  opacity: 0.7;
+}
+.stat-num {
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+  position: relative;
+}
+.stat-num.alert { color: var(--accent); }
+.stat-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 8px;
+  text-transform: uppercase;
+  position: relative;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.chip {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 99px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.6);
+  color: var(--text-secondary);
+  transition: all 220ms cubic-bezier(.2, .9, .3, 1);
+}
+.chip:hover {
+  background: #fff;
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.chip.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(208, 58, 51, 0.30);
+}
+.chip-turq.active {
+  background: var(--accent-secondary);
+  box-shadow: 0 4px 12px rgba(46, 175, 176, 0.35);
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 28px;
+  background: var(--card-bg);
+  border-radius: 18px;
+  display: flex; align-items: center;
+  padding: 0 18px;
+  box-shadow: 0 2px 12px rgba(208, 58, 51, 0.06);
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 16px 0;
+  font-family: var(--font);
+  font-size: 14.5px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+
+/* Rows */
+.row {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 18px 22px;
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(.2, .9, .3, 1);
+  position: relative;
+  box-shadow: 0 1px 4px rgba(208, 58, 51, 0.05);
+}
+.row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(208, 58, 51, 0.10);
+}
+.row.active {
+  background: linear-gradient(90deg, var(--accent-light) 0%, #fff 60%);
+  box-shadow: 0 6px 20px rgba(208, 58, 51, 0.16);
+}
+.row.active::before {
+  content: '';
+  position: absolute;
+  top: 14px; bottom: 14px; left: 0;
+  width: 4px; border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+.row-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(208, 58, 51, 0.10);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+.row-body { min-width: 0; }
+.row-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  letter-spacing: -0.01em;
+}
+.row-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+.badge.high { background: var(--accent); color: #fff; }
+.pill-turq {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: var(--accent-secondary);
+  color: #14100D;  /* dark text on turquoise — 7.4:1 */
+}
+.row-date {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* CTA */
+.cta-row { margin-top: 28px; display: flex; gap: 10px; }
+.btn {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border-radius: 14px;
+  border: none;
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(.2, .9, .3, 1);
+  box-shadow: 0 2px 8px rgba(208, 58, 51, 0.08);
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(208, 58, 51, 0.14); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(208, 58, 51, 0.28);
+}
+.btn-primary:hover { background: var(--accent-dark); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">W</div>
+      <div class="sb-name">WorkspaceHub</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label">Overview</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span><span class="sb-icon">●</span>Energy Hero</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>AI5innovation</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span><span class="sb-icon">⊞</span>Dashboard</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◰</span>Dump zone</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◆</span>Notes</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✓</span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span><span class="sb-icon">⏱</span>Reminders</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✦</span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">Energy Hero</div>
+      <div class="topbar-mid"><span class="dot"></span> Wed · 06 May · <strong style="color:var(--accent)">14 overdue</strong></div>
+      <input class="topbar-search" placeholder="Search or capture…">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">Pull</div>
+        <div class="view-sub">
+          Wednesday, 6 May 2026<br>
+          <span class="view-sub-strong">14 things want attention</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span style="margin-right: 8px; color: var(--text-muted)">⌕</span>
+        <input placeholder="Filter rows…">
+      </div>
+
+      <div class="row active">
+        <div class="row-icon">●</div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 · 12m · Energy Hero</div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="pill-turq">Call</div>
+        <div class="row-date">06 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch · 10 May · WorkspaceHub</div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="pill-turq">Email</div>
+        <div class="row-date">10 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">◆</div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note · updated yesterday · 8 mentions</div>
+        </div>
+        <div class="badge">Note</div>
+        <div class="pill-turq">Doc</div>
+        <div class="row-date">05 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">⏱</div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder · 09:30 Tuesday · weekly</div>
+        </div>
+        <div class="badge">Rem</div>
+        <div class="pill-turq">Mtg</div>
+        <div class="row-date">12 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday · Energy Hero</div>
+        </div>
+        <div class="badge">Low</div>
+        <div class="pill-turq">Draft</div>
+        <div class="row-date">—</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New todo</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

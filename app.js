@@ -1292,16 +1292,23 @@ function settingsContextsHTML() {
 }
 
 function settingsWorkflowsHTML() {
+  // The Rückbucher toggle is the only entry today and it's Energy-Hero-
+  // specific. In distribution builds (window.api.isPersonalBuild === false)
+  // the row is hidden, leaving a placeholder so the section reads as a
+  // future extension point rather than a missing feature.
+  const isPersonal = (typeof window !== 'undefined' && window.api && window.api.isPersonalBuild === true);
   return `
     <div class="settings-section">
       <div class="settings-section-title">Workflow shortcuts</div>
       <div class="settings-hint">Per-project quick-action buttons on the Todos view.</div>
+      ${isPersonal ? `
       <label class="dev-checkbox-row">
         <input type="checkbox" id="workflow-rueckbucher-toggle" ${isRueckbucherButtonEnabled()?'checked':''}>
         <span>Energy Hero — "↻ Rückbucher" button
           <span class="settings-hint" style="display:block;margin-top:2px">Spawns three follow-up todos in one click: "2nd reminder" +7 calendar days, "last reminder" +14 calendar days, "inaktiv stellen" +3 workdays after the last reminder (skips Sat/Sun). Visible only when Energy Hero is the active project.</span>
         </span>
-      </label>
+      </label>` : `
+      <div class="settings-hint" style="font-style:italic;margin-top:6px">No workflow shortcuts available yet.</div>`}
     </div>`;
 }
 
@@ -9777,7 +9784,12 @@ function renderTodos() {
   const futureRecurring = sortTodosByStatus(filteredRaw.filter(isFutureRecurring), { sortBy: state.todoSortBy, spOrder: spOrderMap });
   const futureRueckbucher = sortTodosByStatus(filteredRaw.filter(t => !isFutureRecurring(t) && isFutureRueckbucher(t)), { sortBy: state.todoSortBy, spOrder: spOrderMap });
   const filtered = sortTodosByStatus(filteredRaw.filter(t => !isFutureRecurring(t) && !isFutureRueckbucher(t)), { sortBy: state.todoSortBy, spOrder: spOrderMap });
-  const showRueckbucherBtn = state.project === 'energy-hero' && isRueckbucherButtonEnabled();
+  // Rückbucher is an Energy-Hero-specific escalation workflow. Triple-gated:
+  // (1) personal build (set via WORKSPACEHUB_PERSONAL) — distribution builds
+  //     never show this button even if the user imports a personal data dump,
+  // (2) the active project is Energy Hero,
+  // (3) the per-project Rückbucher toggle in Settings is on.
+  const showRueckbucherBtn = (window.api?.isPersonalBuild === true) && state.project === 'energy-hero' && isRueckbucherButtonEnabled();
   const recurringCollapsed = isRecurringBoxCollapsed();
   const rueckbucherCollapsed = isRueckbucherBoxCollapsed();
 

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Engineer's Pad — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #1B3A6B;
+  --accent-light:     #DCE5F1;
+  --accent-dark:      #0E2245;
+  --sidebar-bg:       #2A2E33;
+  --sidebar-hover:    #3A3F45;
+  --content-bg:       #EEF1E8;
+  --card-bg:          #F6F8F1;
+  --text-primary:     #161B22;
+  --text-secondary:   #3F4A55;
+  --text-muted:       #5F6C7A;
+  --border:           #C8CDBF;
+  --border-strong:    #A8AE9D;
+  --grid-line:        rgba(31, 50, 66, 0.06);
+  --sans:             'IBM Plex Sans', system-ui, sans-serif;
+  --mono:             'IBM Plex Mono', ui-monospace, monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+body {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(rgba(31, 50, 66, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 50, 66, 0.025) 1px, transparent 1px);
+  background-size:
+    96px 96px,
+    96px 96px,
+    24px 24px,
+    24px 24px;
+  background-position: 0 0;
+}
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--sidebar-bg);
+  color: #d8dde2;
+  padding: 16px 0 0;
+  display: flex; flex-direction: column;
+  border-right: 2px solid #1f2227;
+}
+.sb-brand {
+  padding: 0 18px 14px;
+  border-bottom: 1px dashed #4a4f55;
+  display: flex; align-items: center; gap: 10px;
+}
+.sb-logo {
+  width: 26px; height: 26px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+.sb-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #f6f8f1;
+}
+.sb-stamp {
+  margin: 14px 14px;
+  padding: 10px 12px;
+  border: 1px solid #4a4f55;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #d8dde2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255,255,255,0.02);
+}
+.sb-stamp-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8a8f95;
+}
+.sb-section {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8a8f95;
+  padding: 14px 22px 6px;
+}
+.sb-item {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #c4c9ce;
+  padding: 8px 22px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  border-left: 2px solid transparent;
+}
+.sb-item:hover { background: var(--sidebar-hover); color: #f6f8f1; }
+.sb-item.active {
+  background: var(--sidebar-hover);
+  color: #fff;
+  border-left-color: var(--accent-light);
+}
+.sb-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  padding: 1px 7px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.sb-icon {
+  font-family: var(--mono);
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--sidebar-bg);
+  color: #d8dde2;
+  padding: 8px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid #1f2227;
+}
+.topbar-mid {
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 8px; height: 8px;
+  background: var(--accent-light);
+}
+.topbar-search {
+  background: rgba(255,255,255,0.04);
+  color: #f6f8f1;
+  border: 1px solid #4a4f55;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  width: 280px;
+}
+.topbar-search::placeholder { color: #8a8f95; }
+.topbar-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f6f8f1;
+}
+
+.content { flex: 1; overflow: auto; padding: 24px 28px 40px; }
+
+/* View header */
+.view-head {
+  border-top: 2px solid var(--text-primary);
+  border-bottom: 2px solid var(--text-primary);
+  padding: 14px 0;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.view-head::before, .view-head::after {
+  display: none;
+}
+.view-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text-primary);
+}
+.view-title::before {
+  content: '═══ ';
+  color: var(--accent);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.view-title::after {
+  content: ' ═══';
+  color: var(--accent);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.view-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.6;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 28px;
+  border: 1px solid var(--text-primary);
+  background: var(--card-bg);
+}
+.stat {
+  padding: 14px 16px;
+  border-right: 1px dashed var(--border-strong);
+}
+.stat:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 26px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent); }
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 0; margin-bottom: 18px; border: 1px solid var(--border-strong); }
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-strong);
+}
+.chip:last-child { border-right: none; }
+.chip:hover { background: var(--accent-light); }
+.chip.active {
+  background: var(--accent);
+  color: #f6f8f1;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+}
+.search-wrap-prompt {
+  color: var(--accent);
+  padding: 0 12px;
+  font-size: 13px;
+}
+.search-wrap input {
+  flex: 1;
+  border: none; outline: none;
+  padding: 11px 8px 11px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: transparent;
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--text-primary);
+  color: var(--card-bg);
+  padding: 4px 8px;
+  margin: 0 6px;
+}
+
+/* Rows */
+.rows { background: var(--card-bg); border-top: 1px solid var(--text-primary); border-bottom: 1px solid var(--text-primary); }
+.row {
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.row:last-child { border-bottom: none; }
+.row:hover { background: rgba(27, 58, 107, 0.04); }
+.row.active {
+  background: var(--accent-light);
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  margin: -1px 0;
+}
+.row-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  width: 142px;
+}
+.row.active .row-id { color: var(--accent-dark); }
+.row-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row-title {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.row.active .row-title { font-weight: 600; }
+.row-meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  padding: 3px 8px;
+  border: 1px solid var(--text-primary);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  text-transform: uppercase;
+}
+.badge.high {
+  background: var(--accent);
+  color: var(--card-bg);
+  border-color: var(--accent);
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  width: 80px;
+  text-align: right;
+}
+
+/* CTA */
+.cta-row { margin-top: 24px; display: flex; gap: 10px; }
+.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  font-weight: 500;
+  padding: 11px 20px;
+  border: 1px solid var(--text-primary);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 0;
+  text-transform: lowercase;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #f6f8f1;
+}
+.btn-primary::before { content: '> '; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">w</div>
+      <div class="sb-name">workspace.hub</div>
+    </div>
+
+    <div class="sb-stamp">
+      <div class="sb-stamp-label">SHEET 14 / 23</div>
+      <div>06 may 2026 — wed</div>
+      <div style="color:var(--accent-light)">14 overdue</div>
+    </div>
+
+    <div class="sb-section">PROJECTS</div>
+    <div class="sb-item active"><span><span class="sb-icon">▸</span>energy-hero</span></div>
+    <div class="sb-item"><span><span class="sb-icon">▸</span>ai5-innovation</span></div>
+    <div class="sb-item"><span><span class="sb-icon">▸</span>workspacehub</span></div>
+
+    <div class="sb-section">WORKSPACE</div>
+    <div class="sb-item"><span><span class="sb-icon">⊞</span>dashboard</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◰</span>dump</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◇</span>notes</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✓</span>todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span><span class="sb-icon">⏱</span>reminders</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✦</span>spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">workspace.hub / energy-hero</div>
+      <div class="topbar-mid"><span class="dot"></span> wed · 06.may.2026 · 14:23 · 14 overdue</div>
+      <input class="topbar-search" placeholder="search or capture …">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">pull</div>
+        <div class="view-sub">SHEET 14 / 23<br>06.05.26 · 14:23 LOCAL</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">open todos</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">all</div>
+        <div class="chip">overdue</div>
+        <div class="chip">today</div>
+        <div class="chip">upcoming</div>
+        <div class="chip">waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-prompt">$</span>
+        <input placeholder="filter rows …">
+        <kbd>/</kbd>
+      </div>
+
+      <div class="rows">
+        <div class="row active">
+          <div class="row-id">id: t-2026-04-29-3f2</div>
+          <div class="row-body">
+            <div class="row-title">Call Lukas re: Q4 proposal</div>
+            <div class="row-meta">due 14:00 · 12m · energy-hero</div>
+          </div>
+          <div class="badge high">HIGH</div>
+          <div class="row-date">06.may</div>
+        </div>
+
+        <div class="row">
+          <div class="row-id">id: t-2026-04-29-9b1</div>
+          <div class="row-body">
+            <div class="row-title">Send onboarding doc</div>
+            <div class="row-meta">sketch · 2026-05-10 · workspacehub</div>
+          </div>
+          <div class="badge">MED</div>
+          <div class="row-date">10.may</div>
+        </div>
+
+        <div class="row">
+          <div class="row-id">id: n-2026-05-01-0c4</div>
+          <div class="row-body">
+            <div class="row-title">Tariff comparison findings</div>
+            <div class="row-meta">note · updated yesterday · 8 mentions</div>
+          </div>
+          <div class="badge">NOTE</div>
+          <div class="row-date">05.may</div>
+        </div>
+
+        <div class="row">
+          <div class="row-id">id: r-2026-05-12-2b8</div>
+          <div class="row-body">
+            <div class="row-title">Standup with Anna</div>
+            <div class="row-meta">reminder · 09:30 tue</div>
+          </div>
+          <div class="badge">REM</div>
+          <div class="row-date">12.may</div>
+        </div>
+
+        <div class="row">
+          <div class="row-id">id: t-2026-04-28-1a0</div>
+          <div class="row-body">
+            <div class="row-title">Schick Angebot to Lukas</div>
+            <div class="row-meta">drafted yesterday · energy-hero</div>
+          </div>
+          <div class="badge">LOW</div>
+          <div class="row-date">—</div>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">new todo</button>
+        <button class="btn">capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

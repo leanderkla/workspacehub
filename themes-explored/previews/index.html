@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Maximalist cyberpunk theme drafts — index</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: #0a0a14;
+  color: #e8e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1100px; margin: 0 auto; padding: 64px 24px 96px; }
+.title {
+  font-family: 'Inter', system-ui;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #ff0080 0%, #00f0ff 100%);
+  background-clip: text; -webkit-background-clip: text; color: transparent;
+}
+.sub {
+  color: #9d9db8;
+  margin-bottom: 40px;
+  max-width: 720px;
+  line-height: 1.6;
+}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+a.draft {
+  display: block;
+  padding: 24px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  background: #15152a;
+  border: 1px solid #2a2a44;
+  transition: all 200ms;
+  position: relative;
+  overflow: hidden;
+}
+a.draft::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--g);
+  opacity: 0.15;
+  pointer-events: none;
+}
+a.draft::after {
+  content: '→';
+  position: absolute;
+  top: 24px; right: 24px;
+  font-size: 24px;
+  color: #fff;
+  opacity: 0.5;
+  transition: all 200ms;
+}
+a.draft:hover { transform: translateY(-2px); border-color: #4a4a70; }
+a.draft:hover::before { opacity: 0.30; }
+a.draft:hover::after  { opacity: 1.0; transform: translateX(4px); }
+.draft-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #6a6a90;
+  margin-bottom: 8px;
+}
+.draft-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.draft-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8b8d0;
+  position: relative;
+  z-index: 1;
+}
+.draft-meta {
+  margin-top: 14px;
+  display: flex; gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #8080a0;
+}
+.draft-meta span {
+  padding: 2px 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+}
+
+/* Per-card gradient */
+.d1 { --g: linear-gradient(135deg, #ff0080 0%, #00f0ff 100%); }
+.d2 { --g: linear-gradient(135deg, #ff39c0 0%, #00d4ff 100%); }
+.d3 { --g: linear-gradient(135deg, #00ff41 0%, #003d10 100%); }
+.d4 { --g: linear-gradient(135deg, #ffaa00 0%, #ff3030 100%); }
+.d5 { --g: linear-gradient(135deg, #c41e3a 0%, #d4a017 100%); }
+.h1 { --g: linear-gradient(135deg, #a3e635 0%, #14b8a6 100%); }
+.h2 { --g: linear-gradient(135deg, #a3e635 0%, #ec4899 100%); }
+.h3 { --g: linear-gradient(135deg, #a3e635 0%, #1f5a50 100%); }
+.s1 { --g: linear-gradient(135deg, #4A154B 0%, #1264A3 100%); }
+.s2 { --g: linear-gradient(135deg, #19171D 0%, #1D9BD1 100%); }
+
+/* Batch 3 — range expansion */
+.b1  { --g: linear-gradient(135deg, #f5c518 0%, #0a0a0a 100%); }
+.b2  { --g: linear-gradient(135deg, #1F5F4A 0%, #C19A2C 100%); }
+.b3  { --g: linear-gradient(135deg, #1A73C9 0%, #E6F0FB 100%); }
+.b4  { --g: linear-gradient(135deg, #1B3A6B 0%, #EEF1E8 100%); }
+.b5  { --g: linear-gradient(135deg, #1E3A8A 0%, #ECEDE8 100%); }
+.b6  { --g: linear-gradient(135deg, #B11C24 0%, #C9971C 100%); }
+.b7  { --g: linear-gradient(135deg, #D03A33 0%, #2EAFB0 100%); }
+.b8  { --g: linear-gradient(135deg, #B22B1F 0%, #F4EFE4 100%); }
+.b9  { --g: linear-gradient(135deg, #D9A055 0%, #1B0F0A 100%); }
+.b10 { --g: linear-gradient(135deg, #FF4FA3 0%, #1E48E0 100%); }
+
+/* Glass-variant batch */
+.gv1 { --g: linear-gradient(135deg, #F9A81A 0%, #3C1E50 100%); }
+.gv2 { --g: linear-gradient(135deg, #F9A81A 0%, #78321E 100%); }
+.gv3 { --g: linear-gradient(135deg, #26C9E2 0%, #0F3C64 100%); }
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #8080a0;
+  margin: 48px 0 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2a44;
+}
+
+.foot {
+  margin-top: 40px;
+  font-size: 13px;
+  color: #6a6a90;
+  line-height: 1.6;
+}
+.foot a { color: #9d9dd8; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Maximalist cyberpunk theme drafts</h1>
+  <p class="sub">
+    Five drafts, deliberately loud. The opposite-end-of-the-spectrum
+    counterpart to the restrained drafts in
+    <a href="../drafts/cyberpunk-themes.html" style="color:#9d9dd8">drafts/cyberpunk-themes.html</a>.
+    Each is a standalone HTML — open it in a wide window for the
+    fairest read.
+  </p>
+
+  <div class="grid">
+
+    <a href="night-city.html" class="draft d1">
+      <div class="draft-num">DRAFT 01</div>
+      <div class="draft-name">Night City</div>
+      <div class="draft-desc">
+        Cyberpunk 2077 corporate dystopian. Magenta + cyan tension,
+        HUD chrome on every card, pulsing accent rule, animated header
+        sweep.
+      </div>
+      <div class="draft-meta">
+        <span>Magenta + Cyan</span>
+        <span>Heavy HUD</span>
+        <span>Pulse</span>
+      </div>
+    </a>
+
+    <a href="mirrorshades.html" class="draft d2">
+      <div class="draft-num">DRAFT 02</div>
+      <div class="draft-name">Mirrorshades</div>
+      <div class="draft-desc">
+        80s synthwave. Drifting purple-pink-cyan gradient sky, glass
+        panels, particles in dead space, Tron grid horizon, chromatic
+        title aberration.
+      </div>
+      <div class="draft-meta">
+        <span>Pink + Purple + Cyan</span>
+        <span>Glass</span>
+        <span>Gradient drift</span>
+      </div>
+    </a>
+
+    <a href="terminal-green.html" class="draft d3">
+      <div class="draft-num">DRAFT 03</div>
+      <div class="draft-name">Terminal Green</div>
+      <div class="draft-desc">
+        Mr. Robot terminal. Pure phosphor green on near-black,
+        100% monospace, scrolling scanlines, command-prompt vocabulary,
+        glitch-frame on row entry.
+      </div>
+      <div class="draft-meta">
+        <span>Phosphor green</span>
+        <span>Mono everywhere</span>
+        <span>Scanline scroll</span>
+      </div>
+    </a>
+
+    <a href="kobayashi-maru.html" class="draft d4">
+      <div class="draft-num">DRAFT 04</div>
+      <div class="draft-name">Kobayashi Maru</div>
+      <div class="draft-desc">
+        Mecha cockpit telemetry. Layered HUD frames, sweeping radar,
+        fake serial numbers + countdowns, fake live telemetry bars,
+        crimson alert pulse.
+      </div>
+      <div class="draft-meta">
+        <span>Amber + Crimson + Cyan</span>
+        <span>Extreme density</span>
+        <span>Multi-stream</span>
+      </div>
+    </a>
+
+    <a href="arasaka-red.html" class="draft d5">
+      <div class="draft-num">DRAFT 05</div>
+      <div class="draft-name">Arasaka Red</div>
+      <div class="draft-desc">
+        Corporate power. Blood red + deep gold + matte warm-black,
+        gold-shimmer brand mark, double-bordered cards, heavy crimson
+        glow on the active card, decorative crests.
+      </div>
+      <div class="draft-meta">
+        <span>Blood red + Gold</span>
+        <span>Metallic</span>
+        <span>Brand shimmer</span>
+      </div>
+    </a>
+
+  </div>
+
+  <h2 class="section-title">Glass × Tachikoma Standby — hybrid drafts</h2>
+
+  <div class="grid">
+    <a href="hybrid-tachikoma-reflection.html" class="draft h1">
+      <div class="draft-num">HYBRID 01</div>
+      <div class="draft-name">Tachikoma Reflection</div>
+      <div class="draft-desc">
+        Glass treatment + Tachikoma's hue family. Cool lime + teal +
+        cyan radial backdrop, glass panels, mono everywhere, lime
+        accent reserved for focus. The cool-headed pick.
+      </div>
+      <div class="draft-meta">
+        <span>Lime + Teal</span>
+        <span>Heavy glass</span>
+        <span>Mono</span>
+      </div>
+    </a>
+
+    <a href="hybrid-majors-shell.html" class="draft h2">
+      <div class="draft-num">HYBRID 02</div>
+      <div class="draft-name">Major's Shell</div>
+      <div class="draft-desc">
+        Glass's original hot pink+purple+cyan backdrop, untouched —
+        but with Tachikoma's lime accent and mono discipline above
+        it. Cinematic contrast.
+      </div>
+      <div class="draft-meta">
+        <span>Lime over Pink+Cyan</span>
+        <span>Heavy glass</span>
+        <span>Mono</span>
+      </div>
+    </a>
+
+    <a href="hybrid-section-9-mist.html" class="draft h3">
+      <div class="draft-num">HYBRID 03</div>
+      <div class="draft-name">Section 9 Mist</div>
+      <div class="draft-desc">
+        Lighter glass, near-monochrome cool backdrop, mixed
+        typography (Inter titles + mono labels), lime slightly more
+        present. The most pragmatic hybrid for daily use.
+      </div>
+      <div class="draft-meta">
+        <span>Lime + Cool teal</span>
+        <span>Light glass</span>
+        <span>Mixed type</span>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-title">App-inspired drafts</h2>
+
+  <div class="grid">
+    <a href="slack.html" class="draft s1">
+      <div class="draft-num">DRAFT 01</div>
+      <div class="draft-name">Slack</div>
+      <div class="draft-desc">
+        Slack's visual language ported to the WorkspaceHub shell:
+        deep aubergine workspace rail + dark sidebar with channel-style
+        sections, blue active highlight, pink mentions, green primary
+        CTA, Slack-style composer at the bottom.
+      </div>
+      <div class="draft-meta">
+        <span>Aubergine + Blue</span>
+        <span>Channel sections</span>
+        <span>Composer</span>
+      </div>
+    </a>
+
+    <a href="slack-v2.html" class="draft s2">
+      <div class="draft-num">DRAFT 02</div>
+      <div class="draft-name">Slack v2 — refined</div>
+      <div class="draft-desc">
+        Two-column (no rail). Real Slack hex codes from web research —
+        brighter <code style="font-family:'JetBrains Mono';font-size:11px">#1D9BD1</code>
+        active blue, <code style="font-family:'JetBrains Mono';font-size:11px">#1A1D21</code>
+        content bg, Lato. Top global header, channel header with topic
+        + Huddle/Canvas, day dividers, reaction chips, thread previews,
+        green Send as visual nod.
+      </div>
+      <div class="draft-meta">
+        <span>Real Slack tokens</span>
+        <span>Two-column</span>
+        <span>Lato</span>
+      </div>
+    </a>
+  </div>
+
+  <h2 class="section-title">Batch 3 — range expansion</h2>
+  <p class="sub" style="margin: 0 0 16px">
+    Ten directions outside the cyberpunk family. Different bases,
+    different surface treatments, different moods. All pass WCAG AA on
+    body text — full contrast reports in
+    <a href="../THEME_DRAFTS_BATCH3.md" style="color:#9d9dd8">../THEME_DRAFTS_BATCH3.md</a>.
+  </p>
+
+  <div class="grid">
+
+    <a href="bauhaus-yellow.html" class="draft b1">
+      <div class="draft-num">DRAFT 01</div>
+      <div class="draft-name">Bauhaus Yellow</div>
+      <div class="draft-desc">
+        Brutalist signage. Cadmium yellow + true black + bone white.
+        Square corners, mono chrome, all-caps labels. Black-on-yellow
+        12:1. Anti-decorative.
+      </div>
+      <div class="draft-meta">
+        <span>Cadmium + Black</span>
+        <span>0px corners</span>
+        <span>Bold</span>
+      </div>
+    </a>
+
+    <a href="atelier-1928.html" class="draft b2">
+      <div class="draft-num">DRAFT 02</div>
+      <div class="draft-name">Atelier 1928</div>
+      <div class="draft-desc">
+        Art deco jeweller's atelier. Cream marble, bottle-green
+        lacquer, brass fittings. Cormorant headlines, geometric fan
+        ornaments, brass corner triangles.
+      </div>
+      <div class="draft-meta">
+        <span>Bottle green + Brass</span>
+        <span>Serif headlines</span>
+        <span>Ornamented</span>
+      </div>
+    </a>
+
+    <a href="operating-theatre.html" class="draft b3">
+      <div class="draft-num">DRAFT 03</div>
+      <div class="draft-name">Operating Theatre</div>
+      <div class="draft-desc">
+        Surgical lighting × Apple Health. Pure white, ice-blue flag,
+        12px rounded, generous whitespace, no shadows. Hospital-calm
+        250ms motion.
+      </div>
+      <div class="draft-meta">
+        <span>Ice blue on white</span>
+        <span>12px rounded</span>
+        <span>Spacious</span>
+      </div>
+    </a>
+
+    <a href="engineers-pad.html" class="draft b4">
+      <div class="draft-num">DRAFT 04</div>
+      <div class="draft-name">Engineer's Pad</div>
+      <div class="draft-desc">
+        Quad-ruled engineering pad. Ledger green-grey paper with a
+        faint grid, ink-navy data, IBM Plex Mono everywhere chrome
+        lives. Compact, working, pre-CAD.
+      </div>
+      <div class="draft-meta">
+        <span>Ink navy on ledger</span>
+        <span>Grid backdrop</span>
+        <span>Mono-led</span>
+      </div>
+    </a>
+
+    <a href="plinth.html" class="draft b5">
+      <div class="draft-num">DRAFT 05</div>
+      <div class="draft-name">Plinth</div>
+      <div class="draft-desc">
+        Modernist museum wall. Concrete-cream, electric cobalt rule,
+        all-caps tracked plate captions. Hairlines do everything.
+        Generous space, 2px corners.
+      </div>
+      <div class="draft-meta">
+        <span>Cobalt + Concrete</span>
+        <span>Tracked uppercase</span>
+        <span>Very spacious</span>
+      </div>
+    </a>
+
+    <a href="broadsheet.html" class="draft b6">
+      <div class="draft-num">DRAFT 06</div>
+      <div class="draft-name">Broadsheet</div>
+      <div class="draft-desc">
+        Sunday paper. Newsprint cream, masthead crimson, mustard rule.
+        Source Serif body, italic dividers, kicker captions, drop-cap
+        leads. Editorial gravitas.
+      </div>
+      <div class="draft-meta">
+        <span>Crimson + Mustard</span>
+        <span>Serif body</span>
+        <span>Editorial</span>
+      </div>
+    </a>
+
+    <a href="stucco.html" class="draft b7">
+      <div class="draft-num">DRAFT 07</div>
+      <div class="draft-name">Stucco</div>
+      <div class="draft-desc">
+        Whitewashed Mediterranean village at noon. Coral on cream with
+        turquoise pills, soft pink shadows, 14–20px round corners. Sun-
+        on-stucco warmth.
+      </div>
+      <div class="draft-meta">
+        <span>Coral + Turquoise</span>
+        <span>14–20px rounded</span>
+        <span>Sun-drenched</span>
+      </div>
+    </a>
+
+    <a href="sumi.html" class="draft b8">
+      <div class="draft-num">DRAFT 08</div>
+      <div class="draft-name">Sumi</div>
+      <div class="draft-desc">
+        Sumi-e on washi paper. Generous space, vermillion seal as the
+        single piece of colour, brush-stroke ornaments, 印 stamp on
+        the active row.
+      </div>
+      <div class="draft-meta">
+        <span>Vermillion + Washi</span>
+        <span>Cormorant serif</span>
+        <span>Calligraphic</span>
+      </div>
+    </a>
+
+    <a href="velvet-lounge.html" class="draft b9">
+      <div class="draft-num">DRAFT 09</div>
+      <div class="draft-name">Velvet Lounge</div>
+      <div class="draft-desc">
+        Library at midnight, brass desk lamp. Tobacco-dim base, brass
+        accents, wine alerts. Lora body for evening reading, soft inner
+        glow on focused inputs.
+      </div>
+      <div class="draft-meta">
+        <span>Brass + Wine</span>
+        <span>Warm dim</span>
+        <span>Serif reading</span>
+      </div>
+    </a>
+
+    <a href="risograph.html" class="draft b10">
+      <div class="draft-num">DRAFT 10</div>
+      <div class="draft-name">Risograph</div>
+      <div class="draft-desc">
+        Two-colour zine print. Fluorescent pink overprinting cobalt on
+        cream paper, halftone-dot overlay, 3px-offset misregister
+        shadows on every CTA. Loud and made.
+      </div>
+      <div class="draft-meta">
+        <span>Pink + Cobalt</span>
+        <span>Halftone</span>
+        <span>Bold</span>
+      </div>
+    </a>
+
+  </div>
+
+  <h2 class="section-title">Glass variants — Saffron / Vellum / Capri</h2>
+  <p class="sub" style="margin: 0 0 16px">
+    Glass-treatment cousins of three solid themes — same frosted /
+    translucent / radial-gradient model the existing <code>glass</code> uses,
+    retoned to keep each source theme's signature accent and hue family.
+    Specs in
+    <a href="../THEME_DRAFTS_GLASS_VARIANTS.md" style="color:#9d9dd8">../THEME_DRAFTS_GLASS_VARIANTS.md</a>.
+  </p>
+
+  <div class="grid">
+
+    <a href="glass-lamplight.html" class="draft gv1">
+      <div class="draft-num">SAFFRON GLASS</div>
+      <div class="draft-name">Lamplight</div>
+      <div class="draft-desc">
+        Saffron amber on a dusk-purple + ember-red gradient over warm
+        near-black. Kitchen at dusk: one amber bulb, last sun through
+        the curtains.
+      </div>
+      <div class="draft-meta">
+        <span>Amber + Violet</span>
+        <span>Frosted</span>
+        <span>Warm</span>
+      </div>
+    </a>
+
+    <a href="glass-reading-lamp.html" class="draft gv2">
+      <div class="draft-num">VELLUM GLASS</div>
+      <div class="draft-name">Reading Lamp</div>
+      <div class="draft-desc">
+        Same amber accent, but the backdrop drops the violet for
+        cinnamon and tobacco. Library at midnight, brass desk lamp,
+        leather book under glass.
+      </div>
+      <div class="draft-meta">
+        <span>Amber + Cinnamon</span>
+        <span>Frosted</span>
+        <span>Grounded</span>
+      </div>
+    </a>
+
+    <a href="glass-spray.html" class="draft gv3">
+      <div class="draft-num">CAPRI GLASS</div>
+      <div class="draft-name">Spray</div>
+      <div class="draft-desc">
+        Mediterranean cyan on ocean-blue + deep teal gradient. Spray
+        off a cliff at noon — cool, bright, the counterpoint to the
+        two amber drafts.
+      </div>
+      <div class="draft-meta">
+        <span>Cyan + Ocean</span>
+        <span>Frosted</span>
+        <span>Cool</span>
+      </div>
+    </a>
+
+  </div>
+
+  <p class="foot">
+    Specs at
+    <a href="../THEME_DRAFTS_GLASS_VARIANTS.md">../THEME_DRAFTS_GLASS_VARIANTS.md</a>
+    (glass variants),
+    <a href="../THEME_DRAFTS_BATCH3.md">../THEME_DRAFTS_BATCH3.md</a>
+    (range expansion),
+    <a href="../CYBERPUNK_THEME_DRAFTS_MAXIMALIST.md">../CYBERPUNK_THEME_DRAFTS_MAXIMALIST.md</a>,
+    <a href="../CYBERPUNK_THEME_DRAFTS_HYBRID_GLASS_TACHIKOMA.md">../CYBERPUNK_THEME_DRAFTS_HYBRID_GLASS_TACHIKOMA.md</a>.
+    Restrained-round drafts at
+    <a href="../drafts/cyberpunk-themes.html">../drafts/cyberpunk-themes.html</a>.
+  </p>
+</div>
+</body>
+</html>

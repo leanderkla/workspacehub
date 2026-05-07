@@ -1,10 +1,11 @@
 {
   "name": "workspacehub",
   "version": "1.0.0",
-  "description": "Personal workspace manager for Energy Hero & AI5innovation",
+  "description": "Personal workspace manager — local-first",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "start:personal": "set WORKSPACEHUB_PERSONAL=1 && electron .",
     "test": "node tests/run.js",
     "build:three": "esbuild vendor-three-loader.js --bundle --format=iife --outfile=vendor/three.bundle.js --minify"
   },

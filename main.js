@@ -34,10 +34,21 @@ let dataPath;
 let projectsDir;
 let reminderInterval;
 
+// Personal-build flag. The plain `npm start` ships a generic "My Workspace"
+// project; `npm run start:personal` (which sets WORKSPACEHUB_PERSONAL=1) loads
+// the Energy Hero + AI5innovation seed, the Rückbucher workflow UI, and the
+// energy-hero brainmap import. The .trim() defends against cmd.exe leaving a
+// trailing space in the value when `set FOO=1 && ...` syntax is used.
+const IS_PERSONAL_BUILD = (process.env.WORKSPACEHUB_PERSONAL || '').trim() === '1';
+
 const ENERGY_HERO_SEED_VERSION = 2;
 
 let _cachedEnergyHeroBrainmap = null;
 function loadEnergyHeroBrainmap() {
+  // The energy-hero brainmap seed is personal data and is excluded from the
+  // distribution build. Returning null in non-personal mode lets every caller
+  // fall back to the generic makeDefaultBrainmap() path without conditionals.
+  if (!IS_PERSONAL_BUILD) return null;
   if (_cachedEnergyHeroBrainmap) return _cachedEnergyHeroBrainmap;
   try {
     const p = path.join(__dirname, 'data', 'energy-hero-brainmap.json');
@@ -75,8 +86,11 @@ function migrateData(data) {
     }
 
     // Force-replace Energy Hero brainmap with the Miro import on first load
-    // after upgrade. Gated by seedVersion so we only do it once.
-    if (projKey === 'energy-hero' &&
+    // after upgrade. Gated by seedVersion so we only do it once, and by
+    // IS_PERSONAL_BUILD so distribution builds never touch Energy-Hero seed
+    // data even if a user imports a personal JSON dump.
+    if (IS_PERSONAL_BUILD &&
+        projKey === 'energy-hero' &&
         (proj.brainmap.seedVersion || 0) < ENERGY_HERO_SEED_VERSION) {
       const seed = loadEnergyHeroBrainmap();
       if (seed) {
@@ -99,6 +113,34 @@ function makeDefaultBrainmap(rootLabel) {
 
 function getDefaultData() {
   const now = new Date().toISOString();
+
+  // Distribution build — neutral single-project seed. No branded content,
+  // no personal projects. Anything else (templates, multi-project starter
+  // packs, etc.) lives in a future onboarding wizard, not here.
+  if (!IS_PERSONAL_BUILD) {
+    return {
+      activeProject: 'workspace',
+      projects: {
+        'workspace': {
+          name: 'My Workspace',
+          subprojects: [],
+          notes: [
+            {
+              id: 'note-welcome', title: 'Welcome to WorkspaceHub',
+              content: 'This is your local-first workspace.\n\n**Quick start:**\n- Press Ctrl+K to open the command palette\n- Use the sidebar to switch between Notes, Todos, Reminders, and other views\n- Create new projects from the project switcher in the sidebar\n\nAll your data is stored locally on this device. Nothing leaves your computer.',
+              priority: 'medium', tags: ['welcome'], subprojectId: null,
+              linkedTodos: [], created: now, updated: now
+            }
+          ],
+          todos: [],
+          brainmap: makeDefaultBrainmap('My Workspace'),
+          reminders: []
+        }
+      }
+    };
+  }
+
+  // Personal build — Energy Hero + AI5innovation seed.
   const d = (offset) => {
     const dd = new Date(); dd.setDate(dd.getDate() + offset);
     return dd.toISOString().split('T')[0];

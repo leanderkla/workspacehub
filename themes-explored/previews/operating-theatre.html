@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Operating Theatre — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #1A73C9;
+  --accent-light:     #E6F0FB;
+  --accent-faint:     #F2F7FC;
+  --accent-dark:      #0E5295;
+  --sidebar-bg:       #FFFFFF;
+  --sidebar-hover:    #F0F4F9;
+  --sidebar-active:   #E6F0FB;
+  --content-bg:       #FBFCFE;
+  --card-bg:          #FFFFFF;
+  --text-primary:     #0E2438;
+  --text-secondary:   #475669;
+  --text-muted:       #5C6A7E;
+  --border:           #E4EAF1;
+  --border-strong:    #C5D0DD;
+  --font:             'Inter', system-ui, sans-serif;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  display: flex; flex-direction: column;
+}
+.sb-brand {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sb-logo {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+.sb-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.sb-overview {
+  margin: 18px 14px 8px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 600;
+  font-size: 14px;
+}
+.sb-overview-count {
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sb-section {
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 18px 22px 8px;
+}
+.sb-item {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 10px 22px;
+  margin: 0 12px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  transition: background 250ms ease, color 250ms ease;
+}
+.sb-item:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+.sb-item.active {
+  background: var(--sidebar-active);
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+.sb-count {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+.sb-icon {
+  width: 18px;
+  display: inline-block;
+  margin-right: 10px;
+  text-align: center;
+  opacity: 0.65;
+}
+.sb-item.active .sb-icon { opacity: 1; }
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: #fff;
+  padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-mid {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-mid .dot {
+  width: 8px; height: 8px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+.topbar-search {
+  background: var(--content-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 8px 14px;
+  width: 320px;
+  color: var(--text-primary);
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-faint);
+}
+.topbar-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text-primary);
+}
+
+.content { flex: 1; overflow: auto; padding: 36px 40px 48px; }
+
+/* View header */
+.view-head {
+  margin-bottom: 32px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+.view-title {
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.view-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+.stat-num {
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent); }
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.chip {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  transition: all 250ms ease;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 28px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+.search-wrap svg { color: var(--text-muted); flex-shrink: 0; margin-right: 10px; }
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 14px 0;
+  font-family: var(--font);
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+
+/* Rows */
+.row {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  transition: background 250ms ease, border-color 250ms ease;
+  position: relative;
+}
+.row:hover { border-color: var(--border-strong); }
+.row.active {
+  background: var(--accent-light);
+  border-color: transparent;
+}
+.row.active::before {
+  content: '';
+  position: absolute;
+  top: 14px; bottom: 14px; left: 0;
+  width: 3px; border-radius: 2px;
+  background: var(--accent);
+}
+.row-check {
+  width: 22px; height: 22px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border-strong);
+  flex-shrink: 0;
+}
+.row-check.done {
+  background: var(--accent);
+  border-color: var(--accent);
+  position: relative;
+}
+.row-body { min-width: 0; }
+.row-title {
+  font-weight: 500;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+  margin-bottom: 4px;
+}
+.row.active .row-title { color: var(--accent-dark); font-weight: 600; }
+.row-meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--accent-faint);
+  color: var(--accent-dark);
+}
+.badge.high {
+  background: var(--accent);
+  color: #fff;
+}
+.badge.note { background: rgba(14, 36, 56, 0.06); color: var(--text-secondary); }
+.row-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* CTA */
+.cta-row { margin-top: 28px; display: flex; gap: 10px; }
+.btn {
+  font-family: var(--font);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 250ms ease;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">W</div>
+      <div class="sb-name">WorkspaceHub</div>
+    </div>
+
+    <div class="sb-overview">
+      <span>Overview</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span><span class="sb-icon">●</span>Energy Hero</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>AI5innovation</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span><span class="sb-icon">⊞</span>Dashboard</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◰</span>Dump zone</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◆</span>Notes</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✓</span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span><span class="sb-icon">⏱</span>Reminders</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✦</span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">Energy Hero</div>
+      <div class="topbar-mid"><span class="dot"></span> Wed · 06 May · 14 overdue</div>
+      <input class="topbar-search" placeholder="Search or capture…  ⌘K">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div>
+          <div class="view-title">Pull</div>
+        </div>
+        <div class="view-sub">Wednesday, 6 May 2026 · 14:23</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg>
+        <input placeholder="Filter rows…">
+      </div>
+
+      <div class="row active">
+        <div class="row-check"></div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 · 12m · Energy Hero</div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="row-date">06 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-check"></div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch · 10 May · WorkspaceHub</div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="row-date">10 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-check"></div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note · updated yesterday · 8 mentions</div>
+        </div>
+        <div class="badge note">Note</div>
+        <div class="row-date">05 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-check"></div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder · 09:30 Tuesday</div>
+        </div>
+        <div class="badge note">Rem</div>
+        <div class="row-date">12 May</div>
+      </div>
+
+      <div class="row">
+        <div class="row-check"></div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday · Energy Hero</div>
+        </div>
+        <div class="badge">Low</div>
+        <div class="row-date">—</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New todo</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mirrorshades — maximalist cyberpunk theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Inter+Tight:ital,wght@0,400;0,600;0,700;1,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #ff39c0;
+  --accent-secondary: #ff7a00;
+  --accent-tertiary:  #00d4ff;
+  --bg-deep:          #1a0533;
+  --bg-mid:           #2d0a4d;
+  --bg-light:         #4a1473;
+  --text:             #f5e8ff;
+  --text-secondary:   #c5a8e0;
+  --text-muted:       #7a5d99;
+  --glass:            rgba(255, 57, 192, 0.06);
+  --glass-strong:     rgba(255, 57, 192, 0.12);
+  --border-glass:     rgba(255, 255, 255, 0.10);
+  --border-strong:    rgba(255, 57, 192, 0.30);
+  --font:             'Inter', system-ui, sans-serif;
+  --font-display:     'Inter Tight', 'Inter', system-ui, sans-serif;
+  --mono:             'JetBrains Mono', monospace;
+}
+html, body {
+  height: 100%;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The drifting gradient sky */
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 0%, #ff39c055 0%, transparent 50%),
+    radial-gradient(ellipse 100% 80% at 70% 100%, #00d4ff44 0%, transparent 55%),
+    radial-gradient(ellipse 70% 70% at 50% 50%, #ff7a0033 0%, transparent 55%),
+    linear-gradient(180deg, var(--bg-mid) 0%, var(--bg-deep) 50%, #0a0218 100%);
+  background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+  background-attachment: fixed;
+  animation: sky-drift 60s ease-in-out infinite alternate;
+}
+@keyframes sky-drift {
+  0%   { background-position:   0%   0%,  100% 100%, 50% 50%, 0 0; }
+  50%  { background-position: 100% 100%,    0%   0%, 30% 70%, 0 0; }
+  100% { background-position:  50%  50%,   80%  20%, 70% 30%, 0 0; }
+}
+
+/* Floating particles */
+.particles {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.particle {
+  position: absolute;
+  width: 3px; height: 3px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent);
+  opacity: 0;
+  animation: particle-float 14s linear infinite;
+}
+.particle:nth-child(1)  { left:  8%; animation-delay:  0s;  background: var(--accent); }
+.particle:nth-child(2)  { left: 18%; animation-delay:  2s;  background: var(--accent-tertiary); box-shadow: 0 0 8px var(--accent-tertiary); }
+.particle:nth-child(3)  { left: 27%; animation-delay:  5s;  background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
+.particle:nth-child(4)  { left: 36%; animation-delay:  7s;  background: var(--accent); }
+.particle:nth-child(5)  { left: 45%; animation-delay:  3s;  background: var(--accent-tertiary); box-shadow: 0 0 8px var(--accent-tertiary); }
+.particle:nth-child(6)  { left: 54%; animation-delay:  9s;  background: var(--accent); }
+.particle:nth-child(7)  { left: 63%; animation-delay:  1s;  background: var(--accent-tertiary); box-shadow: 0 0 8px var(--accent-tertiary); }
+.particle:nth-child(8)  { left: 72%; animation-delay:  6s;  background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
+.particle:nth-child(9)  { left: 81%; animation-delay: 10s;  background: var(--accent); }
+.particle:nth-child(10) { left: 90%; animation-delay: 12s;  background: var(--accent-tertiary); box-shadow: 0 0 8px var(--accent-tertiary); }
+.particle:nth-child(11) { left: 95%; animation-delay:  4s;  background: var(--accent); }
+.particle:nth-child(12) { left:  3%; animation-delay: 11s;  background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
+@keyframes particle-float {
+  0%   { bottom: -10px; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.7; }
+  100% { bottom: 110%; opacity: 0; }
+}
+
+/* Tron grid horizon */
+.grid-horizon {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 200px;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(180deg, transparent 0%, var(--accent) 100%),
+    repeating-linear-gradient(90deg,
+      transparent 0,
+      transparent calc(5% - 1px),
+      var(--accent) calc(5% - 1px),
+      var(--accent) 5%);
+  -webkit-mask-image:
+    linear-gradient(180deg, transparent 0%, black 100%),
+    linear-gradient(180deg, transparent 0%, black 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, black 100%);
+  opacity: 0.20;
+  transform: perspective(400px) rotateX(60deg);
+  transform-origin: bottom;
+}
+
+/* Layout */
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100vh;
+  position: relative;
+  z-index: 2;
+}
+
+/* Sidebar — glass */
+.sidebar {
+  background: rgba(20, 5, 45, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid var(--border-glass);
+  padding: 22px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.sb-brand {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 22px;
+  padding: 4px 10px 18px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-tertiary) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
+}
+.sb-section-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 14px 10px 6px;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 250ms;
+}
+.sb-item:hover {
+  background: var(--glass);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 18px -2px var(--accent);
+}
+.sb-item.active {
+  background: var(--glass-strong);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 24px -4px var(--accent);
+}
+.sb-icon { width: 16px; text-align: center; }
+.sb-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; min-width: 0; }
+.view-header {
+  padding: 28px 32px 20px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.view-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  /* Chromatic aberration */
+  text-shadow:
+    -2px 0 0 var(--accent-tertiary),
+     2px 0 0 var(--accent),
+     0 0 24px rgba(255, 57, 192, 0.4);
+}
+.view-meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+.view-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px 32px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* Glass cards */
+.card {
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: grid; grid-template-columns: 20px 1fr auto; gap: 14px;
+  align-items: center;
+  transition: all 300ms;
+  position: relative;
+}
+.card::before {
+  /* subtle outer border highlight */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-tertiary) 100%) border-box;
+  -webkit-mask:
+    linear-gradient(white 0 0) padding-box,
+    linear-gradient(white 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0.25;
+  pointer-events: none;
+}
+.card:hover { transform: translateY(-2px); background: var(--glass-strong); }
+.card-checkbox {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(255, 57, 192, 0.1);
+  flex-shrink: 0;
+  position: relative;
+}
+.card-checkbox.checked {
+  background: linear-gradient(135deg, var(--accent), var(--accent-tertiary));
+  border-color: transparent;
+  box-shadow: 0 0 16px var(--accent);
+}
+.card-checkbox.checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: white;
+}
+.card-body { min-width: 0; }
+.card-title { font-size: 14.5px; font-weight: 500; color: var(--text); }
+.card-title.done { color: var(--text-muted); text-decoration: line-through; }
+.card-meta {
+  font-size: 12px; color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.tag-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: rgba(0, 212, 255, 0.12);
+  color: var(--accent-tertiary);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+}
+.mention-chip {
+  display: inline-block;
+  background: linear-gradient(90deg, rgba(255,57,192,0.18), rgba(255,122,0,0.15));
+  color: var(--accent);
+  border: 1px solid rgba(255, 57, 192, 0.4);
+  padding: 1px 8px; font-size: 0.95em; font-weight: 500;
+  border-radius: 4px;
+}
+.priority {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 4px 10px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.priority.high  {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  color: white;
+  box-shadow: 0 0 16px rgba(255, 57, 192, 0.5);
+}
+.priority.med   {
+  background: rgba(0, 212, 255, 0.15);
+  color: var(--accent-tertiary);
+  border: 1px solid var(--accent-tertiary);
+}
+.priority.low   {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Active card with chromatic glow */
+.card.active {
+  background: var(--glass-strong);
+  box-shadow:
+    -3px 0 16px -4px var(--accent-tertiary),
+     3px 0 16px -4px var(--accent),
+     0 8px 40px -10px var(--accent),
+     0 0 0 1px rgba(255, 57, 192, 0.4);
+}
+.card.active::before { opacity: 1; }
+
+/* Buttons */
+.btn-row {
+  border-top: 1px solid var(--border-glass);
+  padding: 16px 32px;
+  display: flex; gap: 10px;
+  background: rgba(20, 5, 45, 0.4);
+  backdrop-filter: blur(16px);
+}
+.btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 22px; height: 38px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 200ms;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-tertiary));
+  color: white;
+  box-shadow: 0 4px 24px -2px var(--accent);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 32px -2px var(--accent); }
+.btn-ghost {
+  background: var(--glass);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+</style>
+</head>
+<body>
+
+<div class="particles">
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+</div>
+
+<div class="grid-horizon"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand">mirrorshades</div>
+    <div class="sb-section-label">workspace</div>
+    <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+    <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">7</span></div>
+    <div class="sb-item"><span class="sb-icon">✓</span><span>todos</span><span class="sb-count">42</span></div>
+    <div class="sb-item"><span class="sb-icon">◆</span><span>notes</span></div>
+    <div class="sb-item"><span class="sb-icon">▲</span><span>reminders</span></div>
+    <div class="sb-item"><span class="sb-icon">⊟</span><span>commitments</span></div>
+    <div class="sb-section-label">pinned</div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>q4 strategy</span></div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>lukas</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="view-header">
+      <div class="view-title">pull</div>
+      <div class="view-meta">06.07 · 14:23</div>
+    </header>
+
+    <div class="view-body">
+      <div class="card active">
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">call <span class="mention-chip">@lukas</span> re: q4 proposal</div>
+          <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span> <span class="tag-chip">#pricing</span></div>
+        </div>
+        <div><span class="priority high">High</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">send onboarding doc</div>
+          <div class="card-meta">sketch · 2 days ago · <span class="tag-chip">#onboard</span></div>
+        </div>
+        <div><span class="priority med">Med</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-checkbox checked"></div>
+        <div class="card-body">
+          <div class="card-title done">schick angebot to lukas</div>
+          <div class="card-meta">drafted yesterday</div>
+        </div>
+        <div><span class="priority low">Low</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">review architecture doc</div>
+          <div class="card-meta" style="color:#ffb38a">⚠ overdue · 2 days · <span class="tag-chip" style="background:rgba(255,122,0,0.12);color:var(--accent-secondary);border-color:var(--accent-secondary)">#critical</span></div>
+        </div>
+        <div><span class="priority high">!High</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">q4 strategy briefing notes</div>
+          <div class="card-meta">updated 1h ago · <span class="tag-chip">#q4</span> <span class="tag-chip">#exec</span></div>
+        </div>
+        <div><span class="priority med">Note</span></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary">+ Add</button>
+      <button class="btn btn-ghost">Filter</button>
+    </div>
+  </main>
+</div>
+</body>
+</html>

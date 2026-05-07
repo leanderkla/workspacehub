@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Overview · Draft A — Triage Strip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 24px;
+  }
+  .draft-banner {
+    max-width: 1200px; margin: 0 auto 16px;
+    background: #fff7ed; border: 1px solid #fdba74;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: #9a3412;
+  }
+  .draft-banner b { color: #7c2d12; }
+
+  .app {
+    max-width: 1200px; margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* ── header ── */
+  .view-header {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .view-title { font-size: 22px; font-weight: 700; color: #0f172a; }
+  .view-sub { font-size: 13px; color: #94a3b8; }
+
+  .scroll-area { padding: 18px 24px 32px; }
+
+  /* ── stats strip ── */
+  .overview-stats {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0,1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .overview-stat {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .overview-stat-num { font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.1; }
+  .overview-stat-label {
+    font-size: 10px; color: #64748b; text-transform: uppercase;
+    letter-spacing: 0.06em; margin-top: 4px; font-weight: 600;
+  }
+  .overview-stat.alert .overview-stat-num { color: #dc2626; }
+
+  /* ── TRIAGE STRIP (the new piece) ── */
+  .triage {
+    background: linear-gradient(180deg, #fff5f5 0%, #fff 100%);
+    border: 1px solid #fecaca;
+    border-left: 5px solid #dc2626;
+    border-radius: 12px;
+    padding: 16px 20px 8px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(220,38,38,0.06);
+  }
+  .triage-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px;
+  }
+  .triage-title {
+    font-size: 16px; font-weight: 700; color: #991b1b;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .triage-title .icon { font-size: 18px; }
+  .triage-meta {
+    font-size: 12px; color: #b91c1c; font-weight: 600;
+    background: #fee2e2; padding: 3px 9px; border-radius: 20px;
+  }
+  .triage-spacer { flex: 1; }
+  .triage-action {
+    background: transparent; border: 1px solid #fecaca;
+    color: #991b1b; padding: 5px 11px; border-radius: 7px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .triage-action:hover { background: #fee2e2; }
+
+  .triage-group {
+    margin: 0 -8px;
+    padding: 8px 8px 6px;
+  }
+  .triage-group + .triage-group {
+    border-top: 1px dashed #fecaca;
+    margin-top: 4px;
+  }
+  .triage-group-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 4px 6px;
+    font-size: 12px; font-weight: 600; color: #475569;
+  }
+  .triage-group-head .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+  }
+  .triage-group-head .count {
+    font-size: 11px; color: #64748b; font-weight: 500;
+  }
+  .triage-group-head .pct {
+    font-size: 11px; color: #94a3b8; margin-left: auto;
+  }
+
+  .triage-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .triage-row:hover { background: #fff; box-shadow: 0 0 0 1px #fecaca; }
+  .triage-check {
+    width: 17px; height: 17px; border: 1.5px solid #cbd5e1;
+    border-radius: 50%; cursor: pointer; flex-shrink: 0;
+    background: #fff;
+  }
+  .triage-check:hover { border-color: #16a34a; background: #16a34a; }
+  .triage-title-text {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #0f172a;
+  }
+  .triage-age {
+    font-size: 11px; font-weight: 700; color: #dc2626;
+    white-space: nowrap; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .triage-priority {
+    font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    background: #fee2e2; color: #b91c1c; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .triage-push {
+    background: transparent; border: 1px solid #e2e8f0;
+    color: #64748b; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .triage-push:hover { border-color: #16a34a; color: #16a34a; }
+
+  /* ── projects grid (unchanged-ish) ── */
+  .section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b; margin: 4px 0 10px;
+  }
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .project-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    border-left: 4px solid var(--c, #16a34a);
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .project-card:hover { border-color: #cbd5e1; }
+  .project-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .project-head .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--c);
+  }
+  .project-head .name { flex: 1; font-size: 14px; font-weight: 600; }
+  .project-head .alert {
+    background: #fee2e2; color: #dc2626; border-radius: 20px;
+    padding: 2px 7px; font-size: 10px; font-weight: 700;
+  }
+  .progress-bar {
+    height: 6px; border-radius: 3px; background: #e2e8f0;
+    overflow: hidden; margin-bottom: 4px;
+  }
+  .progress-fill { height: 100%; background: var(--c); border-radius: 3px; }
+  .project-progress-label {
+    font-size: 11px; color: #94a3b8; margin-bottom: 10px;
+  }
+  .project-metrics {
+    display: flex; flex-wrap: wrap; gap: 4px 6px;
+    font-size: 12px; color: #64748b; font-weight: 600;
+  }
+  .project-metric {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px; border-radius: 5px;
+  }
+
+  /* ── secondary grid ── */
+  .overview-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 24px;
+  }
+  .dash-section {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .dash-section-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .dash-section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b;
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .list-row:hover { background: #f1f5f9; }
+  .list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .list-title {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .list-meta { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+  .list-meta.alert { color: #dc2626; font-weight: 600; }
+  .list-project {
+    font-size: 11px; color: #64748b; background: #f1f5f9;
+    padding: 2px 8px; border-radius: 20px; font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .timeline-stub {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 30px; text-align: center; color: #94a3b8;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="draft-banner">
+  <b>Draft A — Triage Strip.</b> Single full-width red-bordered block above the project grid. Shows ALL overdue todos (no 6-cap), grouped by project, with check + +1d. Smallest structural change of the three.
+</div>
+
+<div class="app">
+  <div class="view-header">
+    <div class="view-title">Overview</div>
+    <div class="view-sub">4 projects · Tuesday, 5 May</div>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- stats strip (unchanged) -->
+    <div class="overview-stats">
+      <div class="overview-stat"><div class="overview-stat-num">4</div><div class="overview-stat-label">Projects</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">87</div><div class="overview-stat-label">Notes</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">62</div><div class="overview-stat-label">Open todos</div></div>
+      <div class="overview-stat alert"><div class="overview-stat-num">14</div><div class="overview-stat-label">Overdue</div></div>
+      <div class="overview-stat alert"><div class="overview-stat-num">9</div><div class="overview-stat-label">Commitments</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">6</div><div class="overview-stat-label">Reminders</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">11</div><div class="overview-stat-label">Subprojects</div></div>
+    </div>
+
+    <!-- TRIAGE STRIP — the new dominant block -->
+    <div class="triage">
+      <div class="triage-header">
+        <div class="triage-title"><span class="icon">⚠</span> Overdue — needs attention</div>
+        <span class="triage-meta">14 todos · oldest 28d</span>
+        <div class="triage-spacer"></div>
+        <button class="triage-action">Snooze all by 1 day</button>
+        <button class="triage-action">Open Todos view</button>
+      </div>
+
+      <!-- Project group: Vertriebspartner App -->
+      <div class="triage-group">
+        <div class="triage-group-head">
+          <span class="dot" style="background:#2563eb"></span>
+          Vertriebspartner App
+          <span class="count">· 5 overdue</span>
+          <span class="pct">62% done</span>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Fix OAuth refresh on iOS</span>
+          <span class="triage-priority">High</span>
+          <span class="triage-age">21d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Email Klaus about API spec</span>
+          <span class="triage-age">14d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Review onboarding copy v3</span>
+          <span class="triage-age">10d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Reproduce duplicate-login bug</span>
+          <span class="triage-age">7d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Approve App Store screenshots</span>
+          <span class="triage-age">3d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+      </div>
+
+      <!-- Project group: Energy Hero Marketing -->
+      <div class="triage-group">
+        <div class="triage-group-head">
+          <span class="dot" style="background:#16a34a"></span>
+          Energy Hero Marketing
+          <span class="count">· 4 overdue</span>
+          <span class="pct">38% done</span>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Send Q1 partner report</span>
+          <span class="triage-priority">High</span>
+          <span class="triage-age">12d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Approve voucher campaign copy</span>
+          <span class="triage-age">5d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Sign off newsletter visuals</span>
+          <span class="triage-age">3d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Brief design team for Mai campaign</span>
+          <span class="triage-age">1d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+      </div>
+
+      <!-- Project group: Solar Pipeline -->
+      <div class="triage-group">
+        <div class="triage-group-head">
+          <span class="dot" style="background:#ea580c"></span>
+          Solar Pipeline
+          <span class="count">· 3 overdue</span>
+          <span class="pct">71% done</span>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Confirm site survey, Linz</span>
+          <span class="triage-age">8d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Update pricing sheet for Q2</span>
+          <span class="triage-age">4d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Forward Klimaaktiv förderung form</span>
+          <span class="triage-age">2d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+      </div>
+
+      <!-- Project group: Personal -->
+      <div class="triage-group">
+        <div class="triage-group-head">
+          <span class="dot" style="background:#9333ea"></span>
+          Personal
+          <span class="count">· 2 overdue</span>
+          <span class="pct">22% done</span>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Renew Reisepass</span>
+          <span class="triage-priority">High</span>
+          <span class="triage-age">28d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+        <div class="triage-row">
+          <div class="triage-check"></div>
+          <span class="triage-title-text">Pay quarterly tax</span>
+          <span class="triage-age">5d overdue</span>
+          <button class="triage-push">+1d</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- projects grid -->
+    <div class="section-title">Projects</div>
+    <div class="project-grid">
+      <div class="project-card" style="--c:#2563eb">
+        <div class="project-head"><span class="dot"></span><span class="name">Vertriebspartner App</span><span class="alert">!5</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:62%"></div></div>
+        <div class="project-progress-label">23/37 todos · 62%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 28</div>
+          <div class="project-metric">✅ 14</div>
+          <div class="project-metric">📁 4</div>
+          <div class="project-metric">🤝 3</div>
+          <div class="project-metric">🔔 2</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#16a34a">
+        <div class="project-head"><span class="dot"></span><span class="name">Energy Hero Marketing</span><span class="alert">!4</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:38%"></div></div>
+        <div class="project-progress-label">11/29 todos · 38%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 22</div>
+          <div class="project-metric">✅ 18</div>
+          <div class="project-metric">📁 3</div>
+          <div class="project-metric">🤝 4</div>
+          <div class="project-metric">🔔 2</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#ea580c">
+        <div class="project-head"><span class="dot"></span><span class="name">Solar Pipeline</span><span class="alert">!3</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:71%"></div></div>
+        <div class="project-progress-label">17/24 todos · 71%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 19</div>
+          <div class="project-metric">✅ 7</div>
+          <div class="project-metric">📁 2</div>
+          <div class="project-metric">🤝 2</div>
+          <div class="project-metric">🔔 1</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#9333ea">
+        <div class="project-head"><span class="dot"></span><span class="name">Personal</span><span class="alert">!2</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:22%"></div></div>
+        <div class="project-progress-label">2/9 todos · 22%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 18</div>
+          <div class="project-metric">✅ 7</div>
+          <div class="project-metric">📁 2</div>
+          <div class="project-metric">🤝 0</div>
+          <div class="project-metric">🔔 1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- secondary lists (unchanged) -->
+    <div class="overview-grid">
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Due this week</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#2563eb"></span><span class="list-title">Ship beta to TestFlight</span><span class="list-meta">Wed 7 May</span><span class="list-project">Vertriebspartner</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">Schedule influencer call</span><span class="list-meta">Thu 8 May</span><span class="list-project">Energy Hero</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#ea580c"></span><span class="list-title">Pricing review meeting</span><span class="list-meta">Fri 9 May</span><span class="list-project">Solar Pipeline</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#2563eb"></span><span class="list-title">Q&amp;A doc for support</span><span class="list-meta">Fri 9 May</span><span class="list-project">Vertriebspartner</span></div>
+      </div>
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title" style="color:#dc2626">⚠ Overdue commitments</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#dc2626"></span><span class="list-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Markus — proposal v2</span><span class="list-meta alert">9d</span><span class="list-project">Solar</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#dc2626"></span><span class="list-title"><span style="font-size:10px;color:#94a3b8">← They owe:</span> Sabine — design assets</span><span class="list-meta alert">5d</span><span class="list-project">Energy Hero</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#dc2626"></span><span class="list-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Tom — invoice forwarding</span><span class="list-meta alert">3d</span><span class="list-project">Vertriebspartner</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#dc2626"></span><span class="list-title"><span style="font-size:10px;color:#94a3b8">← They owe:</span> Lukas — sign contract</span><span class="list-meta alert">1d</span><span class="list-project">Solar</span></div>
+      </div>
+      <div class="dash-section" style="grid-column:1/-1">
+        <div class="dash-section-header"><span class="dash-section-title">Upcoming reminders</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">🔔 Send weekly digest</span><span class="list-meta">Wed 7 May, 09:00</span><span class="list-project">Energy Hero</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#ea580c"></span><span class="list-title">🔔 Site visit prep</span><span class="list-meta">Thu 8 May, 14:00</span><span class="list-project">Solar Pipeline</span></div>
+      </div>
+    </div>
+
+    <div class="section-title">Project timelines</div>
+    <div class="timeline-stub">[gantt timelines for each project — unchanged]</div>
+
+  </div>
+</div>
+
+</body>
+</html>

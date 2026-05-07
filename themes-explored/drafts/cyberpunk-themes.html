@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cyberpunk theme drafts — visual previews</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   Page chrome — light, just to space out the previews.
+   ───────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: #f5f5f7;
+  color: #1a1a1a;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.page-sub {
+  color: #666;
+  margin-bottom: 40px;
+  max-width: 640px;
+}
+.theme-block {
+  margin-bottom: 56px;
+}
+.theme-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.theme-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.theme-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: #999;
+}
+.theme-character {
+  color: #555;
+  margin-bottom: 16px;
+  max-width: 720px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   The "preview" frame — a fake app shell that each theme paints.
+   ───────────────────────────────────────────────────────────────────── */
+.preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+  background: var(--content-bg, #0a1015);
+  color: var(--text-primary, #e9d8a6);
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 540px;
+  font-family: var(--font, 'Inter');
+}
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.sb-brand {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 6px 8px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.sb-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 8px 8px 4px;
+}
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  position: relative;
+}
+.sb-item:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+.sb-item.active {
+  background: var(--sidebar-active);
+  color: var(--text-primary);
+}
+.sb-icon {
+  width: 16px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.sb-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+}
+.sb-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 4px;
+}
+
+/* Main area + content shell */
+.main {
+  display: flex;
+  flex-direction: column;
+  background: var(--content-bg);
+  overflow: hidden;
+}
+.view-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.view-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.view-meta {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.view-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The fake todo cards */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.card-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.card-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  position: relative;
+}
+.card-checkbox.checked::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--card-bg);
+  font-weight: 700;
+}
+.card-body { min-width: 0; }
+.card-title {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-title.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  text-transform: uppercase;
+}
+.priority.high   { background: color-mix(in srgb, #dc2626 14%, transparent); color: #f87171; border: 1px solid color-mix(in srgb, #dc2626 28%, transparent); }
+.priority.medium { background: color-mix(in srgb, #eab308 14%, transparent); color: #fde047; border: 1px solid color-mix(in srgb, #eab308 28%, transparent); }
+.priority.low    { background: color-mix(in srgb, #16a34a 14%, transparent); color: #86efac; border: 1px solid color-mix(in srgb, #16a34a 28%, transparent); }
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-faint);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mention-chip {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-faint);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-weight: 500;
+  font-size: 0.95em;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: var(--card-bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
+.btn-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 24px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  background: var(--content-bg);
+}
+
+/* The "active card" indicator — each theme styles this differently */
+.card.active {
+  border-color: var(--accent-faint);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 1 — Bay City Hotel
+   Amber on deep teal-black, brushed-glass cards, soft amber rim
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-bay-city"] {
+  --accent:           #f59e0b;
+  --accent-light:     #2a1d08;
+  --accent-dark:      #fcd34d;
+  --accent-faint:     color-mix(in srgb, #f59e0b 18%, transparent);
+  --accent-soft:      color-mix(in srgb, #f59e0b 9%, transparent);
+  --sidebar-bg:       #0a1015;
+  --sidebar-hover:    #131c25;
+  --sidebar-active:   #131c25;
+  --content-bg:       #0a1015;
+  --card-bg:          #0f1820;
+  --text-primary:     #e9d8a6;
+  --text-secondary:   #b09472;
+  --text-muted:       #6b7c89;
+  --border:           #1a242e;
+  --border-strong:    #243140;
+  --font:             'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-bay-city"] .card {
+  background: linear-gradient(180deg, #11192190 0%, #0e151c 100%);
+  background-color: #0f1820;
+}
+[data-theme="cp-bay-city"] .card.active {
+  border-color: color-mix(in srgb, #f59e0b 28%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 14%, transparent),
+              0 0 24px -8px color-mix(in srgb, #f59e0b 28%, transparent);
+}
+[data-theme="cp-bay-city"] .sb-item.active {
+  box-shadow: inset 2px 0 0 #f59e0b;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 2 — Section 9 Console
+   Icy cyan on warm-black, mono-led, corner cuts on badges
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-section-9"] {
+  --accent:           #8de4ec;
+  --accent-light:     #16383d;
+  --accent-dark:      #c8f4f8;
+  --accent-faint:     color-mix(in srgb, #8de4ec 16%, transparent);
+  --accent-soft:      color-mix(in srgb, #8de4ec 8%, transparent);
+  --sidebar-bg:       #0a0b0e;
+  --sidebar-hover:    #14161b;
+  --sidebar-active:   #14161b;
+  --content-bg:       #0a0b0e;
+  --card-bg:          #11141a;
+  --text-primary:     #d4e5e9;
+  --text-secondary:   #7e96a3;
+  --text-muted:       #4a5969;
+  --border:           #1e242d;
+  --border-strong:    #2c343f;
+  --font:             'Inter', system-ui, sans-serif;
+  --font-mono:        'JetBrains Mono', monospace;
+}
+[data-theme="cp-section-9"] .card-title {
+  font-family: 'Inter', sans-serif;
+}
+[data-theme="cp-section-9"] .card-meta,
+[data-theme="cp-section-9"] .sb-item,
+[data-theme="cp-section-9"] .view-meta,
+[data-theme="cp-section-9"] .priority {
+  font-family: 'JetBrains Mono', monospace;
+}
+[data-theme="cp-section-9"] .priority {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+  padding: 2px 12px 2px 7px;
+}
+[data-theme="cp-section-9"] .card.active {
+  border-color: color-mix(in srgb, #8de4ec 30%, transparent);
+}
+[data-theme="cp-section-9"] .card.active::before {
+  content: '';
+  display: none;
+}
+[data-theme="cp-section-9"] .sb-item.active {
+  box-shadow: inset 2px 0 0 #8de4ec;
+}
+[data-theme="cp-section-9"] .view-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum';
+}
+[data-theme="cp-section-9"] .view-title { font-family: 'Inter', sans-serif; }
+[data-theme="cp-section-9"] .card {
+  position: relative;
+}
+[data-theme="cp-section-9"] .card-id-strip {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%);
+  padding-left: 14px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 3 — Wallace Atrium
+   Burnt orange on warm sepia-black, soft glows, looser density
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-wallace"] {
+  --accent:           #d97706;
+  --accent-light:     #341a05;
+  --accent-dark:      #fdba74;
+  --accent-faint:     color-mix(in srgb, #d97706 18%, transparent);
+  --accent-soft:      color-mix(in srgb, #d97706 8%, transparent);
+  --sidebar-bg:       #120c08;
+  --sidebar-hover:    #1d140d;
+  --sidebar-active:   #1d140d;
+  --content-bg:       #120c08;
+  --card-bg:          #1c130c;
+  --text-primary:     #f4e0c5;
+  --text-secondary:   #b59377;
+  --text-muted:       #6f5e4c;
+  --border:           #2a1d10;
+  --border-strong:    #3d2a17;
+  --font:             'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-wallace"] .card {
+  background: linear-gradient(180deg, #1f160e 0%, #18110a 100%);
+  border-radius: 10px;
+  padding: 16px 18px;
+  gap: 14px;
+}
+[data-theme="cp-wallace"] .card.active {
+  background: linear-gradient(180deg, #2a1d10 0%, #1c1308 100%);
+  border-color: color-mix(in srgb, #d97706 24%, transparent);
+  box-shadow: inset 3px 0 0 #d97706,
+              0 0 30px -10px color-mix(in srgb, #d97706 40%, transparent);
+}
+[data-theme="cp-wallace"] .view-body { gap: 12px; padding: 24px; }
+[data-theme="cp-wallace"] .view-header { padding: 22px 24px 18px; }
+[data-theme="cp-wallace"] .view-title { font-size: 22px; }
+[data-theme="cp-wallace"] .sb-item.active {
+  background: color-mix(in srgb, #d97706 10%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 4 — Tachikoma Runtime
+   Lime on cool slate, mono-led, corner cuts on chips and CTAs, dense
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-tachikoma"] {
+  --accent:           #a3e635;
+  --accent-light:     #1f3a0a;
+  --accent-dark:      #d9f99d;
+  --accent-faint:     color-mix(in srgb, #a3e635 18%, transparent);
+  --accent-soft:      color-mix(in srgb, #a3e635 9%, transparent);
+  --sidebar-bg:       #0e1116;
+  --sidebar-hover:    #181c24;
+  --sidebar-active:   #181c24;
+  --content-bg:       #11141a;
+  --card-bg:          #181c24;
+  --text-primary:     #dde3eb;
+  --text-secondary:   #8895a8;
+  --text-muted:       #4d5868;
+  --border:           #232936;
+  --border-strong:    #313847;
+  --font:             'JetBrains Mono', monospace;
+  --font-mono:        'JetBrains Mono', monospace;
+}
+[data-theme="cp-tachikoma"] .card-title { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+[data-theme="cp-tachikoma"] .view-title { font-family: 'JetBrains Mono', monospace; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+[data-theme="cp-tachikoma"] .card { padding: 10px 12px; gap: 8px; }
+[data-theme="cp-tachikoma"] .view-body { gap: 4px; padding: 12px 24px; }
+[data-theme="cp-tachikoma"] .view-header { padding: 14px 24px 10px; }
+[data-theme="cp-tachikoma"] .priority {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+  padding: 2px 12px 2px 7px;
+}
+[data-theme="cp-tachikoma"] .btn:not(.btn-ghost) {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+  padding: 0 18px 0 14px;
+  color: #0e1116;
+}
+[data-theme="cp-tachikoma"] .card.active {
+  box-shadow: inset 3px 0 0 #a3e635, 0 0 0 1px color-mix(in srgb, #a3e635 22%, transparent);
+}
+[data-theme="cp-tachikoma"] .card.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  background: #a3e635;
+}
+[data-theme="cp-tachikoma"] .card { position: relative; }
+[data-theme="cp-tachikoma"] .sb-item.active { box-shadow: inset 2px 0 0 #a3e635; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 5 — Arasaka Black
+   Restrained crimson on warmest black, no glow, sharp lines, all caps
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-arasaka"] {
+  --accent:           #b91c1c;
+  --accent-light:     #2a0a0a;
+  --accent-dark:      #fca5a5;
+  --accent-faint:     color-mix(in srgb, #b91c1c 22%, transparent);
+  --accent-soft:      color-mix(in srgb, #b91c1c 10%, transparent);
+  --sidebar-bg:       #0d0c0a;
+  --sidebar-hover:    #1a1815;
+  --sidebar-active:   #1a1815;
+  --content-bg:       #0d0c0a;
+  --card-bg:          #15130f;
+  --text-primary:     #e8e4dc;
+  --text-secondary:   #948d80;
+  --text-muted:       #5a564d;
+  --border:           #1f1c17;
+  --border-strong:    #2a261f;
+  --font:             'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-arasaka"] .card { border-radius: 2px; padding: 14px 16px; }
+[data-theme="cp-arasaka"] .card-title {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+[data-theme="cp-arasaka"] .view-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+[data-theme="cp-arasaka"] .view-header {
+  border-bottom: 3px double var(--border-strong);
+}
+[data-theme="cp-arasaka"] .sb-item {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+[data-theme="cp-arasaka"] .sb-section-label { letter-spacing: 0.12em; }
+[data-theme="cp-arasaka"] .priority {
+  border-radius: 0;
+  letter-spacing: 0.08em;
+}
+[data-theme="cp-arasaka"] .btn { border-radius: 2px; }
+[data-theme="cp-arasaka"] .card.active {
+  background: #1c1814;
+  border-color: var(--accent);
+  position: relative;
+}
+[data-theme="cp-arasaka"] .card.active::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: -1px;
+  width: 4px; height: 100%;
+  background: #b91c1c;
+}
+[data-theme="cp-arasaka"] .sb-item.active {
+  border-left: 2px solid #b91c1c;
+  padding-left: 8px;
+  background: #1a1815;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 6 — Yokohama Rain
+   Almost-noir, silvery-grey on near-black, accent only on focus
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-yokohama"] {
+  --accent:           #ea580c;
+  --accent-light:     #2a1308;
+  --accent-dark:      #fed7aa;
+  --accent-faint:     color-mix(in srgb, #ea580c 12%, transparent);
+  --accent-soft:      color-mix(in srgb, #ea580c 5%, transparent);
+  --sidebar-bg:       #0e1115;
+  --sidebar-hover:    #161a20;
+  --sidebar-active:   #161a20;
+  --content-bg:       #0e1115;
+  --card-bg:          #14181d;
+  --text-primary:     #c8ced6;
+  --text-secondary:   #7e8a96;
+  --text-muted:       #4a525c;
+  --border:           #1d232c;
+  --border-strong:    #2a3140;
+  --font:             'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-yokohama"] .card {
+  background: linear-gradient(180deg, #161b21 0%, #131820 100%);
+}
+[data-theme="cp-yokohama"] .priority {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+/* The orange accent ONLY appears on the keyboard-focused (active) row */
+[data-theme="cp-yokohama"] .card.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ea580c 35%, transparent);
+  border-color: color-mix(in srgb, #ea580c 40%, transparent);
+}
+[data-theme="cp-yokohama"] .card.active .card-meta::before {
+  content: '▶  ';
+  color: #ea580c;
+  font-weight: 700;
+}
+[data-theme="cp-yokohama"] .btn:not(.btn-ghost) {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+[data-theme="cp-yokohama"] .sb-item.active {
+  background: var(--sidebar-active);
+  border-left: 2px solid var(--text-primary);
+  padding-left: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 7 — Tachikoma Standby   (4 + 6 hybrid)
+   Tachikoma's mono-led density + Yokohama's accent-only-on-focused
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-tachikoma-standby"] {
+  --accent:           #a3e635;
+  --accent-light:     #1f3a0a;
+  --accent-dark:      #d9f99d;
+  --accent-faint:     color-mix(in srgb, #a3e635 16%, transparent);
+  --accent-soft:      color-mix(in srgb, #a3e635 7%, transparent);
+  --sidebar-bg:       #0d1218;
+  --sidebar-hover:    #161c25;
+  --sidebar-active:   #161c25;
+  --content-bg:       #10151c;
+  --card-bg:          #181e28;
+  --text-primary:     #c8d2dd;
+  --text-secondary:   #7a869a;
+  --text-muted:       #475063;
+  --border:           #1d2532;
+  --border-strong:    #29323f;
+  --font:             'JetBrains Mono', monospace;
+  --font-mono:        'JetBrains Mono', monospace;
+}
+[data-theme="cp-tachikoma-standby"] .card-title { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+[data-theme="cp-tachikoma-standby"] .view-title { font-family: 'JetBrains Mono', monospace; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+[data-theme="cp-tachikoma-standby"] .card { padding: 10px 12px; gap: 8px; position: relative; }
+[data-theme="cp-tachikoma-standby"] .view-body { gap: 4px; padding: 12px 24px; }
+[data-theme="cp-tachikoma-standby"] .view-header { padding: 14px 24px 10px; }
+/* Discipline: the lime accent appears NOWHERE except on the focused row.
+   Most chips/badges/buttons render in silvery-grey. */
+[data-theme="cp-tachikoma-standby"] .priority {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+  padding: 2px 12px 2px 7px;
+}
+[data-theme="cp-tachikoma-standby"] .tag-chip {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+[data-theme="cp-tachikoma-standby"] .mention-chip {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
+[data-theme="cp-tachikoma-standby"] .btn:not(.btn-ghost) {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+  padding: 0 18px 0 14px;
+}
+/* Only the focused row earns lime treatment — left stripe, halo, lime chips */
+[data-theme="cp-tachikoma-standby"] .card.active {
+  border-color: color-mix(in srgb, #a3e635 35%, transparent);
+  box-shadow: inset 3px 0 0 #a3e635,
+              0 0 24px -8px color-mix(in srgb, #a3e635 35%, transparent);
+}
+[data-theme="cp-tachikoma-standby"] .card.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 4px;
+  background: #a3e635;
+}
+[data-theme="cp-tachikoma-standby"] .card.active .priority,
+[data-theme="cp-tachikoma-standby"] .card.active .tag-chip {
+  background: color-mix(in srgb, #a3e635 14%, transparent);
+  color: #a3e635;
+  border-color: color-mix(in srgb, #a3e635 40%, transparent);
+}
+[data-theme="cp-tachikoma-standby"] .card.active .mention-chip {
+  background: color-mix(in srgb, #a3e635 14%, transparent);
+  color: #d9f99d;
+  border-color: color-mix(in srgb, #a3e635 40%, transparent);
+}
+[data-theme="cp-tachikoma-standby"] .sb-item.active { box-shadow: inset 2px 0 0 #a3e635; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 8 — Kowloon Walled City
+   Dual-accent HUD: amber primary + violet for closed/done. Status strip
+   at card top; multi-corner cuts; subtle dot-grid backdrop.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-kowloon"] {
+  --accent:           #f59e0b;
+  --accent-secondary: #a855f7;
+  --accent-light:     #2a1d08;
+  --accent-dark:      #fcd34d;
+  --accent-faint:     color-mix(in srgb, #f59e0b 16%, transparent);
+  --accent-soft:      color-mix(in srgb, #f59e0b 7%, transparent);
+  --sidebar-bg:       #0a0908;
+  --sidebar-hover:    #15130f;
+  --sidebar-active:   #15130f;
+  --content-bg:       #0d0c0a;
+  --card-bg:          #16130f;
+  --text-primary:     #e0d4c0;
+  --text-secondary:   #988775;
+  --text-muted:       #5a4f44;
+  --border:           #221d17;
+  --border-strong:    #3a3128;
+  --font:             'IBM Plex Mono', monospace;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-kowloon"] .main {
+  background-color: var(--content-bg);
+  background-image:
+    radial-gradient(circle at center, rgba(245,158,11,0.05) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+[data-theme="cp-kowloon"] .view-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+[data-theme="cp-kowloon"] .card-title { font-family: 'Inter', sans-serif; font-weight: 500; }
+[data-theme="cp-kowloon"] .card {
+  position: relative;
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  padding-top: 14px;
+}
+/* Top status strip — violet for done, amber for active, low chroma otherwise */
+[data-theme="cp-kowloon"] .card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 2px;
+  background: var(--border-strong);
+}
+[data-theme="cp-kowloon"] .card.active::before {
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, #f59e0b 60%, transparent);
+}
+[data-theme="cp-kowloon"] .card:has(.checked)::before {
+  background: var(--accent-secondary);
+}
+[data-theme="cp-kowloon"] .card-checkbox.checked {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+/* Done items render with violet meta */
+[data-theme="cp-kowloon"] .card-title.done {
+  color: color-mix(in srgb, #a855f7 60%, var(--text-muted));
+}
+[data-theme="cp-kowloon"] .priority {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+  padding: 2px 12px 2px 7px;
+}
+[data-theme="cp-kowloon"] .btn:not(.btn-ghost) {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+  padding: 0 18px 0 14px;
+  color: #0d0c0a;
+}
+[data-theme="cp-kowloon"] .sb-item.active {
+  box-shadow: inset 2px 0 0 #f59e0b;
+}
+[data-theme="cp-kowloon"] .card-id-strip {
+  position: absolute;
+  bottom: 4px; right: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 9 — Neon Sumida
+   High-contrast cyan + magenta. Strong glows. Faint scanline pattern on
+   the content area. The most "1980s cyberpunk poster" of the set.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-sumida"] {
+  --accent:           #22d3ee;
+  --accent-secondary: #ec4899;
+  --accent-light:     #0a2a35;
+  --accent-dark:      #67e8f9;
+  --accent-faint:     color-mix(in srgb, #22d3ee 18%, transparent);
+  --accent-soft:      color-mix(in srgb, #22d3ee 9%, transparent);
+  --sidebar-bg:       #060a14;
+  --sidebar-hover:    #0d1424;
+  --sidebar-active:   #0d1424;
+  --content-bg:       #080d18;
+  --card-bg:          #0d1322;
+  --text-primary:     #b8e6f0;
+  --text-secondary:   #6e8aa3;
+  --text-muted:       #3d4d62;
+  --border:           #15203a;
+  --border-strong:    #1f2d4d;
+  --font:             'JetBrains Mono', monospace;
+  --font-mono:        'JetBrains Mono', monospace;
+}
+[data-theme="cp-sumida"] .main {
+  background-color: var(--content-bg);
+  background-image:
+    repeating-linear-gradient(180deg,
+      transparent 0,
+      transparent 2px,
+      rgba(34,211,238,0.025) 2px,
+      rgba(34,211,238,0.025) 3px);
+}
+[data-theme="cp-sumida"] .view-title { font-family: 'Inter', sans-serif; font-weight: 700; text-shadow: 0 0 12px color-mix(in srgb, #22d3ee 35%, transparent); }
+[data-theme="cp-sumida"] .card-title { font-family: 'Inter', sans-serif; font-weight: 500; }
+[data-theme="cp-sumida"] .card {
+  border-color: color-mix(in srgb, #22d3ee 12%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #22d3ee 6%, transparent);
+}
+[data-theme="cp-sumida"] .priority.high {
+  background: color-mix(in srgb, #ec4899 18%, transparent);
+  color: #f9a8d4;
+  border-color: color-mix(in srgb, #ec4899 50%, transparent);
+}
+[data-theme="cp-sumida"] .priority.medium {
+  background: color-mix(in srgb, #22d3ee 14%, transparent);
+  color: #67e8f9;
+  border-color: color-mix(in srgb, #22d3ee 40%, transparent);
+}
+[data-theme="cp-sumida"] .tag-chip {
+  background: color-mix(in srgb, #ec4899 10%, transparent);
+  color: #f9a8d4;
+  border-color: color-mix(in srgb, #ec4899 30%, transparent);
+}
+[data-theme="cp-sumida"] .mention-chip {
+  background: color-mix(in srgb, #22d3ee 14%, transparent);
+  color: #67e8f9;
+  border-color: color-mix(in srgb, #22d3ee 40%, transparent);
+}
+[data-theme="cp-sumida"] .card.active {
+  border-color: color-mix(in srgb, #22d3ee 60%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #22d3ee 30%, transparent),
+    0 0 24px -4px color-mix(in srgb, #22d3ee 50%, transparent),
+    0 0 60px -16px color-mix(in srgb, #ec4899 35%, transparent);
+}
+[data-theme="cp-sumida"] .sb-item.active {
+  background: color-mix(in srgb, #22d3ee 12%, transparent);
+  box-shadow: inset 2px 0 0 #22d3ee;
+}
+[data-theme="cp-sumida"] .btn:not(.btn-ghost) {
+  background: var(--accent);
+  color: #060a14;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px -4px color-mix(in srgb, #22d3ee 60%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 10 — Replicant Lobby
+   Soft purple-to-navy gradient base, cyan accent, ambient halos. The
+   "synthwave video on a Wallace Corp display" of the set.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-replicant"] {
+  --accent:           #06b6d4;
+  --accent-secondary: #a855f7;
+  --accent-light:     #032f3a;
+  --accent-dark:      #67e8f9;
+  --accent-faint:     color-mix(in srgb, #06b6d4 16%, transparent);
+  --accent-soft:      color-mix(in srgb, #06b6d4 7%, transparent);
+  --sidebar-bg:       #0a0816;
+  --sidebar-hover:    #130e25;
+  --sidebar-active:   #130e25;
+  --content-bg:       #0d0a18;
+  --card-bg:          #15102a;
+  --text-primary:     #d8cce8;
+  --text-secondary:   #8e7da8;
+  --text-muted:       #4a3d5e;
+  --border:           #1f1838;
+  --border-strong:    #2e2548;
+  --font:             'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-replicant"] .preview { background: #0d0a18; }
+[data-theme="cp-replicant"] .main {
+  background:
+    radial-gradient(ellipse at top, color-mix(in srgb, #a855f7 8%, transparent) 0%, transparent 50%),
+    linear-gradient(180deg, #0d0a18 0%, #0a0612 50%, #100a1c 100%);
+}
+[data-theme="cp-replicant"] .sidebar {
+  background:
+    linear-gradient(180deg, #0a0816 0%, #06040d 100%);
+}
+[data-theme="cp-replicant"] .view-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 14px color-mix(in srgb, #06b6d4 40%, transparent);
+}
+[data-theme="cp-replicant"] .card {
+  background: linear-gradient(135deg, #15102a 0%, #1a1535 100%);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 24px -10px color-mix(in srgb, #a855f7 30%, transparent);
+}
+[data-theme="cp-replicant"] .card.active {
+  border-color: color-mix(in srgb, #06b6d4 50%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #06b6d4 25%, transparent),
+    0 0 28px -4px color-mix(in srgb, #06b6d4 40%, transparent),
+    0 0 48px -16px color-mix(in srgb, #a855f7 50%, transparent);
+}
+[data-theme="cp-replicant"] .priority.high {
+  background: color-mix(in srgb, #a855f7 16%, transparent);
+  color: #c084fc;
+  border-color: color-mix(in srgb, #a855f7 40%, transparent);
+}
+[data-theme="cp-replicant"] .tag-chip {
+  background: color-mix(in srgb, #06b6d4 10%, transparent);
+  color: #67e8f9;
+  border-color: color-mix(in srgb, #06b6d4 30%, transparent);
+}
+[data-theme="cp-replicant"] .sb-item.active {
+  background: color-mix(in srgb, #06b6d4 8%, transparent);
+  box-shadow: inset 2px 0 0 #06b6d4;
+}
+[data-theme="cp-replicant"] .btn:not(.btn-ghost) {
+  background: var(--accent);
+  color: #0d0a18;
+  box-shadow: 0 0 18px -4px color-mix(in srgb, #06b6d4 50%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   THEME 11 — Razorgirl
+   Triple palette: warm matte-black base, amber primary, magenta urgent.
+   Sharp angular chrome, display all-caps headers, geometric corner
+   markers. Built for fast operation.
+   ───────────────────────────────────────────────────────────────────── */
+[data-theme="cp-razorgirl"] {
+  --accent:           #f59e0b;
+  --accent-danger:    #ec4899;
+  --accent-light:     #2a1d08;
+  --accent-dark:      #fcd34d;
+  --accent-faint:     color-mix(in srgb, #f59e0b 16%, transparent);
+  --accent-soft:      color-mix(in srgb, #f59e0b 7%, transparent);
+  --sidebar-bg:       #0a0907;
+  --sidebar-hover:    #15110d;
+  --sidebar-active:   #15110d;
+  --content-bg:       #0c0a08;
+  --card-bg:          #16120e;
+  --text-primary:     #f0e2cd;
+  --text-secondary:   #968673;
+  --text-muted:       #5a4d40;
+  --border:           #1f1a14;
+  --border-strong:    #322820;
+  --font:             'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-mono:        'IBM Plex Mono', monospace;
+}
+[data-theme="cp-razorgirl"] .view-title {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+[data-theme="cp-razorgirl"] .view-meta { font-family: 'IBM Plex Mono', monospace; }
+[data-theme="cp-razorgirl"] .sb-item { text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; border-radius: 0; }
+[data-theme="cp-razorgirl"] .sb-section-label { letter-spacing: 0.14em; }
+[data-theme="cp-razorgirl"] .card {
+  border-radius: 0;
+  position: relative;
+  border-color: var(--border-strong);
+}
+/* Geometric corner markers — top-left, bottom-right */
+[data-theme="cp-razorgirl"] .card::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px;
+  width: 10px; height: 10px;
+  border-top: 2px solid var(--accent);
+  border-left: 2px solid var(--accent);
+  opacity: 0.35;
+  pointer-events: none;
+}
+[data-theme="cp-razorgirl"] .card::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; right: -1px;
+  width: 10px; height: 10px;
+  border-bottom: 2px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  opacity: 0.35;
+  pointer-events: none;
+}
+[data-theme="cp-razorgirl"] .card.active::before,
+[data-theme="cp-razorgirl"] .card.active::after { opacity: 1; }
+[data-theme="cp-razorgirl"] .card.active {
+  border-color: var(--accent);
+  box-shadow: 4px 4px 0 -1px color-mix(in srgb, #f59e0b 35%, transparent);
+}
+[data-theme="cp-razorgirl"] .card-title {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+[data-theme="cp-razorgirl"] .priority {
+  border-radius: 0;
+  letter-spacing: 0.08em;
+}
+[data-theme="cp-razorgirl"] .priority.high {
+  background: color-mix(in srgb, #ec4899 18%, transparent);
+  color: #f9a8d4;
+  border-color: color-mix(in srgb, #ec4899 50%, transparent);
+}
+[data-theme="cp-razorgirl"] .tag-chip { border-radius: 0; }
+[data-theme="cp-razorgirl"] .btn { border-radius: 0; text-transform: uppercase; letter-spacing: 0.08em; }
+[data-theme="cp-razorgirl"] .sb-item.active {
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+  background: var(--sidebar-active);
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<h1 class="page-title">Cyberpunk theme drafts — visual previews</h1>
+<p class="page-sub">
+  Six previews. Each renders a representative slice of the app — sidebar nav,
+  view header, four todo cards (one focused/active, one done, one with a
+  mention chip and tags, one with overdue), and a button row — using only
+  CSS variables and treatments per draft. Open this file in a browser; widen
+  the window for fairer comparison. Each preview is 540&nbsp;px tall on a
+  220-px sidebar, so they stay aligned for side-by-side reading.
+</p>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     1. Bay City Hotel
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">1. Bay City Hotel</div>
+    <div class="theme-id">cp-bay-city</div>
+  </div>
+  <div class="theme-character">
+    The Raven Hotel after midnight. Heavy curtains, brushed brass fittings,
+    a single amber lamp pooling light onto a marble desk. Built for someone
+    who works at unsociable hours on things that matter.
+  </div>
+  <div class="preview" data-theme="cp-bay-city">
+    <aside class="sidebar">
+      <div class="sb-brand">⊕ &nbsp;Workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>Overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>Pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>Todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>Notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>Reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>Commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>Tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Q4 Strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Lukas dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">06.07 · 14:23:07</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">High</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2026-05-10</div>
+          </div>
+          <div class="card-right"><span class="priority medium">Med</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">Low</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2 days</div>
+          </div>
+          <div class="card-right"><span class="priority medium">Med</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ Add</button>
+        <button class="btn btn-ghost">Filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     2. Section 9 Console
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">2. Section 9 Console</div>
+    <div class="theme-id">cp-section-9</div>
+  </div>
+  <div class="theme-character">
+    The terminal in Major Kusanagi's chair. Cool icy cyan against a slightly
+    warm-black base — the warmth is what makes the cyan land cinematically
+    instead of medically. Built for technical work.
+  </div>
+  <div class="preview" data-theme="cp-section-9">
+    <aside class="sidebar">
+      <div class="sb-brand">▼ &nbsp;workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">07</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">[ pinned ]</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas-dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">[ tz +02:00 · 14:23:07 ]</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-id-strip">id: t-2026-04-29-3f2</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">id: t-2026-04-29-9b1</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2d ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">id: t-2026-04-28-c0d</div>
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">id: t-2026-04-22-1aa</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">[ filter ]</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     3. Wallace Atrium
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">3. Wallace Atrium</div>
+    <div class="theme-id">cp-wallace</div>
+  </div>
+  <div class="theme-character">
+    The Wallace Corp atrium during the orange hour from BR 2049. Slow
+    contemplation theme. Fewer stimuli, deeper warmth, more breathing room.
+    For someone who works on something that doesn't need to feel like a video
+    game.
+  </div>
+  <div class="preview" data-theme="cp-wallace">
+    <aside class="sidebar">
+      <div class="sb-brand">Workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>Overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>Pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>Todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>Notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>Reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>Commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>Tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Q4 Strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Lukas dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">06 / 07 · 14:23</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12 minutes · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">High</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2 days ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">Medium</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">Low</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ Add</button>
+        <button class="btn btn-ghost">Filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     4. Tachikoma Runtime
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">4. Tachikoma Runtime</div>
+    <div class="theme-id">cp-tachikoma</div>
+  </div>
+  <div class="theme-character">
+    The little spider tank's HUD as it crawls a server room. Friendlier than
+    Section 9, but still serious operational software. Lime against cool
+    slate, monospace doing the heavy lifting, slightly tighter density.
+  </div>
+  <div class="preview" data-theme="cp-tachikoma">
+    <aside class="sidebar">
+      <div class="sb-brand">▸ workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commit</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">// pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">PULL</div>
+        <div class="view-meta">[ 14:23 ]</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">call <span class="mention-chip">@lukas</span> re: q4 proposal</div>
+            <div class="card-meta">14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HI</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">send onboarding doc</div>
+            <div class="card-meta">sketch · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MD</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">schick angebot to lukas</div>
+            <div class="card-meta">y'day · pricing</div>
+          </div>
+          <div class="card-right"><span class="priority low">LO</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MD</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     5. Arasaka Black
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">5. Arasaka Black</div>
+    <div class="theme-id">cp-arasaka</div>
+  </div>
+  <div class="theme-character">
+    Arasaka HQ's executive interface. Quiet, restrained, monolithic.
+    Display-led typography, thin sharp lines, no glow at all. The feel of
+    using software designed by a corporation that does not believe in
+    playful UX.
+  </div>
+  <div class="preview" data-theme="cp-arasaka">
+    <aside class="sidebar">
+      <div class="sb-brand">ARASAKA</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>OVERVIEW</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>PULL</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>TODOS</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>NOTES</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>REMINDERS</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>COMMITMENTS</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>TAGS</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Q4 STRATEGY</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>LUKAS DOSSIER</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">14:23 / 14:35</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">CALL <span class="mention-chip">@LUKAS</span> RE: Q4 PROPOSAL</div>
+            <div class="card-meta">DUE 14:00 · 12 MIN · <span class="tag-chip">#Q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">SEND ONBOARDING DOC</div>
+            <div class="card-meta">SKETCH · 2 DAYS AGO</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">SCHICK ANGEBOT TO LUKAS</div>
+            <div class="card-meta">DRAFTED YESTERDAY</div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">REVIEW ARCHITECTURE DOC</div>
+            <div class="card-meta">OVERDUE · 2 DAYS</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">FILTER</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     6. Yokohama Rain (bonus)
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">6. Yokohama Rain</div>
+    <div class="theme-id">cp-yokohama</div>
+  </div>
+  <div class="theme-character">
+    Almost-noir. The world after the colour drained out. Greys and silvers
+    do the work; the only real colour is one drop of warm orange that
+    appears <em>only</em> on the actively-focused single thing. For someone
+    who finds even Section 9 too vivid.
+  </div>
+  <div class="preview" data-theme="cp-yokohama">
+    <aside class="sidebar">
+      <div class="sb-brand">workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4 strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">pull</div>
+        <div class="view-meta">14:23</div>
+      </div>
+      <div class="view-body">
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">call <span class="mention-chip">@lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m</div>
+          </div>
+          <div class="card-right"><span class="priority high">high</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">send onboarding doc</div>
+            <div class="card-meta">sketch · 2 days ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">med</span></div>
+        </div>
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">schick angebot to lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">low</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">review architecture doc</div>
+            <div class="card-meta">closed</div>
+          </div>
+          <div class="card-right"><span class="priority low">low</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ add</button>
+        <button class="btn btn-ghost">filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<h2 style="margin-top:64px;margin-bottom:8px;font-size:22px;letter-spacing:-0.01em;">Round 2 — hybrid + louder drafts</h2>
+<p class="page-sub" style="margin-bottom:24px">
+  #7 combines the parts you liked from Tachikoma + Yokohama (mono-led
+  density with accent-only-on-focused discipline). #8–#11 push harder
+  into visual chrome: dual accents, status strips, gradient backdrops,
+  faint scanlines, sharp geometry — still within the
+  professional-cyberpunk rails (no glitch effects, no aggressive
+  animations, accents earned not sprayed).
+</p>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     7. Tachikoma Standby
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">7. Tachikoma Standby</div>
+    <div class="theme-id">cp-tachikoma-standby</div>
+  </div>
+  <div class="theme-character">
+    The spider tank in low-power mode — only its eyes glow. Tachikoma's
+    mono-led density and corner cuts; Yokohama's discipline of
+    accent-on-focused-only. Most chrome reads silver-grey on cool slate;
+    lime appears only on the row that has the keyboard cursor.
+  </div>
+  <div class="preview" data-theme="cp-tachikoma-standby">
+    <aside class="sidebar">
+      <div class="sb-brand">▸ workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commit</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">// pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">PULL</div>
+        <div class="view-meta">[ 14:23 ]</div>
+      </div>
+      <div class="view-body">
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">call <span class="mention-chip">@lukas</span> re: q4 proposal</div>
+            <div class="card-meta">14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HI</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">send onboarding doc</div>
+            <div class="card-meta">sketch · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MD</span></div>
+        </div>
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">schick angebot to <span class="mention-chip">@lukas</span></div>
+            <div class="card-meta">y'day · <span class="tag-chip">#pricing</span></div>
+          </div>
+          <div class="card-right"><span class="priority low">LO</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">review architecture doc</div>
+            <div class="card-meta">closed</div>
+          </div>
+          <div class="card-right"><span class="priority low">LO</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     8. Kowloon Walled City
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">8. Kowloon Walled City</div>
+    <div class="theme-id">cp-kowloon</div>
+  </div>
+  <div class="theme-character">
+    Maze-density operator's terminal. Two accents that mean something —
+    amber for "active right now," violet for "closed / done / archived" —
+    so the eye reads the state-machine before reading the title. Subtle
+    dot grid in the backdrop suggests "this surface is built on data,"
+    multi-corner cuts on cards suggest "this surface was machined."
+  </div>
+  <div class="preview" data-theme="cp-kowloon">
+    <aside class="sidebar">
+      <div class="sb-brand">┌ workspace ┐</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">07</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">┐ pinned ┌</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas-dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">⟨ 14:23:07 · tz +02:00 ⟩</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-id-strip">⟨3f2⟩</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">⟨9b1⟩</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2d ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">⟨c0d⟩</div>
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+        <div class="card">
+          <div class="card-id-strip">⟨1aa⟩</div>
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     9. Neon Sumida
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">9. Neon Sumida</div>
+    <div class="theme-id">cp-sumida</div>
+  </div>
+  <div class="theme-character">
+    Tokyo riverside in late summer. Cyan and magenta locked in tension —
+    cyan reads "active," magenta reads "urgent / human / hot." Strong
+    glows on the focused row, faint horizontal scanlines on the backdrop
+    (1px, low opacity — atmospheric, not distracting). The most "1980s
+    cyberpunk poster" of the set.
+  </div>
+  <div class="preview" data-theme="cp-sumida">
+    <aside class="sidebar">
+      <div class="sb-brand">▼ WORKSPACE</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>pull</span><span class="sb-count">07</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">PINNED</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>lukas-dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">[ 14:23:07 ]</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     10. Replicant Lobby
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">10. Replicant Lobby</div>
+    <div class="theme-id">cp-replicant</div>
+  </div>
+  <div class="theme-character">
+    Wallace Corp's lobby at 02:00 — purple ambient lighting bleeding
+    into navy walls, cyan instrumentation glowing through it. Soft
+    purple halos around every card; cyan inner ring on the active one.
+    The synthwave-on-Wallace-display version of the family.
+  </div>
+  <div class="preview" data-theme="cp-replicant">
+    <aside class="sidebar">
+      <div class="sb-brand">⊕ Workspace</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>Overview</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>Pull</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>Todos</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>Notes</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>Reminders</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>Commitments</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>Tags</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Pinned</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Q4 Strategy</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Lukas dossier</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">06.07 · 14:23</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">High</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2d ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">Med</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">Low</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2d</div>
+          </div>
+          <div class="card-right"><span class="priority high">High</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ Add</button>
+        <button class="btn btn-ghost">Filter</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     11. Razorgirl
+     ──────────────────────────────────────────────────────────────────── -->
+<section class="theme-block">
+  <div class="theme-meta">
+    <div class="theme-name">11. Razorgirl</div>
+    <div class="theme-id">cp-razorgirl</div>
+  </div>
+  <div class="theme-character">
+    Built for moving fast. Warm matte-black base, amber primary, magenta
+    on anything urgent — overdue rows, high-priority todos. Sharp
+    geometric corner markers (top-left + bottom-right brackets on every
+    card; brighter on the focused one) and all-caps tracked headers
+    suggest weaponized software. Less about contemplation, more about
+    operating.
+  </div>
+  <div class="preview" data-theme="cp-razorgirl">
+    <aside class="sidebar">
+      <div class="sb-brand">RAZORGIRL</div>
+      <div class="sb-item"><span class="sb-icon">◈</span><span>OVERVIEW</span></div>
+      <div class="sb-item active"><span class="sb-icon">↓</span><span>PULL</span><span class="sb-count">7</span></div>
+      <div class="sb-item"><span class="sb-icon">✅</span><span>TODOS</span><span class="sb-count">42</span></div>
+      <div class="sb-item"><span class="sb-icon">📝</span><span>NOTES</span></div>
+      <div class="sb-item"><span class="sb-icon">🔔</span><span>REMINDERS</span></div>
+      <div class="sb-item"><span class="sb-icon">🤝</span><span>COMMITMENTS</span></div>
+      <div class="sb-item"><span class="sb-icon">#</span><span>TAGS</span></div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">PINNED</div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>Q4 STRATEGY</span></div>
+      <div class="sb-item"><span class="sb-icon">★</span><span>LUKAS</span></div>
+    </aside>
+    <main class="main">
+      <div class="view-header">
+        <div class="view-title">Pull</div>
+        <div class="view-meta">14:23 / 14:35</div>
+      </div>
+      <div class="view-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Call <span class="mention-chip">@Lukas</span> re: Q4 proposal</div>
+            <div class="card-meta">due 14:00 · 12m · <span class="tag-chip">#q4</span></div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-meta">sketch · 2 days ago</div>
+          </div>
+          <div class="card-right"><span class="priority medium">MED</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-meta">drafted yesterday</div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-meta">⚠ overdue · 2 days</div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn">+ ADD</button>
+        <button class="btn btn-ghost">FILTER</button>
+      </div>
+    </main>
+  </div>
+</section>
+
+<p class="page-sub" style="margin-top:48px;color:#777;font-size:13px">
+  These are static visual previews — no theme system, no interactivity.
+  The actual app's surfaces (palette, modals, popovers, settings, dump
+  zone, flow editor, etc.) aren't shown here; pick a draft based on
+  whether the slice you see feels right, then we'll implement the full
+  theme and verify in the live app.
+</p>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Overview · Draft C — Segmented "What needs you now"</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 24px;
+  }
+  .draft-banner {
+    max-width: 1200px; margin: 0 auto 16px;
+    background: #fff7ed; border: 1px solid #fdba74;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: #9a3412;
+  }
+  .draft-banner b { color: #7c2d12; }
+  .draft-banner .tip {
+    margin-top: 4px; color: #9a3412; opacity: 0.8;
+    font-size: 11px;
+  }
+  .draft-banner kbd {
+    background: #fff; border: 1px solid #fdba74; border-radius: 4px;
+    padding: 0 5px; font-size: 11px;
+  }
+
+  .app {
+    max-width: 1200px; margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .view-header {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .view-title { font-size: 22px; font-weight: 700; }
+  .view-sub { font-size: 13px; color: #94a3b8; }
+
+  .scroll-area { padding: 18px 24px 32px; }
+
+  /* ── slim stats strip ── */
+  .overview-stats {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0,1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .overview-stat {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .overview-stat-num { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .overview-stat-label {
+    font-size: 10px; color: #64748b; text-transform: uppercase;
+    letter-spacing: 0.06em; margin-top: 4px; font-weight: 600;
+  }
+  .overview-stat.alert .overview-stat-num { color: #dc2626; }
+
+  /* ── INBOX PANEL ── */
+  .inbox {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-top: 4px solid #dc2626;
+    border-radius: 12px;
+    margin-bottom: 22px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .inbox-head {
+    padding: 14px 20px 0;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .inbox-title {
+    font-size: 15px; font-weight: 700;
+  }
+  .inbox-meta {
+    font-size: 12px; color: #94a3b8; font-weight: 500;
+  }
+  .inbox-spacer { flex: 1; }
+  .inbox-action {
+    background: transparent; border: 1px solid #e2e8f0;
+    color: #64748b; padding: 5px 11px; border-radius: 7px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .inbox-action:hover { border-color: #cbd5e1; color: #0f172a; }
+
+  .segmented {
+    display: flex;
+    gap: 0;
+    margin: 12px 20px 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .seg {
+    background: transparent; border: none; cursor: pointer;
+    padding: 10px 16px;
+    font-size: 13px; font-weight: 600; color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .seg:hover { color: #0f172a; }
+  .seg.active { color: #dc2626; border-bottom-color: #dc2626; }
+  .seg .num {
+    background: #f1f5f9; color: #475569;
+    padding: 1px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .seg.active .num,
+  .seg.danger .num { background: #fee2e2; color: #dc2626; }
+  .seg.danger:not(.active) { color: #b91c1c; }
+
+  .inbox-body {
+    padding: 6px 12px 14px;
+  }
+
+  .group { padding: 6px 8px; }
+  .group + .group {
+    border-top: 1px dashed #e2e8f0; margin-top: 4px;
+  }
+  .group-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 4px 6px;
+    font-size: 12px; font-weight: 600; color: #475569;
+  }
+  .group-head .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .group-head .count { font-size: 11px; color: #94a3b8; font-weight: 500; }
+  .group-head .total { font-size: 11px; color: #94a3b8; margin-left: auto; }
+
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 6px; border-radius: 6px; cursor: pointer;
+  }
+  .row:hover { background: #f8fafc; }
+  .check {
+    width: 17px; height: 17px; border: 1.5px solid #cbd5e1;
+    border-radius: 50%; cursor: pointer; flex-shrink: 0; background: #fff;
+  }
+  .check:hover { border-color: #16a34a; background: #16a34a; }
+  .row-title {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row-age {
+    font-size: 11px; font-weight: 700; color: #dc2626;
+    white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  }
+  .row-when {
+    font-size: 11px; color: #94a3b8; white-space: nowrap;
+  }
+  .priority {
+    font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    background: #fee2e2; color: #b91c1c; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .push {
+    background: transparent; border: 1px solid #e2e8f0;
+    color: #64748b; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .push:hover { border-color: #16a34a; color: #16a34a; }
+
+  /* ── projects grid ── */
+  .section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b; margin: 4px 0 10px;
+  }
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .project-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    border-left: 4px solid var(--c, #16a34a);
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .project-card:hover { border-color: #cbd5e1; }
+  .project-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .project-head .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--c);
+  }
+  .project-head .name { flex: 1; font-size: 14px; font-weight: 600; }
+  .project-head .alert {
+    background: #fee2e2; color: #dc2626; border-radius: 20px;
+    padding: 2px 7px; font-size: 10px; font-weight: 700;
+  }
+  .progress-bar {
+    height: 6px; border-radius: 3px; background: #e2e8f0;
+    overflow: hidden; margin-bottom: 4px;
+  }
+  .progress-fill { height: 100%; background: var(--c); border-radius: 3px; }
+  .project-progress-label {
+    font-size: 11px; color: #94a3b8; margin-bottom: 10px;
+  }
+  .project-metrics {
+    display: flex; flex-wrap: wrap; gap: 4px 6px;
+    font-size: 12px; color: #64748b; font-weight: 600;
+  }
+  .project-metric {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px; border-radius: 5px;
+  }
+
+  /* ── slimmer secondary row (others moved into segmented) ── */
+  .secondary-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 22px;
+  }
+  .dash-section {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .dash-section-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .dash-section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b;
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .list-row:hover { background: #f1f5f9; }
+  .list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .list-title {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .list-meta { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+  .timeline-stub {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 30px; text-align: center; color: #94a3b8;
+    font-size: 12px;
+  }
+
+  /* tab content panes — only Overdue is rendered here for clarity, the others
+     would replace the body of .inbox-body */
+  .pane { display: none; }
+  .pane.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="draft-banner">
+  <b>Draft C — "What needs you now" segmented panel.</b> Replaces the current Overdue + Due-this-week + Overdue-commitments trio with one tabbed panel above the project grid. Default tab = Overdue (red). Each tab shows the full list, no cap.
+  <div class="tip">Click the segmented tabs below to switch view (this mock has all 4 tabs working).</div>
+</div>
+
+<div class="app">
+  <div class="view-header">
+    <div class="view-title">Overview</div>
+    <div class="view-sub">4 projects · Tuesday, 5 May</div>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- stats strip -->
+    <div class="overview-stats">
+      <div class="overview-stat"><div class="overview-stat-num">4</div><div class="overview-stat-label">Projects</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">87</div><div class="overview-stat-label">Notes</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">62</div><div class="overview-stat-label">Open todos</div></div>
+      <div class="overview-stat alert"><div class="overview-stat-num">14</div><div class="overview-stat-label">Overdue</div></div>
+      <div class="overview-stat alert"><div class="overview-stat-num">9</div><div class="overview-stat-label">Commitments</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">6</div><div class="overview-stat-label">Reminders</div></div>
+      <div class="overview-stat"><div class="overview-stat-num">11</div><div class="overview-stat-label">Subprojects</div></div>
+    </div>
+
+    <!-- INBOX -->
+    <div class="inbox">
+      <div class="inbox-head">
+        <span class="inbox-title">What needs you now</span>
+        <span class="inbox-meta" id="inbox-meta">14 overdue, oldest 28 days</span>
+        <div class="inbox-spacer"></div>
+        <button class="inbox-action">Open in Today view</button>
+      </div>
+
+      <div class="segmented">
+        <button class="seg active danger" data-tab="overdue">⚠ Overdue <span class="num">14</span></button>
+        <button class="seg" data-tab="today">Today <span class="num">3</span></button>
+        <button class="seg" data-tab="week">Due this week <span class="num">8</span></button>
+        <button class="seg" data-tab="waiting">Waiting on <span class="num">7</span></button>
+      </div>
+
+      <div class="inbox-body">
+
+        <!-- Overdue pane -->
+        <div class="pane active" id="pane-overdue">
+          <div class="group">
+            <div class="group-head">
+              <span class="dot" style="background:#2563eb"></span>
+              Vertriebspartner App
+              <span class="count">· 5 overdue</span>
+              <span class="total">23/37 done</span>
+            </div>
+            <div class="row"><div class="check"></div><span class="row-title">Fix OAuth refresh on iOS</span><span class="priority">High</span><span class="row-age">21d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Email Klaus about API spec</span><span class="row-age">14d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Review onboarding copy v3</span><span class="row-age">10d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Reproduce duplicate-login bug</span><span class="row-age">7d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Approve App Store screenshots</span><span class="row-age">3d</span><button class="push">+1d</button></div>
+          </div>
+          <div class="group">
+            <div class="group-head">
+              <span class="dot" style="background:#16a34a"></span>
+              Energy Hero Marketing
+              <span class="count">· 4 overdue</span>
+              <span class="total">11/29 done</span>
+            </div>
+            <div class="row"><div class="check"></div><span class="row-title">Send Q1 partner report</span><span class="priority">High</span><span class="row-age">12d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Approve voucher campaign copy</span><span class="row-age">5d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Sign off newsletter visuals</span><span class="row-age">3d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Brief design team for Mai campaign</span><span class="row-age">1d</span><button class="push">+1d</button></div>
+          </div>
+          <div class="group">
+            <div class="group-head">
+              <span class="dot" style="background:#ea580c"></span>
+              Solar Pipeline
+              <span class="count">· 3 overdue</span>
+              <span class="total">17/24 done</span>
+            </div>
+            <div class="row"><div class="check"></div><span class="row-title">Confirm site survey, Linz</span><span class="row-age">8d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Update pricing sheet for Q2</span><span class="row-age">4d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Forward Klimaaktiv förderung form</span><span class="row-age">2d</span><button class="push">+1d</button></div>
+          </div>
+          <div class="group">
+            <div class="group-head">
+              <span class="dot" style="background:#9333ea"></span>
+              Personal
+              <span class="count">· 2 overdue</span>
+              <span class="total">2/9 done</span>
+            </div>
+            <div class="row"><div class="check"></div><span class="row-title">Renew Reisepass</span><span class="priority">High</span><span class="row-age">28d</span><button class="push">+1d</button></div>
+            <div class="row"><div class="check"></div><span class="row-title">Pay quarterly tax</span><span class="row-age">5d</span><button class="push">+1d</button></div>
+          </div>
+        </div>
+
+        <!-- Today pane -->
+        <div class="pane" id="pane-today">
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#2563eb"></span>Vertriebspartner App<span class="count">· 1</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Standup with backend team</span><span class="row-when">Today, 10:00</span></div>
+          </div>
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#16a34a"></span>Energy Hero Marketing<span class="count">· 2</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Send draft to Sabine for review</span><span class="row-when">Today</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Approve bauhaus newsletter visual</span><span class="row-when">Today</span></div>
+          </div>
+        </div>
+
+        <!-- Due this week pane -->
+        <div class="pane" id="pane-week">
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#2563eb"></span>Vertriebspartner App<span class="count">· 3</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Ship beta to TestFlight</span><span class="row-when">Wed 7 May</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Q&amp;A doc for support</span><span class="row-when">Fri 9 May</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Push v1.4 release notes</span><span class="row-when">Fri 9 May</span></div>
+          </div>
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#16a34a"></span>Energy Hero Marketing<span class="count">· 2</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Schedule influencer call</span><span class="row-when">Thu 8 May</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Finalize Mai voucher email</span><span class="row-when">Sat 10 May</span></div>
+          </div>
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#ea580c"></span>Solar Pipeline<span class="count">· 2</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Pricing review meeting</span><span class="row-when">Fri 9 May</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Submit förderung paperwork</span><span class="row-when">Sun 11 May</span></div>
+          </div>
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#9333ea"></span>Personal<span class="count">· 1</span></div>
+            <div class="row"><div class="check"></div><span class="row-title">Book dentist appointment</span><span class="row-when">Sat 10 May</span></div>
+          </div>
+        </div>
+
+        <!-- Waiting on pane -->
+        <div class="pane" id="pane-waiting">
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#dc2626"></span>Overdue commitments<span class="count">· 4</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Markus — proposal v2</span><span class="row-age">9d</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">← They owe:</span> Sabine — design assets</span><span class="row-age">5d</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Tom — invoice forwarding</span><span class="row-age">3d</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">← They owe:</span> Lukas — sign contract</span><span class="row-age">1d</span></div>
+          </div>
+          <div class="group">
+            <div class="group-head"><span class="dot" style="background:#94a3b8"></span>Open commitments<span class="count">· 3</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Lisa — design feedback</span><span class="row-when">Fri 9 May</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">← They owe:</span> Andreas — onboarding deck</span><span class="row-when">Mon 12 May</span></div>
+            <div class="row"><span class="row-title"><span style="font-size:10px;color:#94a3b8">I owe →</span> Florian — meeting notes</span><span class="row-when">Tue 13 May</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- projects grid -->
+    <div class="section-title">Projects</div>
+    <div class="project-grid">
+      <div class="project-card" style="--c:#2563eb">
+        <div class="project-head"><span class="dot"></span><span class="name">Vertriebspartner App</span><span class="alert">!5</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:62%"></div></div>
+        <div class="project-progress-label">23/37 todos · 62%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 28</div>
+          <div class="project-metric">✅ 14</div>
+          <div class="project-metric">📁 4</div>
+          <div class="project-metric">🤝 3</div>
+          <div class="project-metric">🔔 2</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#16a34a">
+        <div class="project-head"><span class="dot"></span><span class="name">Energy Hero Marketing</span><span class="alert">!4</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:38%"></div></div>
+        <div class="project-progress-label">11/29 todos · 38%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 22</div>
+          <div class="project-metric">✅ 18</div>
+          <div class="project-metric">📁 3</div>
+          <div class="project-metric">🤝 4</div>
+          <div class="project-metric">🔔 2</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#ea580c">
+        <div class="project-head"><span class="dot"></span><span class="name">Solar Pipeline</span><span class="alert">!3</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:71%"></div></div>
+        <div class="project-progress-label">17/24 todos · 71%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 19</div>
+          <div class="project-metric">✅ 7</div>
+          <div class="project-metric">📁 2</div>
+          <div class="project-metric">🤝 2</div>
+          <div class="project-metric">🔔 1</div>
+        </div>
+      </div>
+      <div class="project-card" style="--c:#9333ea">
+        <div class="project-head"><span class="dot"></span><span class="name">Personal</span><span class="alert">!2</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:22%"></div></div>
+        <div class="project-progress-label">2/9 todos · 22%</div>
+        <div class="project-metrics">
+          <div class="project-metric">📝 18</div>
+          <div class="project-metric">✅ 7</div>
+          <div class="project-metric">📁 2</div>
+          <div class="project-metric">🤝 0</div>
+          <div class="project-metric">🔔 1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slimmer secondary -->
+    <div class="secondary-grid">
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Quietly slipping</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">📝 Brand guidelines doc</span><span class="list-meta">23d untouched</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#9333ea"></span><span class="list-title">📝 Investment plan 2026</span><span class="list-meta">19d untouched</span></div>
+      </div>
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Upcoming reminders</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">🔔 Send weekly digest</span><span class="list-meta">Wed 09:00</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#ea580c"></span><span class="list-title">🔔 Site visit prep</span><span class="list-meta">Thu 14:00</span></div>
+      </div>
+    </div>
+
+    <div class="section-title">Project timelines</div>
+    <div class="timeline-stub">[gantt timelines for each project — unchanged]</div>
+
+  </div>
+</div>
+
+<script>
+  // simple tab switching for the segmented mock
+  const metaText = {
+    overdue: '14 overdue, oldest 28 days',
+    today:   '3 due today',
+    week:    '8 todos due this week',
+    waiting: '4 commitments overdue · 3 open'
+  };
+  document.querySelectorAll('.seg[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.seg').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      document.getElementById('pane-' + tab)?.classList.add('active');
+      document.getElementById('inbox-meta').textContent = metaText[tab] || '';
+    });
+  });
+</script>
+
+</body>
+</html>

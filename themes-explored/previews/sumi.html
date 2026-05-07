@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sumi — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #B22B1F;
+  --accent-light:     #F5DEDA;
+  --accent-dark:      #6F1810;
+  --sidebar-bg:       #1F1B17;
+  --sidebar-hover:    #2A2520;
+  --content-bg:       #F4EFE4;
+  --card-bg:          #FAF6EC;
+  --text-primary:     #1F1B17;
+  --text-secondary:   #5A554C;
+  --text-muted:       #6A6356;
+  --border:           #E0D8C4;
+  --border-strong:    #C5BA9F;
+  --serif:            'Cormorant Garamond', 'Georgia', serif;
+  --sans:             'Inter', system-ui, sans-serif;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+/* Subtle washi-paper texture via radial speckles */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(31, 27, 23, 0.025) 0.5px, transparent 1px),
+    radial-gradient(circle at 70% 70%, rgba(31, 27, 23, 0.02) 0.5px, transparent 1px),
+    radial-gradient(circle at 40% 80%, rgba(31, 27, 23, 0.018) 0.5px, transparent 1px);
+  background-size: 240px 240px, 180px 180px, 320px 320px;
+  pointer-events: none;
+  z-index: 0;
+}
+.app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; position: relative; z-index: 1; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--sidebar-bg);
+  color: #d4c8b4;
+  padding: 26px 0 0;
+  display: flex; flex-direction: column;
+}
+.sb-brand {
+  text-align: center;
+  padding: 0 22px 26px;
+  border-bottom: 1px solid #2e2925;
+}
+.sb-logo {
+  width: 36px; height: 36px;
+  margin: 0 auto 10px;
+  border: 1.5px solid #d4c8b4;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  color: #f4efe4;
+}
+.sb-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 20px;
+  color: #f4efe4;
+  letter-spacing: 0.04em;
+}
+.sb-tagline {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.30em;
+  text-transform: uppercase;
+  color: #8a8275;
+  margin-top: 6px;
+}
+.sb-overview {
+  padding: 22px 26px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-bottom: 1px solid #2e2925;
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: #f4efe4;
+}
+.sb-overview-count {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 12px;
+  background: var(--accent);
+  color: #f4efe4;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.sb-section {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #8a8275;
+  padding: 24px 26px 10px;
+  font-weight: 500;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: #c0b59e;
+  padding: 9px 26px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  letter-spacing: 0.01em;
+  transition: color 350ms ease;
+}
+.sb-item:hover { color: #f4efe4; }
+.sb-item.active {
+  color: #f4efe4;
+  position: relative;
+}
+.sb-item.active::before {
+  content: '印';
+  position: absolute;
+  left: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--accent);
+  font-size: 11px;
+  width: 16px; height: 16px;
+  border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-style: normal;
+  background: rgba(178, 43, 31, 0.10);
+}
+.sb-count {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: #c0b59e;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--card-bg);
+  padding: 14px 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 19px;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+.topbar-mid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text-secondary);
+  display: flex; gap: 10px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.topbar-search {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  padding: 6px 0;
+  width: 240px;
+  color: var(--text-primary);
+}
+.topbar-search:focus { outline: none; border-bottom-color: var(--accent); }
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 64px 80px 64px; }
+
+/* Brush ornament */
+.brush-ornament {
+  width: 80px; height: 16px;
+  margin-bottom: 32px;
+  display: block;
+}
+
+/* View header */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 56px;
+}
+.view-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 56px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.view-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.7;
+}
+.view-sub b {
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: block;
+}
+
+/* Stats — minimal, large numerals */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 36px;
+  margin-bottom: 56px;
+}
+.stat { text-align: left; }
+.stat-num {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.stat-num.alert {
+  position: relative;
+  color: var(--accent);
+}
+.stat-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 12px;
+  font-weight: 500;
+}
+
+/* Chips */
+.chip-row {
+  display: flex; gap: 28px; margin-bottom: 36px;
+}
+.chip {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  transition: color 350ms ease;
+}
+.chip:hover { color: var(--text-primary); }
+.chip.active {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 56px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0 0 4px;
+}
+.search-wrap-prompt {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-right: 12px;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 10px 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+
+/* Rows */
+.rows-list { display: flex; flex-direction: column; gap: 10px; }
+.row {
+  padding: 24px 32px 24px 32px;
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto;
+  gap: 24px;
+  align-items: baseline;
+  cursor: pointer;
+  position: relative;
+}
+.row:hover {
+  background: rgba(178, 43, 31, 0.025);
+}
+.row.active {
+  position: relative;
+}
+.row.active::before {
+  content: '印';
+  position: absolute;
+  left: 12px; top: 22px;
+  width: 22px; height: 22px;
+  background: var(--accent);
+  color: #f4efe4;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-size: 12px;
+  letter-spacing: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.row.active { padding-left: 56px; }
+.row-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-muted);
+}
+.row-body { min-width: 0; }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--text-primary);
+  letter-spacing: 0.005em;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.row.active .row-title { color: var(--accent-dark); }
+.row-meta {
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.badge {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.badge.high { color: var(--accent); font-style: normal; font-weight: 600; }
+.row-date {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  width: 60px;
+  text-align: right;
+}
+
+/* CTA */
+.cta-row { margin-top: 64px; display: flex; gap: 14px; }
+.btn {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 500;
+  padding: 12px 32px;
+  border: 1px solid var(--text-primary);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  transition: all 350ms ease;
+}
+.btn:hover { background: var(--text-primary); color: var(--card-bg); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #f4efe4;
+  font-style: normal;
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent-dark); color: #f4efe4; border-color: var(--accent-dark); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">墨</div>
+      <div class="sb-name">Sumi</div>
+      <div class="sb-tagline">workspace · ink</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label"><i>Overview</i></span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">— Projects —</div>
+    <div class="sb-item active"><span>Energy Hero</span></div>
+    <div class="sb-item"><span>AI5innovation</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">— Workspace —</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">Energy Hero</div>
+      <div class="topbar-mid"><span class="dot"></span> <i>Wednesday · the sixth of May</i></div>
+      <input class="topbar-search" placeholder="search …">
+    </div>
+
+    <div class="content">
+
+      <!-- A single brush stroke at the top of the view -->
+      <svg class="brush-ornament" viewBox="0 0 80 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 8 Q 14 2, 22 8 T 38 6 Q 50 12, 58 5 T 78 10"
+              stroke="#1F1B17" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <ellipse cx="78" cy="10" rx="1.4" ry="1" fill="#1F1B17" opacity="0.6"/>
+      </svg>
+
+      <div class="view-head">
+        <div class="view-title">Pull</div>
+        <div class="view-sub">
+          <b>06 May 2026</b>
+          <i>What asks attention this hour</i>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">all</div>
+        <div class="chip">overdue</div>
+        <div class="chip">today</div>
+        <div class="chip">upcoming</div>
+        <div class="chip">waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-prompt">⌕</span>
+        <input placeholder="filter rows …">
+      </div>
+
+      <div class="rows-list">
+
+        <div class="row active">
+          <div class="row-num">i.</div>
+          <div class="row-body">
+            <div class="row-title">Call Lukas re: Q4 proposal</div>
+            <div class="row-meta">DUE 14:00 · 12M · ENERGY HERO</div>
+          </div>
+          <div class="badge high">High</div>
+          <div class="row-date">06 May</div>
+        </div>
+
+        <div class="row">
+          <div class="row-num">ii.</div>
+          <div class="row-body">
+            <div class="row-title">Send onboarding doc</div>
+            <div class="row-meta">SKETCH · 10 MAY · WORKSPACEHUB</div>
+          </div>
+          <div class="badge">Med</div>
+          <div class="row-date">10 May</div>
+        </div>
+
+        <div class="row">
+          <div class="row-num">iii.</div>
+          <div class="row-body">
+            <div class="row-title">Tariff comparison findings</div>
+            <div class="row-meta">NOTE · UPDATED YESTERDAY · 8 MENTIONS</div>
+          </div>
+          <div class="badge"><i>note</i></div>
+          <div class="row-date">05 May</div>
+        </div>
+
+        <div class="row">
+          <div class="row-num">iv.</div>
+          <div class="row-body">
+            <div class="row-title">Standup with Anna</div>
+            <div class="row-meta">REMINDER · 09:30 TUESDAY · WEEKLY</div>
+          </div>
+          <div class="badge"><i>recur</i></div>
+          <div class="row-date">12 May</div>
+        </div>
+
+        <div class="row">
+          <div class="row-num">v.</div>
+          <div class="row-body">
+            <div class="row-title">Schick Angebot to Lukas</div>
+            <div class="row-meta">DRAFTED YESTERDAY · ENERGY HERO</div>
+          </div>
+          <div class="badge">Low</div>
+          <div class="row-date">—</div>
+        </div>
+
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ new todo</button>
+        <button class="btn">capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

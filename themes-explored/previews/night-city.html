@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Night City — maximalist cyberpunk theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #ff0080;
+  --accent-secondary: #00f0ff;
+  --accent-warn:      #fde047;
+  --accent-soft:      rgba(255, 0, 128, 0.09);
+  --accent-faint:     rgba(255, 0, 128, 0.18);
+  --bg:               #0a0014;
+  --surface:          #16001f;
+  --surface-elev:     #1f0029;
+  --text:             #e6deff;
+  --text-secondary:   #9d8bb8;
+  --text-muted:       #5d4d75;
+  --border:           #2d1240;
+  --border-strong:    #5d2480;
+  --glow-magenta:     rgba(255, 0, 128, 0.55);
+  --glow-cyan:        rgba(0, 240, 255, 0.50);
+  --font:             'Inter', system-ui, sans-serif;
+  --mono:             'JetBrains Mono', 'IBM Plex Mono', Consolas, monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+/* Backdrop ambient pulse — radial vignette + saturation drift */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(255,0,128,0.10), transparent 50%),
+    radial-gradient(ellipse at 70% 100%, rgba(0,240,255,0.08), transparent 55%);
+  pointer-events: none;
+  animation: bg-drift 12s ease-in-out infinite alternate;
+}
+@keyframes bg-drift {
+  0%   { filter: saturate(1.0) hue-rotate(0deg);    }
+  100% { filter: saturate(1.15) hue-rotate(8deg);   }
+}
+
+/* Layout */
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: linear-gradient(180deg, #0a0014 0%, #100020 100%);
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: relative;
+}
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--accent), var(--accent-secondary), transparent);
+  opacity: 0.5;
+}
+.sb-brand {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 10px 16px;
+  color: var(--text);
+  letter-spacing: 0.10em;
+  display: flex; align-items: center; gap: 8px;
+}
+.sb-brand-glyph {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--accent);
+  border-right-color: var(--accent-secondary);
+  border-bottom-color: var(--accent-secondary);
+  transform: rotate(45deg);
+}
+.sb-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 14px 10px 6px;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid transparent;
+  transition: color 200ms, background 200ms, border-color 200ms;
+}
+.sb-item:hover {
+  background: rgba(255, 0, 128, 0.06);
+  color: var(--text);
+  border-color: rgba(255, 0, 128, 0.25);
+}
+.sb-item.active {
+  background: linear-gradient(90deg, rgba(255,0,128,0.18), transparent 70%);
+  color: var(--text);
+  border-color: var(--accent);
+  border-left-width: 3px;
+}
+.sb-item .led {
+  margin-left: auto;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  box-shadow: 0 0 4px currentColor;
+}
+.sb-item.active .led {
+  background: var(--accent-secondary);
+  animation: led-pulse 1.5s ease-in-out infinite;
+}
+@keyframes led-pulse {
+  0%, 100% { opacity: 0.5; box-shadow: 0 0 4px currentColor; }
+  50%      { opacity: 1.0; box-shadow: 0 0 12px var(--accent-secondary); }
+}
+.sb-icon { width: 14px; text-align: center; opacity: 0.85; }
+
+/* Main */
+.main { display: flex; flex-direction: column; min-width: 0; position: relative; }
+.view-header {
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; justify-content: space-between;
+  position: relative;
+}
+.view-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; height: 1px; width: 30%;
+  background: var(--accent-secondary);
+  box-shadow: 0 0 8px var(--accent-secondary);
+  animation: header-sweep 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes header-sweep {
+  0%   { left: 0;    width: 0;   }
+  50%  { left: 35%;  width: 30%; }
+  100% { left: 100%; width: 0;   }
+}
+.view-title {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.view-title-pre {
+  color: var(--accent);
+  margin-right: 8px;
+}
+.view-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+}
+.view-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 28px 24px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Cards */
+.card {
+  position: relative;
+  background:
+    linear-gradient(135deg, var(--surface) 0%, var(--surface-elev) 100%);
+  border: 1px solid var(--border);
+  padding: 18px 20px 14px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 14px;
+  align-items: start;
+}
+/* Header strip — corner glyphs + ID + status */
+.card-strip {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 22px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+.card-strip-glyph { color: var(--accent); }
+.card-strip-id    { color: var(--text-secondary); }
+.card-strip-rec   { margin-left: auto; color: var(--accent-secondary); }
+.card-checkbox {
+  margin-top: 10px;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--accent);
+  background: rgba(255, 0, 128, 0.08);
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
+.card-checkbox.checked {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--glow-magenta);
+}
+.card-checkbox.checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: var(--bg);
+}
+.card-body { padding-top: 14px; min-width: 0; }
+.card-title {
+  font-size: 14px; font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.card-title.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.card-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.progress-bar {
+  display: inline-block;
+  width: 60px; height: 4px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 60%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--glow-magenta);
+}
+.tag-chip {
+  display: inline-flex; align-items: center;
+  background: rgba(0, 240, 255, 0.10);
+  color: var(--accent-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  padding: 1px 8px; font-size: 11px;
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 0 100%);
+  padding-right: 12px;
+}
+.mention-chip {
+  display: inline; background: rgba(255, 0, 128, 0.14);
+  color: var(--accent); border: 1px solid var(--accent-faint);
+  padding: 1px 7px; font-weight: 500; font-size: 0.95em;
+  font-family: var(--mono); letter-spacing: 0.04em;
+}
+.card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 14px; }
+.priority {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 3px 10px 3px 7px;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 100%, 0 100%);
+}
+.priority.high   { background: var(--accent); color: var(--bg); box-shadow: 0 0 10px var(--glow-magenta); }
+.priority.med    { background: rgba(0, 240, 255, 0.20); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); }
+.priority.low    { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); border: 1px solid var(--border-strong); }
+.priority.alert  {
+  background: var(--accent-warn); color: var(--bg);
+  animation: alert-pulse 1.2s ease-in-out infinite;
+}
+@keyframes alert-pulse {
+  0%, 100% { box-shadow: 0 0 6px var(--accent-warn); }
+  50%      { box-shadow: 0 0 18px var(--accent-warn); }
+}
+
+/* Active card — magenta accent rule + cyan tick */
+.card.active {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent-faint),
+    0 0 30px -8px var(--glow-magenta),
+    0 0 60px -20px var(--glow-cyan);
+}
+.card.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 14px; bottom: 14px;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--glow-magenta);
+  animation: rule-pulse 3s ease-in-out infinite;
+}
+@keyframes rule-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1.0; }
+}
+.card.active .card-strip-rec::before {
+  content: '◉ '; color: var(--accent-secondary);
+}
+
+/* Buttons */
+.btn-row {
+  border-top: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex; gap: 10px;
+}
+.btn {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 0 18px 0 14px;
+  height: 34px;
+  cursor: pointer;
+  border: none;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+}
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent) 0%, #d100ff 50%, var(--accent-secondary) 100%);
+  color: var(--bg);
+  background-size: 200% 100%;
+  background-position: 0% 0%;
+  transition: background-position 400ms;
+}
+.btn-primary:hover { background-position: 100% 0%; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <span class="sb-brand-glyph"></span>
+      <span>NC.SYS</span>
+    </div>
+    <div class="sb-section-label">// MAIN</div>
+    <div class="sb-item"><span class="sb-icon">◈</span><span>Overview</span><span class="led"></span></div>
+    <div class="sb-item active"><span class="sb-icon">↓</span><span>Pull</span><span class="led"></span></div>
+    <div class="sb-item"><span class="sb-icon">✓</span><span>Todos</span><span class="led"></span></div>
+    <div class="sb-item"><span class="sb-icon">◆</span><span>Notes</span><span class="led"></span></div>
+    <div class="sb-item"><span class="sb-icon">▲</span><span>Reminders</span><span class="led"></span></div>
+    <div class="sb-item"><span class="sb-icon">⊟</span><span>Commitments</span><span class="led"></span></div>
+    <div class="sb-section-label">// PIN</div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>Q4 Strategy</span><span class="led"></span></div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>Lukas</span><span class="led"></span></div>
+  </aside>
+
+  <main class="main">
+    <header class="view-header">
+      <div class="view-title"><span class="view-title-pre">▶</span>PULL</div>
+      <div class="view-meta">14:23:07 // GRID:LIVE</div>
+    </header>
+
+    <div class="view-body">
+      <div class="card active">
+        <div class="card-strip">
+          <span class="card-strip-glyph">&lt; 03 //</span>
+          <span class="card-strip-id">ID:T_3F2</span>
+          <span class="card-strip-glyph">// HIGH</span>
+          <span class="card-strip-rec">REC#03287</span>
+        </div>
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">Call <span class="mention-chip">@LUKAS</span> re: Q4 proposal</div>
+          <div class="card-meta">
+            DUE 14:00 · 12M
+            <span class="progress-bar"><span class="progress-bar-fill"></span></span>
+            <span class="tag-chip">#q4</span>
+            <span class="tag-chip">#pricing</span>
+          </div>
+        </div>
+        <div class="card-right">
+          <span class="priority high">HIGH</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-strip">
+          <span class="card-strip-glyph">&lt; 04 //</span>
+          <span class="card-strip-id">ID:T_9B1</span>
+          <span class="card-strip-glyph">// MED</span>
+          <span class="card-strip-rec">REC#03291</span>
+        </div>
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">Send onboarding doc</div>
+          <div class="card-meta">SKETCH · 2D AGO · <span class="tag-chip">#onboard</span></div>
+        </div>
+        <div class="card-right"><span class="priority med">MED</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-strip">
+          <span class="card-strip-glyph">&lt; 05 //</span>
+          <span class="card-strip-id">ID:T_C0D</span>
+          <span class="card-strip-glyph">// DONE</span>
+          <span class="card-strip-rec">REC#03263</span>
+        </div>
+        <div class="card-checkbox checked"></div>
+        <div class="card-body">
+          <div class="card-title done">Schick Angebot to Lukas</div>
+          <div class="card-meta">DRAFTED YESTERDAY</div>
+        </div>
+        <div class="card-right"><span class="priority low">LOW</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-strip">
+          <span class="card-strip-glyph">&lt; 06 //</span>
+          <span class="card-strip-id">ID:T_1AA</span>
+          <span class="card-strip-glyph" style="color:var(--accent-warn)">// ALERT</span>
+          <span class="card-strip-rec">REC#03102</span>
+        </div>
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">Review architecture doc</div>
+          <div class="card-meta" style="color:var(--accent-warn)">⚠ OVERDUE · 2D · <span class="tag-chip" style="background:rgba(253,224,71,0.10);color:var(--accent-warn);border-color:rgba(253,224,71,0.35)">#critical</span></div>
+        </div>
+        <div class="card-right"><span class="priority alert">ALERT</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-strip">
+          <span class="card-strip-glyph">&lt; 07 //</span>
+          <span class="card-strip-id">N:N_7F1</span>
+          <span class="card-strip-glyph">// NOTE</span>
+          <span class="card-strip-rec">REC#03088</span>
+        </div>
+        <div class="card-checkbox"></div>
+        <div class="card-body">
+          <div class="card-title">Q4 Strategy briefing notes</div>
+          <div class="card-meta">UPDATED 1H AGO · <span class="tag-chip">#q4</span> <span class="tag-chip">#exec</span></div>
+        </div>
+        <div class="card-right"><span class="priority med">NOTE</span></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary">+ ADD</button>
+      <button class="btn btn-ghost">FILTER</button>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Risograph — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Space+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #FF4FA3;        /* riso fluorescent pink */
+  --accent-light:     #FFD1E5;
+  --accent-dark:      #C92E7C;
+  --cobalt:           #1E48E0;
+  --cobalt-hover:     #2A55EE;
+  --cobalt-active:    #1538D0;
+  --content-bg:       #F5EFE0;
+  --card-bg:          #FFFAEE;
+  --text-primary:     #14130E;
+  --text-secondary:   #4A463A;
+  --text-muted:       #6A604D;
+  --border:           #E0D8C2;
+  --border-strong:    #B5AB91;
+  --font:             'Space Grotesk', system-ui, sans-serif;
+  --mono:             'Space Mono', ui-monospace, monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+/* Halftone dot overlay across the whole content surface */
+.content::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(20, 19, 14, 0.07) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+  pointer-events: none;
+  z-index: 0;
+}
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar — full cobalt block */
+.sidebar {
+  background: var(--cobalt);
+  color: #fff;
+  padding: 0;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+/* Pink misregister shadow on the sidebar's right edge */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -3px; bottom: 0;
+  width: 6px;
+  background: var(--accent);
+  z-index: -1;
+}
+.sb-brand {
+  padding: 22px 24px 20px;
+  border-bottom: 2px solid #fff;
+  position: relative;
+}
+.sb-name {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
+  color: #fff;
+  position: relative;
+  display: inline-block;
+}
+.sb-name::before {
+  content: 'workspacehub';
+  position: absolute;
+  top: 2px; left: 2px;
+  color: var(--accent);
+  z-index: -1;
+}
+.sb-tagline {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+  margin-top: 6px;
+}
+.sb-overview {
+  margin: 16px 14px 6px;
+  padding: 14px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+.sb-overview::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px; right: -3px; bottom: -3px;
+  background: var(--cobalt-active);
+  z-index: -1;
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  background: #fff;
+  color: var(--accent-dark);
+  padding: 2px 8px;
+}
+.sb-section {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+  padding: 18px 24px 8px;
+  font-weight: 700;
+}
+.sb-item {
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(255,255,255,0.78);
+  padding: 10px 24px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  text-transform: lowercase;
+}
+.sb-item:hover {
+  background: var(--cobalt-hover);
+  color: #fff;
+}
+.sb-item.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;       /* bumped to clear AA-large floor */
+  position: relative;
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px; right: -3px; bottom: -3px;
+  background: var(--cobalt-active);
+  z-index: -1;
+}
+.sb-count {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--accent-dark);
+  background: #fff;
+  padding: 1px 7px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--card-bg);
+  padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 4px solid var(--cobalt);
+  position: relative;
+}
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -7px; left: 3px; right: 3px;
+  height: 4px;
+  background: var(--accent);
+}
+.topbar-name {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
+  color: var(--text-primary);
+  position: relative;
+}
+.topbar-name::before {
+  content: 'energy hero';
+  position: absolute;
+  top: 2px; left: 2px;
+  color: var(--accent);
+  z-index: -1;
+}
+.topbar-mid {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--text-secondary);
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 10px; height: 10px;
+  background: var(--accent);
+}
+.topbar-search {
+  background: var(--content-bg);
+  border: 2px solid var(--text-primary);
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 12px;
+  width: 280px;
+  color: var(--text-primary);
+}
+.topbar-search:focus {
+  outline: none;
+  box-shadow: 3px 3px 0 var(--accent);
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 32px 36px 48px; position: relative; }
+.content > * { position: relative; z-index: 1; }
+
+/* View header */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 4px solid var(--text-primary);
+  position: relative;
+}
+.view-head::after {
+  content: '';
+  position: absolute;
+  bottom: -8px; left: 0; right: 60%;
+  height: 4px;
+  background: var(--accent);
+}
+.view-title {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 64px;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  text-transform: lowercase;
+  color: var(--text-primary);
+  position: relative;
+}
+.view-title::before {
+  content: 'pull';
+  position: absolute;
+  top: 3px; left: 3px;
+  color: var(--accent);
+  z-index: -1;
+}
+.view-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.7;
+}
+.view-sub b {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  color: var(--cobalt);
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 2px solid var(--text-primary);
+  padding: 16px 18px;
+  position: relative;
+}
+.stat::before {
+  content: '';
+  position: absolute;
+  top: 4px; left: 4px; right: -4px; bottom: -4px;
+  background: var(--accent);
+  z-index: -1;
+}
+.stat-num {
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 36px;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--cobalt); }
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 6px; margin-bottom: 22px; flex-wrap: wrap; }
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border: 2px solid var(--text-primary);
+  cursor: pointer;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+.chip:hover { background: var(--accent-light); }
+.chip.active {
+  background: var(--cobalt);
+  color: #fff;
+  font-weight: 700;
+  position: relative;
+}
+.chip.active::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px; right: -3px; bottom: -3px;
+  background: var(--accent);
+  z-index: -1;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 24px;
+  background: var(--card-bg);
+  border: 2px solid var(--text-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  position: relative;
+}
+.search-wrap::after {
+  content: '';
+  position: absolute;
+  top: 4px; left: 4px; right: -4px; bottom: -4px;
+  background: var(--accent);
+  z-index: -1;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 14px 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-prompt {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--cobalt);
+  margin-right: 12px;
+}
+
+/* Rows */
+.row {
+  background: var(--card-bg);
+  border: 2px solid var(--text-primary);
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+.row:hover {
+  background: #fff;
+}
+.row.active {
+  background: var(--accent-light);
+}
+.row.active::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 6px;
+  background: var(--accent);
+}
+.row.active::before {
+  content: '';
+  position: absolute;
+  top: 4px; left: 4px; right: -4px; bottom: -4px;
+  background: var(--cobalt);
+  z-index: -2;
+}
+.row-icon {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  width: 24px;
+  text-align: center;
+  color: var(--cobalt);
+}
+.row-body { min-width: 0; }
+.row-title {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  position: relative;
+  display: inline-block;
+}
+.row.active .row-title::before {
+  content: attr(data-text);
+  position: absolute;
+  top: 2px; left: 2px;
+  color: var(--cobalt);
+  z-index: -1;
+}
+.row-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 2px solid var(--text-primary);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+.badge.high {
+  background: var(--accent);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* CTA */
+.cta-row { margin-top: 28px; display: flex; gap: 14px; }
+.btn {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 14px 24px;
+  border: 2px solid var(--text-primary);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 4px; left: 4px; right: -4px; bottom: -4px;
+  background: var(--accent);
+  z-index: -1;
+}
+.btn-primary {
+  background: var(--cobalt);
+  color: #fff;
+  font-size: 14px;
+}
+.btn:hover { transform: translate(-2px, -2px); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name">workspacehub</div>
+      <div class="sb-tagline">two-colour zine · iss. 23</div>
+    </div>
+
+    <div class="sb-overview">
+      <span>OVERVIEW</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">— projects —</div>
+    <div class="sb-item active"><span>energy hero</span></div>
+    <div class="sb-item"><span>ai5innovation</span></div>
+    <div class="sb-item"><span>workspacehub</span></div>
+
+    <div class="sb-section">— workspace —</div>
+    <div class="sb-item"><span>dashboard</span></div>
+    <div class="sb-item"><span>dump zone</span></div>
+    <div class="sb-item"><span>notes</span></div>
+    <div class="sb-item"><span>todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>reminders</span></div>
+    <div class="sb-item"><span>spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">energy hero</div>
+      <div class="topbar-mid"><span class="dot"></span> WED · 06.05.26 · 14:23 · 14 OVERDUE</div>
+      <input class="topbar-search" placeholder="search or capture …">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">pull</div>
+        <div class="view-sub">
+          06.05.26 · 14:23<br>
+          <b>14 things want attention</b>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">commit.</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">all</div>
+        <div class="chip">overdue</div>
+        <div class="chip">today</div>
+        <div class="chip">upcoming</div>
+        <div class="chip">waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-prompt">/</span>
+        <input placeholder="filter rows …">
+      </div>
+
+      <div class="row active">
+        <div class="row-icon">●</div>
+        <div class="row-body">
+          <div class="row-title" data-text="Call Lukas re: Q4 proposal">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">DUE 14:00 · 12M · ENERGY HERO</div>
+        </div>
+        <div class="badge high">HIGH</div>
+        <div class="row-date">06.05</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">SKETCH · 10.05 · WORKSPACEHUB</div>
+        </div>
+        <div class="badge">MED</div>
+        <div class="row-date">10.05</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">◆</div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">NOTE · UPDATED YESTERDAY · 8 MENTIONS</div>
+        </div>
+        <div class="badge">NOTE</div>
+        <div class="row-date">05.05</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">⏱</div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">REMINDER · 09:30 TUE · WEEKLY</div>
+        </div>
+        <div class="badge">REM</div>
+        <div class="row-date">12.05</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">DRAFTED YESTERDAY · ENERGY HERO</div>
+        </div>
+        <div class="badge">LOW</div>
+        <div class="row-date">—</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ NEW TODO</button>
+        <button class="btn">CAPTURE</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

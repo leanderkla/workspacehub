@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slack v2 — refined theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Palette derived from Slack's actual dark-mode tokens (engineering.slack.com)
+ * + their public 8-color theme API + the brand-color guidelines.
+ *
+ *   sidebar         #19171D    deep aubergine-near-black (column BG)
+ *   sidebar-hover   #27242C    +6% L (menu hover)
+ *   active blue     #1D9BD1    Slack's actual "highlight" — brighter than v1
+ *   active-text     #FFFFFF    white on the blue
+ *   content bg      #1A1D21    Slack's dark-mode background hex
+ *   text primary    #D1D2D3    Slack's foreground RGB(209,210,211)
+ *   text secondary  #ABABAD
+ *   text muted      #6B6B6E
+ *   border          #2C2D30
+ *   border-strong   #383A3F
+ *   mention pink    #E01E5A    (mention badge color in their theme API)
+ *   presence green  #2EB67D    (active presence + primary CTA)
+ *   star yellow     #ECB22E    (secondary highlight)
+ */
+:root {
+  --aubergine:        #19171D;
+  --aubergine-hover:  rgba(255, 255, 255, 0.04);
+  --content-bg:       #1A1D21;
+  --content-bg-elev:  #222529;
+  --content-bg-hover: #27292D;
+  --text-primary:     #D1D2D3;
+  --text-secondary:   #ABABAD;
+  --text-muted:       #6B6B6E;
+  --text-on-active:   #FFFFFF;
+  --border:           #2C2D30;
+  --border-strong:    #383A3F;
+  --accent:           #1D9BD1;          /* active item — Slack's actual highlight */
+  --accent-soft:      rgba(29, 155, 209, 0.12);
+  --accent-faint:     rgba(29, 155, 209, 0.20);
+  --accent-bright:    #4FB3DD;
+  --pink:             #E01E5A;
+  --pink-soft:        rgba(224, 30, 90, 0.16);
+  --pink-faint:       rgba(224, 30, 90, 0.30);
+  --green:            #2EB67D;
+  --green-hover:      #248A5F;
+  --yellow:           #ECB22E;
+  --yellow-soft:      rgba(236, 178, 46, 0.16);
+  --yellow-faint:     rgba(236, 178, 46, 0.32);
+  --font:             'Lato', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:        Consolas, 'SF Mono', 'Roboto Mono', monospace;
+}
+
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 15px;          /* Slack's body size on desktop */
+  line-height: 1.46;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ====== Top global header (Slack-style) ============================ */
+.global-header {
+  height: 44px;
+  background: var(--aubergine);
+  border-bottom: 1px solid #000;
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  align-items: center;
+  padding: 0 12px;
+  gap: 16px;
+}
+.gh-nav {
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(255,255,255,0.85);
+}
+.gh-nav-btn {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+}
+.gh-nav-btn:hover { background: rgba(255,255,255,0.10); color: white; }
+.gh-nav-btn.disabled { color: rgba(255,255,255,0.35); cursor: default; }
+.gh-search {
+  height: 28px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  cursor: text;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+.gh-search-icon { font-size: 12px; }
+.gh-right {
+  display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+}
+.gh-avatar {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #4A154B, #36C5F0);
+  display: grid; place-items: center;
+  color: white; font-weight: 900; font-size: 12px;
+  cursor: pointer;
+}
+
+/* ====== Layout ===================================================== */
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: calc(100vh - 44px);
+}
+
+/* ====== Sidebar (channel list) ===================================== */
+.sidebar {
+  background: var(--aubergine);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  color: rgba(255,255,255,0.85);
+}
+.sb-header {
+  padding: 10px 16px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+}
+.sb-workspace {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: white;
+}
+.sb-workspace .chev { font-size: 10px; opacity: 0.75; }
+.sb-header-icons { display: flex; gap: 2px; }
+.sb-header-icon {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: white;
+  font-size: 13px;
+}
+.sb-header-icon:hover { background: rgba(255,255,255,0.15); }
+
+.sb-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* Section header: chevron + label + (hover) add button */
+.sb-section { margin-bottom: 4px; }
+.sb-section-row {
+  display: flex; align-items: center;
+  padding: 4px 12px 4px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.sb-section-row:hover { color: white; }
+.sb-section-chev {
+  font-size: 10px;
+  width: 14px;
+  display: inline-block;
+  transition: transform 100ms;
+}
+.sb-section-row.collapsed .sb-section-chev { transform: rotate(-90deg); }
+.sb-section-add {
+  position: absolute;
+  right: 12px;
+  width: 22px; height: 22px;
+  display: none;
+  align-items: center; justify-content: center;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+  font-size: 12px;
+  color: white;
+}
+.sb-section-row:hover .sb-section-add { display: flex; }
+.sb-section-add:hover { background: rgba(255,255,255,0.18); }
+
+/* Channel item */
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 16px 4px 28px;
+  height: 28px;
+  font-size: 15px;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  position: relative;
+  font-weight: 400;
+}
+.sb-item:hover {
+  background: var(--aubergine-hover);
+  color: white;
+}
+.sb-item.active {
+  background: var(--accent);
+  color: var(--text-on-active);
+  font-weight: 700;
+}
+.sb-item.unread {
+  color: white;
+  font-weight: 900;
+}
+.sb-prefix {
+  width: 14px;
+  text-align: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+  font-weight: 400;
+}
+.sb-item.active .sb-prefix { opacity: 1; }
+.sb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-presence {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sb-presence.online { background: var(--green); }
+.sb-presence.away   { background: transparent; border: 1.5px solid rgba(255,255,255,0.4); }
+.sb-badge {
+  background: var(--pink);
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 6px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ====== Main view ================================================== */
+.main { display: flex; flex-direction: column; min-width: 0; background: var(--content-bg); }
+
+/* Channel header — Slack's two-row pattern */
+.ch-header {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+}
+.ch-title-block {
+  display: flex; align-items: center; gap: 4px;
+  min-width: 0;
+}
+.ch-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-primary);
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+}
+.ch-name:hover { color: var(--accent-bright); }
+.ch-name .chev { font-size: 11px; color: var(--text-muted); }
+.ch-star {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.ch-star:hover { background: var(--content-bg-hover); color: var(--yellow); }
+.ch-meta {
+  display: flex; flex-direction: column;
+  font-size: 13px;
+}
+.ch-meta-row1 {
+  color: var(--text-secondary);
+  display: flex; align-items: center; gap: 8px;
+}
+.ch-members {
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.ch-members:hover { background: var(--content-bg-hover); color: var(--text-primary); }
+.ch-actions {
+  display: flex; align-items: center; gap: 4px;
+}
+.ch-action {
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.ch-action:hover { background: var(--content-bg-hover); color: var(--text-primary); }
+.ch-action-icon { font-size: 13px; }
+
+/* Tabs (just under header) */
+.ch-tabs {
+  display: flex; gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  height: 38px;
+}
+.ch-tab {
+  padding: 0 14px;
+  display: flex; align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  height: 100%;
+}
+.ch-tab.active {
+  color: var(--text-primary);
+}
+.ch-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+.ch-tab:hover { color: var(--text-primary); }
+.ch-tab .count {
+  margin-left: 6px;
+  background: var(--content-bg-hover);
+  color: var(--text-secondary);
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ch-tab.active .count { background: var(--accent-soft); color: var(--accent-bright); }
+
+/* Body — message-list density */
+.view-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+/* Day divider — Slack's signature */
+.day-divider {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px 6px;
+  position: relative;
+}
+.day-divider .line {
+  flex: 1; height: 1px;
+  background: var(--border);
+}
+.day-divider .label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--content-bg);
+  padding: 2px 12px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+}
+
+/* Cards as "messages" — tight spacing */
+.row {
+  padding: 6px 20px;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  position: relative;
+  cursor: pointer;
+}
+.row:hover { background: var(--content-bg-hover); }
+.row.active {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding-left: 17px;
+}
+.row.unread {
+  background: rgba(236, 178, 46, 0.04);
+  border-left: 3px solid var(--yellow);
+  padding-left: 17px;
+}
+.row-avatar {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-weight: 900;
+  color: white;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.row-avatar.todo  { background: linear-gradient(135deg, #1D9BD1, #007A5A); }
+.row-avatar.note  { background: linear-gradient(135deg, #4A154B, #ECB22E); }
+.row-avatar.alert { background: linear-gradient(135deg, #E01E5A, #ECB22E); }
+.row-avatar.done  { background: linear-gradient(135deg, #2EB67D, #007A5A); }
+
+.row-body { min-width: 0; }
+.row-headline {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-bottom: 2px;
+}
+.row-author {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.row-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.row-text {
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.46;
+}
+.row.done .row-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.row-text-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.row-actions {
+  align-self: flex-start;
+  display: flex; gap: 4px; align-items: center;
+  opacity: 0;
+  transition: opacity 100ms;
+}
+.row:hover .row-actions { opacity: 1; }
+.row-action-icon {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--content-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+.row-action-icon:hover { background: var(--content-bg-hover); color: var(--text-primary); }
+
+/* Inline chips */
+.mention {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mention:hover { background: var(--accent-faint); }
+.mention.pink {
+  background: var(--pink-soft);
+  color: #FF7AAB;
+}
+.mention.pink:hover { background: var(--pink-faint); }
+
+.tag {
+  display: inline-flex; align-items: center;
+  background: var(--content-bg-elev);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  padding: 1px 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tag:hover { color: var(--accent-bright); border-color: var(--accent); }
+
+.priority {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.priority.high { background: var(--pink-soft);  color: var(--pink); border: 1px solid var(--pink-faint); }
+.priority.med  { background: var(--yellow-soft); color: var(--yellow); border: 1px solid var(--yellow-faint); }
+.priority.low  { background: var(--accent-soft); color: var(--accent-bright); border: 1px solid var(--accent-faint); }
+
+/* Reaction row — Slack's signature */
+.reactions {
+  margin-top: 6px;
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.reaction {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px;
+  font-size: 12px;
+  border-radius: 99px;
+  background: var(--content-bg-elev);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 700;
+}
+.reaction:hover { border-color: var(--accent); }
+.reaction.mine {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+/* Thread reply indicator */
+.thread {
+  margin-top: 6px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.thread:hover { background: var(--content-bg-hover); color: var(--accent-bright); }
+.thread-avatars {
+  display: flex; align-items: center;
+}
+.thread-avatar {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--content-bg);
+  margin-left: -4px;
+}
+.thread-avatar:first-child { margin-left: 0; }
+.thread-count { font-weight: 700; color: var(--accent-bright); }
+.thread-time { color: var(--text-muted); margin-left: auto; }
+
+/* ====== Composer (visual nod) ====================================== */
+.composer-wrap {
+  border-top: 1px solid var(--border);
+  padding: 4px 20px 16px;
+  background: var(--content-bg);
+}
+.composer {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--content-bg);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.composer-toolbar {
+  display: flex; gap: 1px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.ct-btn {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.ct-btn:hover { background: var(--content-bg-hover); color: var(--text-primary); }
+.ct-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+.composer-input {
+  padding: 11px 14px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  cursor: text;
+}
+
+.composer-foot {
+  display: flex; padding: 4px 6px 6px; align-items: center; gap: 1px;
+}
+.cf-spacer { flex: 1; }
+.cf-send {
+  display: inline-flex; align-items: center;
+  border-radius: 6px;
+  background: var(--green);
+  height: 30px;
+  margin-left: 4px;
+  overflow: hidden;
+}
+.cf-send-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 14px;
+  height: 30px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+}
+.cf-send-btn:hover { background: var(--green-hover); }
+.cf-send-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.2); }
+.cf-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-left: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- Top global header -->
+<header class="global-header">
+  <div class="gh-nav">
+    <div class="gh-nav-btn">☰</div>
+    <div class="gh-nav-btn">‹</div>
+    <div class="gh-nav-btn disabled">›</div>
+    <div class="gh-nav-btn">⏱</div>
+  </div>
+  <div class="gh-search">
+    <span class="gh-search-icon">⚲</span>
+    <span>Search Workspace</span>
+  </div>
+  <div class="gh-right">
+    <div class="gh-nav-btn" title="Help">?</div>
+    <div class="gh-avatar">L</div>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- Channel-list sidebar (no narrow rail — two-column) -->
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-workspace">
+        Workspace
+        <span class="chev">▾</span>
+      </div>
+      <div class="sb-header-icons">
+        <div class="sb-header-icon" title="New message">✎</div>
+      </div>
+    </div>
+
+    <div class="sb-scroll">
+
+      <div class="sb-section">
+        <div class="sb-section-row">
+          <span class="sb-section-chev">▾</span>
+          <span style="margin-left:4px">Workspace</span>
+          <span class="sb-section-add" title="Add">+</span>
+        </div>
+        <div class="sb-item active">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">pull</span>
+          <span class="sb-badge">7</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">todos</span>
+        </div>
+        <div class="sb-item unread">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">notes</span>
+          <span class="sb-badge">3</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">reminders</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">commitments</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">delegations</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">tags</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix"># </span>
+          <span class="sb-name">spark-map</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-section-row">
+          <span class="sb-section-chev">▾</span>
+          <span style="margin-left:4px">Pinned</span>
+          <span class="sb-section-add" title="Add">+</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">★ </span>
+          <span class="sb-name">Q4 strategy</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">★ </span>
+          <span class="sb-name">Lukas dossier</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">★ </span>
+          <span class="sb-name">Energy Hero</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-section-row collapsed">
+          <span class="sb-section-chev">▾</span>
+          <span style="margin-left:4px">Lab</span>
+          <span class="sb-section-add" title="Add">+</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">↓ </span>
+          <span class="sb-name">Pull</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">☀ </span>
+          <span class="sb-name">Today</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-prefix">⚛ </span>
+          <span class="sb-name">Universe</span>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Main view -->
+  <main class="main">
+
+    <!-- Channel header -->
+    <header class="ch-header">
+      <div class="ch-title-block">
+        <div class="ch-name">
+          <span># pull</span>
+          <span class="chev">▾</span>
+        </div>
+        <div class="ch-star" title="Star">☆</div>
+      </div>
+      <div class="ch-meta">
+        <div class="ch-meta-row1">
+          <span class="ch-members">👤 You</span>
+          <span>·</span>
+          <span>The most-pulling items right now</span>
+        </div>
+      </div>
+      <div class="ch-actions">
+        <div class="ch-action"><span class="ch-action-icon">📞</span><span>Huddle</span></div>
+        <div class="ch-action"><span class="ch-action-icon">📋</span><span>Canvas</span></div>
+        <div class="ch-action"><span class="ch-action-icon">⋯</span></div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="ch-tabs">
+      <div class="ch-tab active">Items <span class="count">7</span></div>
+      <div class="ch-tab">Done <span class="count">23</span></div>
+      <div class="ch-tab">Archive <span class="count">112</span></div>
+      <div class="ch-tab">+ Add</div>
+    </div>
+
+    <!-- Item list (rendered as message-list density) -->
+    <div class="view-body">
+
+      <div class="day-divider">
+        <span class="line"></span>
+        <span class="label">Today</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="row active">
+        <div class="row-avatar todo">▶</div>
+        <div class="row-body">
+          <div class="row-headline">
+            <span class="row-author">Call <span class="mention pink">@Lukas</span> re: Q4 proposal</span>
+            <span class="row-time">due 14:00 · 12 min</span>
+          </div>
+          <div class="row-text-meta">
+            <span class="priority high">HIGH</span>
+            <span class="tag">#q4</span>
+            <span class="tag">#pricing</span>
+          </div>
+          <div class="reactions">
+            <span class="reaction mine">✅ 1</span>
+            <span class="reaction">🔥 2</span>
+            <span class="reaction">＋</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <div class="row-action-icon" title="Done">✓</div>
+          <div class="row-action-icon" title="React">😊</div>
+          <div class="row-action-icon" title="Thread">💬</div>
+          <div class="row-action-icon" title="More">⋯</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="row-avatar todo">▶</div>
+        <div class="row-body">
+          <div class="row-headline">
+            <span class="row-author">Send onboarding doc</span>
+            <span class="row-time">2 days ago</span>
+          </div>
+          <div class="row-text-meta">
+            <span class="priority med">MED</span>
+            <span class="tag">#onboard</span>
+          </div>
+          <div class="thread">
+            <div class="thread-avatars">
+              <div class="thread-avatar" style="background:#36C5F0"></div>
+              <div class="thread-avatar" style="background:#ECB22E"></div>
+            </div>
+            <span class="thread-count">2 replies</span>
+            <span class="thread-time">last reply 1h ago</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <div class="row-action-icon" title="Done">✓</div>
+          <div class="row-action-icon" title="React">😊</div>
+          <div class="row-action-icon" title="Thread">💬</div>
+          <div class="row-action-icon" title="More">⋯</div>
+        </div>
+      </div>
+
+      <div class="row done">
+        <div class="row-avatar done">✓</div>
+        <div class="row-body">
+          <div class="row-headline">
+            <span class="row-author">Schick Angebot to Lukas</span>
+            <span class="row-time">yesterday at 17:42</span>
+          </div>
+          <div class="row-text">drafted</div>
+          <div class="row-text-meta">
+            <span class="priority low">LOW</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <div class="row-action-icon" title="Reopen">↺</div>
+          <div class="row-action-icon" title="React">😊</div>
+          <div class="row-action-icon" title="Thread">💬</div>
+          <div class="row-action-icon" title="More">⋯</div>
+        </div>
+      </div>
+
+      <div class="day-divider">
+        <span class="line"></span>
+        <span class="label">Earlier — overdue</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="row unread">
+        <div class="row-avatar alert">!</div>
+        <div class="row-body">
+          <div class="row-headline">
+            <span class="row-author" style="color:#FF7AAB">Review architecture doc</span>
+            <span class="row-time" style="color:var(--pink)">overdue · 2 days</span>
+          </div>
+          <div class="row-text-meta">
+            <span class="priority high">HIGH</span>
+            <span class="tag" style="color:#FF7AAB;border-color:var(--pink-faint)">#critical</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <div class="row-action-icon" title="Done">✓</div>
+          <div class="row-action-icon" title="React">😊</div>
+          <div class="row-action-icon" title="Thread">💬</div>
+          <div class="row-action-icon" title="More">⋯</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="row-avatar note">N</div>
+        <div class="row-body">
+          <div class="row-headline">
+            <span class="row-author">Q4 strategy briefing notes</span>
+            <span class="row-time">updated 1h ago</span>
+          </div>
+          <div class="row-text">Three drivers, two open questions, one ask for the exec call. Linked to <span class="mention">@Energy Hero</span>.</div>
+          <div class="row-text-meta">
+            <span class="tag">#q4</span>
+            <span class="tag">#exec</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <div class="row-action-icon" title="Open">↗</div>
+          <div class="row-action-icon" title="React">😊</div>
+          <div class="row-action-icon" title="Thread">💬</div>
+          <div class="row-action-icon" title="More">⋯</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Composer (visual nod, faithful to Slack's structure) -->
+    <div class="composer-wrap">
+      <div class="composer">
+        <div class="composer-toolbar">
+          <div class="ct-btn">¶</div>
+          <div class="ct-divider"></div>
+          <div class="ct-btn"><b>B</b></div>
+          <div class="ct-btn"><i>I</i></div>
+          <div class="ct-btn"><s>S</s></div>
+          <div class="ct-btn">͟</div>
+          <div class="ct-divider"></div>
+          <div class="ct-btn">≡</div>
+          <div class="ct-btn">1.</div>
+          <div class="ct-divider"></div>
+          <div class="ct-btn">⫶</div>
+          <div class="ct-btn">{}</div>
+          <div class="ct-btn">⊞</div>
+        </div>
+        <div class="composer-input">Add an item to # pull… try /tomorrow /high /sp:eh</div>
+        <div class="composer-foot">
+          <div class="ct-btn" title="Attach">+</div>
+          <div class="ct-btn" title="Format">A̲a̲</div>
+          <div class="ct-btn" title="Mention">@</div>
+          <div class="ct-btn" title="Emoji">😊</div>
+          <div class="ct-btn" title="Slash">/</div>
+          <div class="cf-spacer"></div>
+          <div class="cf-shortcut">↵ to add</div>
+          <div class="cf-send">
+            <button class="cf-send-btn">
+              <span>Add</span>
+              <span style="opacity:0.6">↵</span>
+            </button>
+            <div class="cf-send-divider"></div>
+            <button class="cf-send-btn" title="More">▾</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

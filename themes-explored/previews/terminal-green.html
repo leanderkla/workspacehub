@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Terminal Green — maximalist cyberpunk theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #00ff41;
+  --accent-dim:       #00aa2c;
+  --accent-warn:      #ff6030;
+  --bg:               #060a08;
+  --surface:          #0a1410;
+  --surface-elev:     #0d1f14;
+  --text:             #b8ffc4;
+  --text-secondary:   #66cc77;
+  --text-muted:       #2d6638;
+  --border:           #143820;
+  --border-strong:    #1f5a30;
+  --font:             'JetBrains Mono', 'IBM Plex Mono', Consolas, monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scanlines actively scrolling */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0, transparent 2px,
+    rgba(0, 255, 65, 0.04) 2px,
+    rgba(0, 255, 65, 0.04) 3px
+  );
+  animation: scanline-drift 600ms linear infinite;
+}
+@keyframes scanline-drift {
+  from { background-position-y:  0; }
+  to   { background-position-y:  3px; }
+}
+
+/* Subtle CRT-glow vignette + horizontal noise */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background:
+    radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%),
+    repeating-linear-gradient(0deg,
+      transparent 0,
+      transparent 20px,
+      rgba(0, 255, 65, 0.015) 20px,
+      rgba(0, 255, 65, 0.015) 21px);
+}
+
+/* Layout */
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; position: relative; z-index: 1; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  display: flex; flex-direction: column;
+  font-size: 12px;
+}
+.sb-prompt {
+  color: var(--text-muted);
+  padding: 6px 8px 12px;
+  font-size: 11px;
+}
+.sb-prompt .blink { animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.sb-frame-label {
+  color: var(--text-muted);
+  padding: 14px 4px 4px;
+  font-size: 11px;
+  white-space: pre;
+}
+.sb-section { padding: 0 4px 8px; }
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  position: relative;
+}
+.sb-item:hover { background: rgba(0, 255, 65, 0.06); color: var(--text); }
+.sb-item.active {
+  background: rgba(0, 255, 65, 0.12);
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+.sb-prefix {
+  color: var(--accent-dim);
+  width: 28px;
+  flex-shrink: 0;
+}
+.sb-item.active .sb-prefix { color: var(--accent); }
+
+/* Main */
+.main { display: flex; flex-direction: column; min-width: 0; padding: 12px 16px; }
+
+.terminal-frame {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--accent-dim);
+  display: flex; flex-direction: column;
+  position: relative;
+  box-shadow: inset 0 0 30px rgba(0, 255, 65, 0.04);
+}
+.terminal-frame::before {
+  /* top frame label */
+  content: '┌── ~/workspace ──────────────────────────────────────[ 14:23:07 ]──┐';
+  position: absolute; top: -1px; left: 0; right: 0;
+  padding: 0 6px;
+  color: var(--accent-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--bg);
+  height: 18px;
+  display: flex; align-items: center;
+}
+
+.terminal-body {
+  flex: 1;
+  padding: 28px 20px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto;
+  font-family: var(--font);
+}
+
+.cmd-prompt {
+  color: var(--accent);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.cmd-prompt .prompt { color: var(--accent); }
+.cmd-prompt .arg    { color: var(--text); }
+.cmd-prompt .result {
+  color: var(--text-muted);
+  margin-left: 12px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px;
+  padding: 6px 8px;
+  position: relative;
+  align-items: baseline;
+  border: 1px solid transparent;
+}
+.row .pre {
+  color: var(--accent-dim);
+  font-weight: 700;
+}
+.row.active {
+  background: rgba(0, 255, 65, 0.10);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.15);
+  animation: glitch-frame 200ms steps(2) 1;
+}
+.row.active .pre { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+@keyframes glitch-frame {
+  0%   { transform: translateX(-1px); }
+  33%  { transform: translateX(2px); filter: hue-rotate(20deg); }
+  66%  { transform: translateX(-2px); filter: hue-rotate(-20deg); }
+  100% { transform: translateX(0); }
+}
+.row.alert .pre { color: var(--accent-warn); animation: alert-blink 1s steps(2) infinite; }
+@keyframes alert-blink { 50% { opacity: 0.4; } }
+
+.row .text { font-size: 13px; color: var(--text); }
+.row.done .text { color: var(--text-muted); text-decoration: line-through; }
+.row.alert .text { color: #ff9070; }
+.row .meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.row .right {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.row .priority {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+.row .priority.high   { color: var(--accent); border-color: var(--accent); background: rgba(0, 255, 65, 0.10); }
+.row .priority.med    { color: var(--text-secondary); }
+.row .priority.low    { color: var(--text-muted); }
+.row .priority.alert  { color: var(--accent-warn); border-color: var(--accent-warn); background: rgba(255, 96, 48, 0.12); }
+
+/* Cursor for the active row title */
+.row.active .text::after {
+  content: '▌';
+  color: var(--accent);
+  margin-left: 4px;
+  animation: blink 1s steps(1) infinite;
+  text-shadow: 0 0 6px var(--accent);
+}
+
+.tag-chip {
+  display: inline-block;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  padding: 0 5px;
+  font-size: 11px;
+}
+
+.mention-chip {
+  display: inline; color: var(--accent); font-weight: 500;
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
+}
+
+.terminal-foot {
+  border-top: 1px solid var(--accent-dim);
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--accent);
+}
+.terminal-foot .prompt { color: var(--accent); }
+.terminal-foot .blink { animation: blink 1s steps(1) infinite; }
+.terminal-foot input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  outline: none;
+  caret-color: var(--accent);
+}
+
+.btn {
+  display: inline-block;
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: all 150ms;
+}
+.btn:hover {
+  background: rgba(0, 255, 65, 0.15);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
+}
+
+.divider {
+  color: var(--accent-dim);
+  font-size: 11px;
+  padding: 8px 0;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-prompt">~/$ <span class="blink">▌</span></div>
+
+    <div class="sb-frame-label">┌── workspace ──┐</div>
+    <div class="sb-section">
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>overview</span></div>
+      <div class="sb-item active"><span class="sb-prefix">[*]</span><span>pull</span></div>
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>todos</span></div>
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>notes</span></div>
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>reminders</span></div>
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>commitments</span></div>
+      <div class="sb-item"><span class="sb-prefix">[+]</span><span>tags</span></div>
+    </div>
+    <div class="sb-frame-label">└───────────────┘</div>
+
+    <div class="sb-frame-label">┌── pinned ─────┐</div>
+    <div class="sb-section">
+      <div class="sb-item"><span class="sb-prefix">[★]</span><span>q4-strategy</span></div>
+      <div class="sb-item"><span class="sb-prefix">[★]</span><span>lukas</span></div>
+    </div>
+    <div class="sb-frame-label">└───────────────┘</div>
+  </aside>
+
+  <main class="main">
+    <div class="terminal-frame">
+      <div class="terminal-body">
+        <div class="cmd-prompt">
+          <span class="prompt">$</span> <span class="arg">tasks</span> <span class="arg">--pull</span> <span class="arg">--due=today</span>
+          <span class="result">[ 7 RESULTS ]</span>
+        </div>
+        <div class="divider">─────────────────────────────────────────────────────────────────</div>
+
+        <div class="row active">
+          <div class="pre">[*] &gt;</div>
+          <div>
+            <div class="text">call <span class="mention-chip">@lukas</span> re: Q4 proposal</div>
+            <div class="meta">due 14:00 · 12m · <span class="tag-chip">#q4</span> <span class="tag-chip">#pricing</span></div>
+          </div>
+          <div class="right"><span class="priority high">HIGH</span></div>
+        </div>
+
+        <div class="row">
+          <div class="pre">[+]</div>
+          <div>
+            <div class="text">send onboarding doc</div>
+            <div class="meta">sketch · 2d ago · <span class="tag-chip">#onboard</span></div>
+          </div>
+          <div class="right"><span class="priority med">MED</span></div>
+        </div>
+
+        <div class="row done">
+          <div class="pre">[-]</div>
+          <div>
+            <div class="text">schick angebot to lukas</div>
+            <div class="meta">drafted yesterday</div>
+          </div>
+          <div class="right"><span class="priority low">LOW</span></div>
+        </div>
+
+        <div class="row alert">
+          <div class="pre">[!]</div>
+          <div>
+            <div class="text">review architecture doc</div>
+            <div class="meta">OVERDUE · 2d · <span class="tag-chip" style="color:var(--accent-warn);border-color:var(--accent-warn)">#critical</span></div>
+          </div>
+          <div class="right"><span class="priority alert">ALERT</span></div>
+        </div>
+
+        <div class="row">
+          <div class="pre">[N]</div>
+          <div>
+            <div class="text">q4 strategy briefing notes</div>
+            <div class="meta">updated 1h ago · <span class="tag-chip">#q4</span> <span class="tag-chip">#exec</span></div>
+          </div>
+          <div class="right"><span class="priority med">NOTE</span></div>
+        </div>
+
+        <div class="divider">─────────────────────────────────────────────────────────────────</div>
+        <div class="cmd-prompt"><span class="prompt">$</span> <span class="arg">stats</span></div>
+        <div class="meta" style="font-size:11px;color:var(--text-muted);padding-left:20px">
+          OPEN: 7 · OVERDUE: 1 · DONE TODAY: 4 · STREAK: 12 days
+        </div>
+      </div>
+
+      <div class="terminal-foot">
+        <span class="prompt">$</span>
+        <input type="text" placeholder="add task..." />
+        <button class="btn">[ ADD ]</button>
+        <button class="btn">[ FILTER ]</button>
+        <span class="blink" style="color:var(--accent)">▌</span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kobayashi Maru — maximalist cyberpunk theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #ffaa00;
+  --accent-secondary: #00d4e6;
+  --accent-warn:      #ff3030;
+  --bg:               #0a0808;
+  --surface:          #14100d;
+  --surface-frame:    #1f1814;
+  --frame-warm:       #3a2818;
+  --frame-warm-strong:#5a3a20;
+  --text:             #ffe6c5;
+  --text-secondary:   #b89570;
+  --text-muted:       #5c4a3a;
+  --border:           #3a2818;
+  --border-strong:    #5a3a20;
+  --font:             'Inter', system-ui, sans-serif;
+  --mono:             'JetBrains Mono', monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Backdrop — warm noise texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 170, 0, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(0, 212, 230, 0.03) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+/* Layout */
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: linear-gradient(180deg, #0e0c0a 0%, #08070a 100%);
+  border-right: 2px solid var(--frame-warm);
+  padding: 14px 12px;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.sidebar::after {
+  content: '';
+  position: absolute; top: 0; right: -1px; bottom: 0;
+  width: 2px;
+  background: var(--frame-warm);
+  box-shadow: inset 0 0 0 1px var(--frame-warm-strong);
+}
+.sb-brand-frame {
+  border: 1px solid var(--frame-warm);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: var(--surface-frame);
+}
+.sb-brand {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
+}
+.sb-brand-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+.sb-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 12px 6px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+.sb-item:hover { background: rgba(255, 170, 0, 0.06); color: var(--text); }
+.sb-item.active {
+  background: rgba(255, 170, 0, 0.14);
+  color: var(--accent);
+  border-color: var(--accent);
+  text-shadow: 0 0 4px rgba(255, 170, 0, 0.4);
+}
+.sb-icon { width: 14px; text-align: center; }
+.sb-count { margin-left: auto; color: var(--accent-secondary); font-size: 11px; }
+
+/* Telemetry block */
+.telemetry-frame {
+  margin-top: auto;
+  border: 1px solid var(--frame-warm);
+  background: var(--surface-frame);
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.telemetry-frame .label {
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.telemetry-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+.telemetry-bar {
+  width: 70px;
+  display: inline-block;
+  font-family: var(--mono);
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; min-width: 0; padding: 10px; gap: 10px; }
+
+/* Outer ops frame */
+.ops-frame {
+  flex: 1;
+  border: 2px double var(--frame-warm-strong);
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.ops-frame::before, .ops-frame::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+}
+.ops-frame::before { top: 4px; left: 4px; border-right: none; border-bottom: none; }
+.ops-frame::after  { bottom: 4px; right: 4px; border-left: none; border-top: none; }
+
+.ops-header {
+  display: grid; grid-template-columns: 1fr auto;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--frame-warm);
+  background: linear-gradient(180deg, var(--surface-frame) 0%, var(--surface) 100%);
+  align-items: center;
+  position: relative;
+  gap: 14px;
+}
+.ops-header-titlerow {
+  display: flex; align-items: center; gap: 16px;
+}
+.ops-title-block {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ops-title {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
+}
+.ops-subtitle {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+.ops-stats {
+  display: flex; gap: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+.ops-stats .stat { display: flex; gap: 4px; }
+.ops-stats .stat-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+.ops-stats .stat-value.warn { color: var(--accent-warn); }
+
+/* Sweeping radar */
+.radar-frame {
+  width: 64px; height: 64px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle, rgba(255,170,0,0.10) 0%, transparent 70%);
+  flex-shrink: 0;
+}
+.radar-frame::before {
+  /* center dot */
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 4px; height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px var(--accent);
+}
+.radar-frame::after {
+  /* sweeping arc */
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 270deg,
+    rgba(255, 170, 0, 0.3) 320deg,
+    rgba(255, 170, 0, 0.7) 350deg,
+    var(--accent) 360deg,
+    transparent 360deg);
+  animation: radar-sweep 4s linear infinite;
+}
+@keyframes radar-sweep {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+.radar-grid {
+  position: absolute; inset: 4px;
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 50%;
+}
+.radar-grid::before {
+  content: '';
+  position: absolute; inset: 6px;
+  border: 1px solid rgba(255, 170, 0, 0.15);
+  border-radius: 50%;
+}
+
+/* Body */
+.ops-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--frame-warm);
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 12px;
+  padding: 12px 16px 14px;
+  align-items: start;
+}
+.card.alert { animation: alert-pulse-bg 1s ease-in-out infinite alternate; }
+@keyframes alert-pulse-bg {
+  from { box-shadow: inset 4px 0 0 var(--accent-warn); }
+  to   { box-shadow: inset 4px 0 0 var(--accent-warn), inset 0 0 30px -8px rgba(255, 48, 48, 0.2); }
+}
+.card-checkbox {
+  margin-top: 2px;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--accent);
+  background: rgba(255, 170, 0, 0.08);
+  position: relative;
+}
+.card-checkbox.checked {
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+}
+.card-checkbox.checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: var(--bg);
+}
+.card-body { min-width: 0; }
+.card-id {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent-secondary);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  display: flex; gap: 8px; align-items: center;
+}
+.card-id .bracket { color: var(--text-muted); }
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.card-title.done { color: var(--text-muted); text-decoration: line-through; }
+.card-status-row {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.card-status-row .ind {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.card-status-row .ind::before { content: '▶'; color: var(--accent); }
+.card-status-row .ind.warn::before { color: var(--accent-warn); }
+.card-status-row .ind.info::before { color: var(--accent-secondary); }
+.card-status-row .label {
+  color: var(--text-muted);
+  letter-spacing: 0.10em;
+}
+.card-status-row .value-warn  { color: var(--accent-warn); font-weight: 700; }
+.card-status-row .value-ok    { color: var(--accent); }
+.card-tags {
+  margin-top: 6px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.tag-chip {
+  font-family: var(--mono); font-size: 10px;
+  padding: 1px 7px;
+  background: rgba(0, 212, 230, 0.10);
+  color: var(--accent-secondary);
+  border: 1px solid rgba(0, 212, 230, 0.35);
+  letter-spacing: 0.02em;
+}
+.mention-chip {
+  font-family: var(--mono);
+  background: rgba(255, 170, 0, 0.14);
+  color: var(--accent);
+  border: 1px solid rgba(255, 170, 0, 0.4);
+  padding: 0 6px;
+  font-weight: 500;
+}
+.card-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 6px;
+}
+.priority {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 3px 9px;
+}
+.priority.high   { background: var(--accent); color: var(--bg); border: 1px solid var(--accent); box-shadow: 0 0 8px rgba(255, 170, 0, 0.5); }
+.priority.med    { background: rgba(0, 212, 230, 0.15); color: var(--accent-secondary); border: 1px solid var(--accent-secondary); }
+.priority.low    { background: transparent; color: var(--text-muted); border: 1px solid var(--border-strong); }
+.priority.alert  {
+  background: var(--accent-warn);
+  color: white;
+  border: 1px solid var(--accent-warn);
+  animation: alert-flash 1s ease-in-out infinite;
+}
+@keyframes alert-flash {
+  0%, 100% { box-shadow: 0 0 4px var(--accent-warn); }
+  50%      { box-shadow: 0 0 18px var(--accent-warn), 0 0 36px rgba(255, 48, 48, 0.4); }
+}
+
+/* Active card — heavier amber rim */
+.card.active {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(255,170,0,0.04) 100%);
+  box-shadow:
+    inset 4px 0 0 var(--accent),
+    0 0 24px -6px rgba(255, 170, 0, 0.4);
+}
+.card.active .card-id { color: var(--accent); }
+.card-rank {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+}
+
+/* Bottom telemetry strip */
+.ops-foot {
+  border-top: 1px solid var(--frame-warm);
+  padding: 8px 22px;
+  display: flex; align-items: center; gap: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  background: var(--surface-frame);
+}
+.ops-foot .item {
+  display: flex; align-items: center; gap: 6px;
+}
+.ops-foot .item-label { color: var(--text-muted); }
+.ops-foot .item-value.ok { color: var(--accent); }
+.ops-foot .item-value.info { color: var(--accent-secondary); }
+.ops-foot .item-value.alert { color: var(--accent-warn); }
+.ops-foot .live {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--accent);
+  animation: live-blink 1.5s ease-in-out infinite;
+}
+@keyframes live-blink { 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand-frame">
+      <div class="sb-brand">KM/OPS</div>
+      <div class="sb-brand-id">UNIT-04 · 2026.05.03</div>
+    </div>
+
+    <div class="sb-section-label">┐ MAIN OPS ┌</div>
+    <div class="sb-item"><span class="sb-icon">◈</span><span>OVERVIEW</span></div>
+    <div class="sb-item active"><span class="sb-icon">↓</span><span>PULL</span><span class="sb-count">07</span></div>
+    <div class="sb-item"><span class="sb-icon">✓</span><span>TODOS</span><span class="sb-count">42</span></div>
+    <div class="sb-item"><span class="sb-icon">◆</span><span>NOTES</span></div>
+    <div class="sb-item"><span class="sb-icon">▲</span><span>REMINDERS</span></div>
+    <div class="sb-item"><span class="sb-icon">⊟</span><span>COMMITS</span></div>
+
+    <div class="sb-section-label">┐ PINNED ┌</div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>Q4-STRATEGY</span></div>
+    <div class="sb-item"><span class="sb-icon">★</span><span>LUKAS</span></div>
+
+    <div class="telemetry-frame">
+      <div class="label">SYS TELEMETRY</div>
+      <div class="telemetry-row"><span>MEM</span><span class="telemetry-bar">▓▓▓░░░ 47%</span></div>
+      <div class="telemetry-row"><span>CPU</span><span class="telemetry-bar">▓▓▓▓▓░ 80%</span></div>
+      <div class="telemetry-row"><span>NET</span><span class="telemetry-bar">▓▓▓▓░░ 65%</span></div>
+      <div class="telemetry-row"><span>OPS</span><span class="telemetry-bar" style="color:var(--accent-secondary)">247/s</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="ops-frame">
+      <header class="ops-header">
+        <div class="ops-header-titlerow">
+          <div class="radar-frame"><div class="radar-grid"></div></div>
+          <div class="ops-title-block">
+            <div class="ops-title">PULL // ACTIVE OPS</div>
+            <div class="ops-subtitle">UNIT-04 · LOCAL 14:23:07 · GRID 0xDEADBEEF</div>
+          </div>
+        </div>
+        <div class="ops-stats">
+          <div class="stat"><span>ACTIVE</span><span class="stat-value">7</span></div>
+          <div class="stat"><span>OVERDUE</span><span class="stat-value warn">1</span></div>
+          <div class="stat"><span>DONE</span><span class="stat-value">23</span></div>
+          <div class="stat"><span>ALL</span><span class="stat-value">42</span></div>
+        </div>
+      </header>
+
+      <div class="ops-body">
+        <div class="card active">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-id">
+              <span class="bracket">&lt;</span>T-2026-04-29-3F2A<span class="bracket">&gt;</span>
+              <span class="card-rank">RANK: 03</span>
+            </div>
+            <div class="card-title">Call <span class="mention-chip">@LUKAS</span> re: Q4 proposal</div>
+            <div class="card-status-row">
+              <span class="ind"><span class="label">STATUS:</span> <span class="value-ok">ACTIVE</span></span>
+              <span class="ind info"><span class="label">T-</span><span>00:12:34</span></span>
+              <span class="ind"><span class="label">PROG:</span> 60%</span>
+            </div>
+            <div class="card-tags">
+              <span class="tag-chip">#q4</span>
+              <span class="tag-chip">#pricing</span>
+            </div>
+          </div>
+          <div class="card-right"><span class="priority high">HIGH</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-id">
+              <span class="bracket">&lt;</span>T-2026-04-29-9B1C<span class="bracket">&gt;</span>
+              <span class="card-rank">RANK: 14</span>
+            </div>
+            <div class="card-title">Send onboarding doc</div>
+            <div class="card-status-row">
+              <span class="ind"><span class="label">STATUS:</span> SKETCH</span>
+              <span class="ind info"><span class="label">T-</span><span>2D AGO</span></span>
+            </div>
+            <div class="card-tags">
+              <span class="tag-chip">#onboard</span>
+            </div>
+          </div>
+          <div class="card-right"><span class="priority med">MED</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-checkbox checked"></div>
+          <div class="card-body">
+            <div class="card-id">
+              <span class="bracket">&lt;</span>T-2026-04-28-C0DA<span class="bracket">&gt;</span>
+              <span class="card-rank">RANK: 28</span>
+            </div>
+            <div class="card-title done">Schick Angebot to Lukas</div>
+            <div class="card-status-row">
+              <span class="ind"><span class="label">STATUS:</span> CLOSED</span>
+              <span class="ind info"><span class="label">T-</span><span>YESTERDAY</span></span>
+            </div>
+          </div>
+          <div class="card-right"><span class="priority low">LOW</span></div>
+        </div>
+
+        <div class="card alert">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-id" style="color:var(--accent-warn)">
+              <span class="bracket">&lt;</span>T-2026-04-22-1AAB<span class="bracket">&gt;</span>
+              <span class="card-rank" style="color:var(--accent-warn)">RANK: !!</span>
+            </div>
+            <div class="card-title">Review architecture doc</div>
+            <div class="card-status-row">
+              <span class="ind warn"><span class="label">STATUS:</span> <span class="value-warn">OVERDUE</span></span>
+              <span class="ind warn"><span class="label">T+</span><span class="value-warn">02:00:00</span></span>
+            </div>
+            <div class="card-tags">
+              <span class="tag-chip" style="background:rgba(255,48,48,0.10);color:var(--accent-warn);border-color:var(--accent-warn)">#critical</span>
+            </div>
+          </div>
+          <div class="card-right"><span class="priority alert">ALERT</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-checkbox"></div>
+          <div class="card-body">
+            <div class="card-id">
+              <span class="bracket">&lt;</span>N-2026-04-25-7F1E<span class="bracket">&gt;</span>
+              <span class="card-rank">RANK: 09</span>
+            </div>
+            <div class="card-title">Q4 Strategy briefing notes</div>
+            <div class="card-status-row">
+              <span class="ind"><span class="label">STATUS:</span> NOTE</span>
+              <span class="ind info"><span class="label">UPD:</span> 1H AGO</span>
+            </div>
+            <div class="card-tags">
+              <span class="tag-chip">#q4</span>
+              <span class="tag-chip">#exec</span>
+            </div>
+          </div>
+          <div class="card-right"><span class="priority med">NOTE</span></div>
+        </div>
+      </div>
+
+      <div class="ops-foot">
+        <span class="item"><span class="live"></span><span class="item-value ok">LINK_OK</span></span>
+        <span class="item"><span class="item-label">LATENCY</span><span class="item-value info">4ms</span></span>
+        <span class="item"><span class="item-label">LOAD</span><span class="item-value info">░▓▓▓</span></span>
+        <span class="item"><span class="item-label">OPS</span><span class="item-value ok">247/s</span></span>
+        <span class="item" style="margin-left:auto"><span class="item-label">UNIT</span><span class="item-value">04</span></span>
+        <span class="item"><span class="item-label">VER</span><span class="item-value">2026.05.03</span></span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

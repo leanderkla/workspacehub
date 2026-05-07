@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spray — Capri Glass preview</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #26C9E2;
+  --accent-light:     rgba(38, 201, 226, 0.30);
+  --accent-dark:      #1A8F9E;
+  --accent-faint:     rgba(38, 201, 226, 0.12);
+  --sidebar-bg:       rgba( 8, 20, 40, 0.55);
+  --sidebar-hover:    rgba(180, 230, 240, 0.06);
+  --sidebar-active:   rgba( 38, 201, 226, 0.18);
+  --card-bg:          rgba(220, 240, 250, 0.07);
+  --text-primary:     #E8F5FA;
+  --text-secondary:   rgba(232, 245, 250, 0.72);
+  --text-muted:       rgba(232, 245, 250, 0.50);
+  --border:           rgba(180, 230, 240, 0.10);
+  --border-strong:    rgba( 38, 201, 226, 0.30);
+  --font:             system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+body {
+  background:
+    radial-gradient(at 70% 10%, rgba( 38, 201, 226, 0.55) 0%, transparent 45%),
+    radial-gradient(at 20%  5%, rgba( 56, 120, 200, 0.50) 0%, transparent 50%),
+    radial-gradient(at 80% 95%, rgba( 15,  60, 100, 0.60) 0%, transparent 55%),
+    #061421;
+  background-attachment: fixed;
+}
+
+.app { display: grid; grid-template-columns: 230px 1fr; height: 100vh; }
+
+.sidebar {
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-right: 1px solid var(--border);
+  padding: 22px 0 0;
+  display: flex; flex-direction: column;
+}
+.sb-brand {
+  padding: 0 22px 18px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-logo {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #061421;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+}
+.sb-name { font-weight: 700; font-size: 14.5px; color: var(--text-primary); }
+
+.sb-overview {
+  margin: 16px 14px 8px;
+  padding: 13px 16px;
+  background: rgba(38, 201, 226, 0.10);
+  border: 1px solid rgba(38, 201, 226, 0.32);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 600;
+  color: #B5EFF8;
+  cursor: pointer;
+}
+.sb-overview-count {
+  background: var(--accent);
+  color: #061421;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.sb-section {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 18px 22px 8px;
+}
+.sb-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 22px;
+  margin: 0 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sb-item:hover { background: var(--sidebar-hover); color: var(--text-primary); }
+.sb-item.active {
+  background: var(--sidebar-active);
+  color: #B5EFF8;
+  font-weight: 600;
+  position: relative;
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  background: var(--accent);
+}
+.sb-icon { display: inline-block; width: 18px; opacity: 0.7; margin-right: 10px; }
+.sb-item.active .sb-icon { opacity: 1; }
+.sb-count {
+  background: rgba(38, 201, 226, 0.18);
+  color: #9FECF6;
+  font-size: 11px; font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: rgba(8, 20, 40, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 12px 30px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name { font-weight: 700; font-size: 15px; color: #B5EFF8; }
+.topbar-mid {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(38, 201, 226, 0.7);
+}
+.topbar-search {
+  background: rgba(220, 240, 250, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 10px;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 8px 14px;
+  width: 320px;
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(38, 201, 226, 0.20);
+}
+
+.content { flex: 1; overflow: auto; padding: 32px 36px 48px; }
+
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 28px;
+}
+.view-title {
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.view-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.view-sub strong { color: var(--accent); font-weight: 700; }
+
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.stat {
+  background: var(--card-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
+}
+.stat-num {
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent); }
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.chip-row { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+.chip {
+  font-size: 12.5px; font-weight: 500;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.chip:hover { color: var(--text-primary); border-color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #061421;
+  font-weight: 600;
+}
+
+.search-wrap {
+  margin-bottom: 26px;
+  background: var(--card-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex; align-items: center;
+  padding: 0 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 14px 0;
+  font-family: var(--font);
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-icon { color: var(--text-muted); margin-right: 10px; }
+
+.row {
+  background: var(--card-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.40);
+}
+.row:hover { border-color: var(--border-strong); }
+.row.active {
+  background: rgba(38, 201, 226, 0.10);
+  border-color: rgba(38, 201, 226, 0.40);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.50);
+}
+.row.active::before {
+  content: '';
+  position: absolute;
+  top: 12px; bottom: 12px; left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(38, 201, 226, 0.6);
+}
+.row-icon {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(38, 201, 226, 0.18);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.row-body { min-width: 0; }
+.row-title {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.005em;
+}
+.row.active .row-title { color: #B5EFF8; }
+.row-meta { font-size: 12.5px; color: var(--text-muted); }
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(232, 245, 250, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+.badge.high {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #061421;
+}
+.row-date { font-size: 12px; color: var(--text-muted); }
+
+.cta-row { margin-top: 26px; display: flex; gap: 10px; }
+.btn {
+  font-family: var(--font);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #061421;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-primary:hover { background: #4FE0F4; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">W</div>
+      <div class="sb-name">WorkspaceHub</div>
+    </div>
+    <div class="sb-overview"><span>Overview</span><span class="sb-overview-count">14</span></div>
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span><span class="sb-icon">●</span>Energy Hero</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>AI5innovation</span></div>
+    <div class="sb-item"><span><span class="sb-icon">●</span>WorkspaceHub</span></div>
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span><span class="sb-icon">⊞</span>Dashboard</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◰</span>Dump zone</span></div>
+    <div class="sb-item"><span><span class="sb-icon">◆</span>Notes</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✓</span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span><span class="sb-icon">⏱</span>Reminders</span></div>
+    <div class="sb-item"><span><span class="sb-icon">✦</span>Spark map</span></div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">Energy Hero</div>
+      <div class="topbar-mid"><span class="dot"></span> Wed · 06 May · <strong style="color:var(--accent)">14 overdue</strong></div>
+      <input class="topbar-search" placeholder="Search or capture…  Ctrl K">
+    </div>
+    <div class="content">
+      <div class="view-head">
+        <div class="view-title">Pull</div>
+        <div class="view-sub">Wednesday · 6 May 2026 · 14:23<br><strong>14 things want attention</strong></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-wrap-icon">⌕</span>
+        <input placeholder="Filter rows…">
+      </div>
+      <div class="row active">
+        <div class="row-icon">●</div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 · 12m · Energy Hero</div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="row-date">06 May</div>
+      </div>
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch · 10 May · WorkspaceHub</div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="row-date">10 May</div>
+      </div>
+      <div class="row">
+        <div class="row-icon">◆</div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note · updated yesterday · 8 mentions</div>
+        </div>
+        <div class="badge">Note</div>
+        <div class="row-date">05 May</div>
+      </div>
+      <div class="row">
+        <div class="row-icon">⏱</div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder · 09:30 Tuesday</div>
+        </div>
+        <div class="badge">Rem</div>
+        <div class="row-date">12 May</div>
+      </div>
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday · Energy Hero</div>
+        </div>
+        <div class="badge">Low</div>
+        <div class="row-date">—</div>
+      </div>
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New todo</button>
+        <button class="btn">Capture</button>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

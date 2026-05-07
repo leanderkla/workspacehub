@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Broadsheet — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #B11C24;
+  --accent-light:     #F5DDDF;
+  --accent-dark:      #780E16;
+  --mustard:          #C9971C;
+  --sidebar-bg:       #1B1715;
+  --sidebar-hover:    #2B2622;
+  --content-bg:       #F6F1E6;
+  --card-bg:          #FCF8EE;
+  --text-primary:     #14100D;
+  --text-secondary:   #3C3530;
+  --text-muted:       #6F6256;
+  --border:           #DCD1BD;
+  --border-strong:    #B5A88E;
+  --serif:            'Source Serif 4', 'Georgia', serif;
+  --sans:             'Inter', system-ui, sans-serif;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(180, 158, 110, 0.04), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(180, 158, 110, 0.03), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; position: relative; z-index: 1; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--sidebar-bg);
+  color: #d8c9b4;
+  padding: 22px 0 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid #2a2622;
+}
+.sb-masthead {
+  padding: 0 20px 18px;
+  border-bottom: 2px solid var(--mustard);
+  text-align: center;
+}
+.sb-name {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 21px;
+  color: #f6f1e6;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.sb-tagline {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.30em;
+  text-transform: uppercase;
+  color: var(--mustard);
+  margin-top: 6px;
+}
+.sb-volume {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 10px;
+  color: #a0917e;
+  margin-top: 4px;
+}
+.sb-overview {
+  margin: 18px 0 0;
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #2a2622;
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: #f6f1e6;
+}
+.sb-overview-count {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--accent);
+  color: #f6f1e6;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.sb-section {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--mustard);
+  padding: 18px 20px 8px;
+  font-weight: 600;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: #d0c0a8;
+  padding: 7px 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sb-item:hover { background: var(--sidebar-hover); color: #f6f1e6; }
+.sb-item.active {
+  color: #f6f1e6;
+  background: var(--sidebar-hover);
+  position: relative;
+}
+.sb-item.active::before {
+  content: '▌';
+  color: var(--accent);
+  margin-right: 6px;
+  font-family: monospace;
+  margin-left: -14px;
+}
+.sb-count {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: #d8c9b4;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 7px;
+  border-radius: 99px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--card-bg);
+  padding: 12px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+.topbar-mid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 7px; height: 7px;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.topbar-search {
+  background: var(--content-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  padding: 8px 14px;
+  width: 280px;
+  color: var(--text-primary);
+}
+
+.content { flex: 1; overflow: auto; padding: 36px 56px 48px; }
+
+/* Masthead view header */
+.view-head {
+  border-bottom: 4px solid var(--text-primary);
+  padding-bottom: 18px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.view-title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 56px;
+  letter-spacing: -0.005em;
+  line-height: 0.95;
+  color: var(--text-primary);
+}
+.view-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.5;
+}
+.view-sub b {
+  font-family: var(--sans);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.view-rule {
+  height: 2px;
+  background: var(--mustard);
+  margin: 0 0 32px;
+}
+
+/* Lede / kicker */
+.lede {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.55;
+  max-width: 720px;
+}
+.lede b {
+  font-family: var(--serif);
+  font-style: normal;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 36px;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+.stat {
+  padding: 16px 18px;
+  border-right: 1px solid var(--border);
+  text-align: left;
+}
+.stat:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent); }
+.stat-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+.chip {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.chip:hover { color: var(--text-primary); }
+.chip.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 32px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+}
+.search-wrap-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0 16px;
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+  align-self: stretch;
+  display: flex; align-items: center;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 14px 18px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+/* Rows */
+.rows-list { display: flex; flex-direction: column; }
+.row {
+  padding: 22px 28px 22px 28px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 24px;
+  align-items: baseline;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.row.active {
+  background: linear-gradient(90deg, rgba(177, 28, 36, 0.04) 0%, transparent 80%);
+}
+.row.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 16px; bottom: 16px;
+  width: 4px;
+  background: var(--accent);
+}
+.row-body { min-width: 0; }
+.row-kicker {
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--mustard);
+  margin-bottom: 4px;
+}
+.row.active .row-kicker { color: var(--accent); }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.005em;
+  color: var(--text-primary);
+  line-height: 1.25;
+  margin-bottom: 4px;
+}
+.row.active .row-title { font-style: italic; }
+.row-meta {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.badge {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 2px;
+}
+.badge.high {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fcf8ee;
+}
+.row-date {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+  width: 80px;
+  text-align: right;
+}
+
+/* Section divider — italic */
+.divider {
+  text-align: center;
+  margin: 36px 0 12px;
+  position: relative;
+}
+.divider::before, .divider::after {
+  content: '';
+  position: absolute;
+  top: 50%; height: 1px;
+  background: var(--border-strong);
+  width: calc(50% - 60px);
+}
+.divider::before { left: 0; }
+.divider::after  { right: 0; }
+.divider-text {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-muted);
+  background: var(--content-bg);
+  padding: 0 18px;
+  position: relative;
+}
+
+/* CTA */
+.cta-row { margin-top: 36px; display: flex; gap: 12px; }
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  border: 2px solid var(--accent);
+  background: var(--card-bg);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 2px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fcf8ee;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-masthead">
+      <div class="sb-name">The Workspace</div>
+      <div class="sb-tagline">A Daily Record</div>
+      <div class="sb-volume">Vol. iv · No. 487</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label"><i>Overview</i></span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Desks</div>
+    <div class="sb-item active"><span>Energy Hero</span></div>
+    <div class="sb-item"><span>AI5innovation</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Sections</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">Energy Hero</div>
+      <div class="topbar-mid"><span class="dot"></span> <i>Wednesday, the sixth of May · 14:23</i></div>
+      <input class="topbar-search" placeholder="Search the paper…">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">Pull</div>
+        <div class="view-sub">
+          <b>Local Edition · 06.05.26</b>
+          <i>Today's stories from your queue</i>
+        </div>
+      </div>
+      <div class="view-rule"></div>
+
+      <p class="lede">
+        Fourteen items demand attention this morning, including a
+        <b>Q4 proposal call at fourteen-hundred hours</b> and an
+        unsigned offer that has been drifting since Monday. The newsroom
+        recommends starting with the call.
+      </p>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <div class="search-wrap-label">Search</div>
+        <input placeholder="By keyword, tag, or counterparty…">
+      </div>
+
+      <div class="rows-list">
+
+        <div class="row active">
+          <div class="row-body">
+            <div class="row-kicker">Front Page · High Priority</div>
+            <div class="row-title">Call Lukas re: Q4 proposal</div>
+            <div class="row-meta">due at fourteen-hundred · twelve minutes · Energy Hero desk</div>
+          </div>
+          <div class="badge high">High</div>
+          <div class="row-date">06 MAY</div>
+        </div>
+
+        <div class="row">
+          <div class="row-body">
+            <div class="row-kicker">Editor's Pick · Sketch</div>
+            <div class="row-title">Send onboarding doc</div>
+            <div class="row-meta">target tenth of May · WorkspaceHub desk</div>
+          </div>
+          <div class="badge">Med</div>
+          <div class="row-date">10 MAY</div>
+        </div>
+
+        <div class="row">
+          <div class="row-body">
+            <div class="row-kicker">Note · Updated yesterday</div>
+            <div class="row-title">Tariff comparison findings</div>
+            <div class="row-meta">eight cross-references · two open questions</div>
+          </div>
+          <div class="badge">Note</div>
+          <div class="row-date">05 MAY</div>
+        </div>
+
+        <div class="divider"><span class="divider-text">later this week</span></div>
+
+        <div class="row">
+          <div class="row-body">
+            <div class="row-kicker">Recurring · 09:30 Tuesday</div>
+            <div class="row-title">Standup with Anna</div>
+            <div class="row-meta">recurring weekly · last attended 29 April</div>
+          </div>
+          <div class="badge">Rem</div>
+          <div class="row-date">12 MAY</div>
+        </div>
+
+        <div class="row">
+          <div class="row-body">
+            <div class="row-kicker">Below the Fold · Drafted yesterday</div>
+            <div class="row-title">Schick Angebot to Lukas</div>
+            <div class="row-meta">no due date · Energy Hero desk</div>
+          </div>
+          <div class="badge">Low</div>
+          <div class="row-date">—</div>
+        </div>
+
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New todo</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

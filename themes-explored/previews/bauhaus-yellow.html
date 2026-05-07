@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bauhaus Yellow — theme preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #f5c518;
+  --accent-dark:      #927400;
+  --sidebar-bg:       #0a0a0a;
+  --sidebar-hover:    #1a1a1a;
+  --content-bg:       #f7f4ed;
+  --card-bg:          #ffffff;
+  --text-primary:     #0a0a0a;
+  --text-secondary:   #2c2c2c;
+  --text-muted:       #5a5a5a;
+  --border:           #1a1a1a;
+  --border-strong:    #0a0a0a;
+  --font:             'Space Grotesk', system-ui, sans-serif;
+  --mono:             'JetBrains Mono', ui-monospace, monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 4px solid var(--accent);
+  padding: 18px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.sb-brand {
+  padding: 0 18px 18px;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sb-logo {
+  width: 24px; height: 24px;
+  background: var(--accent);
+}
+.sb-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.sb-overview {
+  margin: 14px 12px 4px;
+  background: var(--accent);
+  color: var(--sidebar-bg);
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  background: var(--sidebar-bg);
+  color: var(--accent);
+  padding: 2px 8px;
+  font-size: 10px;
+}
+.sb-section {
+  font-family: var(--mono);
+  color: #6a6a6a;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 18px 18px 8px;
+}
+.sb-item {
+  font-family: var(--mono);
+  color: #d4d4d4;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 11px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+}
+.sb-item:hover { background: var(--sidebar-hover); }
+.sb-item.active {
+  background: var(--sidebar-hover);
+  border-left-color: var(--accent);
+  color: #fff;
+}
+.sb-count {
+  background: var(--accent);
+  color: var(--sidebar-bg);
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ===== Main ===== */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.topbar {
+  background: var(--sidebar-bg);
+  color: #f7f4ed;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 4px solid var(--accent);
+}
+.topbar-mid {
+  display: flex; gap: 14px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 8px; height: 8px; background: var(--accent);
+}
+.topbar-search {
+  background: #1a1a1a;
+  color: #d4d4d4;
+  border: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  padding: 6px 10px;
+  width: 280px;
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 32px 40px;
+}
+
+/* ===== View header ===== */
+.view-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 4px solid var(--text-primary);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.view-title {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 56px;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+.view-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ===== Stat strip ===== */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 28px;
+  border: 2px solid var(--text-primary);
+}
+.stat {
+  padding: 14px 16px;
+  border-right: 2px solid var(--text-primary);
+  background: var(--card-bg);
+}
+.stat:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.stat-num.alert {
+  background: var(--accent);
+  display: inline-block;
+  padding: 0 6px;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ===== Filter row ===== */
+.filter-row {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-top: 1px solid var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  border-right: 1px solid var(--text-primary);
+  cursor: pointer;
+  background: var(--card-bg);
+}
+.chip:last-child { border-right: none; }
+.chip:hover { background: var(--accent-light, #fff8d6); }
+.chip.active {
+  background: var(--text-primary);
+  color: var(--card-bg);
+}
+
+/* ===== Search input ===== */
+.search-wrap {
+  margin-bottom: 24px;
+  display: flex;
+  border: 2px solid var(--text-primary);
+  background: var(--card-bg);
+}
+.search-wrap input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 14px 16px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent;
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  background: var(--text-primary);
+  color: var(--accent);
+  padding: 8px 12px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+/* ===== List rows ===== */
+.row {
+  background: var(--card-bg);
+  border: 1px solid var(--text-primary);
+  border-bottom: none;
+  padding: 16px 20px 16px 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+}
+.row:last-child { border-bottom: 1px solid var(--text-primary); }
+.row:hover { background: #fdfcf6; }
+.row.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 6px;
+  background: var(--accent);
+}
+.row-icon {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  width: 28px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.row-title {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.row-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border: 1px solid var(--text-primary);
+  background: var(--card-bg);
+}
+.badge.high {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.badge.med {
+  background: var(--card-bg);
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ===== CTA ===== */
+.cta-row {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+}
+.btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 14px 22px;
+  border: 2px solid var(--text-primary);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  position: relative;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 4px -4px -4px 4px;
+  background: var(--text-primary);
+  z-index: -1;
+}
+.btn-primary { isolation: isolate; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo"></div>
+      <div class="sb-name">WORKSPACEHUB</div>
+    </div>
+
+    <div class="sb-overview">
+      <span>OVERVIEW</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">PROJECTS</div>
+    <div class="sb-item active">
+      ENERGY HERO
+    </div>
+    <div class="sb-item">
+      AI5INNOVATION
+    </div>
+    <div class="sb-item">
+      WORKSPACEHUB
+    </div>
+
+    <div class="sb-section">WORKSPACE</div>
+    <div class="sb-item">DASHBOARD</div>
+    <div class="sb-item">DUMP ZONE</div>
+    <div class="sb-item">NOTES</div>
+    <div class="sb-item">
+      TODOS
+      <span class="sb-count">13</span>
+    </div>
+    <div class="sb-item">REMINDERS</div>
+    <div class="sb-item">SPARK MAP</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>WORKSPACEHUB</div>
+      <div class="topbar-mid">
+        <span class="dot"></span>
+        <span>ENERGY HERO · WED 06 MAY · 14 OVERDUE</span>
+      </div>
+      <input class="topbar-search" placeholder="SEARCH OR CAPTURE…">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">PULL</div>
+        <div class="view-sub">06 / 05 / 26<br>14:23 · 14 OVERDUE</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num">37</div>
+          <div class="stat-label">Open todos</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num"><span class="alert">14</span></div>
+          <div class="stat-label">Overdue</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">5</div>
+          <div class="stat-label">Commitments</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">25</div>
+          <div class="stat-label">Notes</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="chip active">ALL</div>
+        <div class="chip">OVERDUE</div>
+        <div class="chip">TODAY</div>
+        <div class="chip">UPCOMING</div>
+        <div class="chip">WAITING</div>
+      </div>
+
+      <div class="search-wrap">
+        <input placeholder="Filter rows…">
+        <kbd>/</kbd>
+      </div>
+
+      <!-- Rows -->
+      <div class="row active">
+        <div class="row-icon">●</div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">DUE 14:00 · 12M · ENERGY HERO</div>
+        </div>
+        <div class="badge high">HIGH</div>
+        <div class="row-date">06 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">SKETCH · 2026-05-10 · WORKSPACEHUB</div>
+        </div>
+        <div class="badge med">MED</div>
+        <div class="row-date">10 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">◆</div>
+        <div class="row-body">
+          <div class="row-title">Note · Tariff comparison findings</div>
+          <div class="row-meta">UPDATED YESTERDAY · 8 MENTIONS</div>
+        </div>
+        <div class="badge">NOTE</div>
+        <div class="row-date">05 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">⏰</div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">REMINDER · 09:30 TUESDAY</div>
+        </div>
+        <div class="badge">REM</div>
+        <div class="row-date">12 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-icon">○</div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">DRAFTED YESTERDAY · ENERGY HERO</div>
+        </div>
+        <div class="badge med">LOW</div>
+        <div class="row-date">—</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ NEW TODO</button>
+        <button class="btn">CAPTURE</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

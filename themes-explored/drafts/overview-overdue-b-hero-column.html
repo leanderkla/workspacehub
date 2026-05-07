@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Overview · Draft B — Two-Column Hero</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 24px;
+  }
+  .draft-banner {
+    max-width: 1200px; margin: 0 auto 16px;
+    background: #fff7ed; border: 1px solid #fdba74;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: #9a3412;
+  }
+  .draft-banner b { color: #7c2d12; }
+
+  .app {
+    max-width: 1200px; margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .view-header {
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .view-title { font-size: 22px; font-weight: 700; }
+  .view-sub { font-size: 13px; color: #94a3b8; }
+
+  .scroll-area { padding: 18px 24px 32px; }
+
+  /* ── HERO LAYOUT ── */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 20px;
+    margin-bottom: 26px;
+  }
+
+  /* LEFT — TRIAGE COLUMN (dominant) */
+  .triage-col {
+    background: linear-gradient(180deg, #fff5f5 0%, #fff 60%);
+    border: 1px solid #fecaca;
+    border-radius: 14px;
+    padding: 4px 0 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    max-height: 620px;
+  }
+  .triage-banner {
+    background: #dc2626;
+    color: #fff;
+    padding: 12px 18px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .triage-banner .icon { font-size: 17px; }
+  .triage-banner .label {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .triage-banner .count {
+    background: rgba(255,255,255,0.22); padding: 2px 9px;
+    border-radius: 20px; font-size: 12px; font-weight: 700;
+  }
+  .triage-banner .age {
+    margin-left: auto;
+    font-size: 11px; color: rgba(255,255,255,0.85);
+    font-weight: 500;
+  }
+  .triage-tabs {
+    display: flex; gap: 0;
+    background: #fef2f2; border-bottom: 1px solid #fecaca;
+    padding: 0 18px;
+  }
+  .triage-tab {
+    background: transparent; border: none; cursor: pointer;
+    padding: 10px 14px;
+    font-size: 12px; font-weight: 600; color: #991b1b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .triage-tab.active {
+    color: #dc2626;
+    border-bottom-color: #dc2626;
+    background: #fff;
+  }
+  .triage-tab .num {
+    background: #dc2626; color: #fff;
+    padding: 1px 7px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .triage-tab:not(.active) .num {
+    background: #fee2e2; color: #991b1b;
+  }
+
+  .triage-list {
+    overflow-y: auto;
+    padding: 4px 12px 14px;
+    flex: 1;
+  }
+  .triage-list::-webkit-scrollbar { width: 8px; }
+  .triage-list::-webkit-scrollbar-thumb {
+    background: #fecaca; border-radius: 4px;
+  }
+
+  .triage-group { padding: 6px 6px 4px; }
+  .triage-group + .triage-group {
+    border-top: 1px dashed #fecaca; margin-top: 4px;
+  }
+  .triage-group-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 4px 6px;
+    font-size: 12px; font-weight: 600; color: #475569;
+  }
+  .triage-group-head .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+  }
+  .triage-group-head .count { font-size: 11px; color: #64748b; font-weight: 500; }
+
+  .triage-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 6px; border-radius: 6px; cursor: pointer;
+  }
+  .triage-row:hover { background: #fff; box-shadow: 0 0 0 1px #fecaca; }
+  .triage-check {
+    width: 17px; height: 17px; border: 1.5px solid #cbd5e1;
+    border-radius: 50%; cursor: pointer; flex-shrink: 0; background: #fff;
+  }
+  .triage-check:hover { border-color: #16a34a; background: #16a34a; }
+  .triage-title-text {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .triage-age {
+    font-size: 11px; font-weight: 700; color: #dc2626;
+    white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  }
+  .triage-priority {
+    font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    background: #fee2e2; color: #b91c1c; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .triage-push {
+    background: transparent; border: 1px solid #e2e8f0;
+    color: #64748b; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .triage-push:hover { border-color: #16a34a; color: #16a34a; }
+
+  /* RIGHT — compact stats + project rail */
+  .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+  .compact-stats {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 14px 16px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px;
+  }
+  .compact-stat .num { font-size: 20px; font-weight: 700; line-height: 1.05; }
+  .compact-stat .label {
+    font-size: 10px; color: #64748b; text-transform: uppercase;
+    letter-spacing: 0.06em; margin-top: 3px; font-weight: 600;
+  }
+  .compact-stat.alert .num { color: #dc2626; }
+
+  .project-rail {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 6px 10px;
+  }
+  .project-rail-head {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b;
+    padding: 8px 6px 4px;
+  }
+  .project-rail-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 6px; border-radius: 7px; cursor: pointer;
+    border-left: 3px solid var(--c, #16a34a);
+    margin: 2px 0;
+  }
+  .project-rail-row:hover { background: #f8fafc; }
+  .project-rail-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .project-rail-pct { font-size: 11px; color: #94a3b8; font-variant-numeric: tabular-nums; }
+  .project-rail-alert {
+    background: #fee2e2; color: #dc2626; border-radius: 20px;
+    padding: 1px 7px; font-size: 10px; font-weight: 700;
+  }
+  .mini-progress {
+    height: 3px; background: #e2e8f0; border-radius: 2px;
+    overflow: hidden; margin-top: 4px;
+  }
+  .mini-progress-fill { height: 100%; background: var(--c); }
+
+  /* ── secondary row below hero ── */
+  .secondary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .dash-section {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .dash-section-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .dash-section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b;
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 6px; border-radius: 6px; cursor: pointer;
+  }
+  .list-row:hover { background: #f1f5f9; }
+  .list-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .list-title {
+    flex: 1; min-width: 0; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .list-meta { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+  .section-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #64748b; margin: 4px 0 10px;
+  }
+  .timeline-stub {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 30px; text-align: center; color: #94a3b8;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="draft-banner">
+  <b>Draft B — Two-Column Hero.</b> Top of Overview becomes a hero split: left (60%) is a sticky triage column with the FULL overdue list (todos / commitments / delegations), independently scrollable. Right (40%) compacts stats + a dense project rail. Empty state collapses the hero entirely.
+</div>
+
+<div class="app">
+  <div class="view-header">
+    <div class="view-title">Overview</div>
+    <div class="view-sub">4 projects · Tuesday, 5 May</div>
+  </div>
+
+  <div class="scroll-area">
+
+    <!-- HERO -->
+    <div class="hero">
+
+      <!-- LEFT: triage column -->
+      <div class="triage-col">
+        <div class="triage-banner">
+          <span class="icon">⚠</span>
+          <span class="label">Triage</span>
+          <span class="count">17 needing action</span>
+          <span class="age">oldest 28 days overdue</span>
+        </div>
+        <div class="triage-tabs">
+          <button class="triage-tab active">Todos <span class="num">14</span></button>
+          <button class="triage-tab">Commitments <span class="num">3</span></button>
+          <button class="triage-tab">Waiting on <span class="num">2</span></button>
+        </div>
+
+        <div class="triage-list">
+
+          <div class="triage-group">
+            <div class="triage-group-head">
+              <span class="dot" style="background:#2563eb"></span>
+              Vertriebspartner App
+              <span class="count">· 5 overdue</span>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Fix OAuth refresh on iOS</span>
+              <span class="triage-priority">High</span>
+              <span class="triage-age">21d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Email Klaus about API spec</span>
+              <span class="triage-age">14d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Review onboarding copy v3</span>
+              <span class="triage-age">10d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Reproduce duplicate-login bug</span>
+              <span class="triage-age">7d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Approve App Store screenshots</span>
+              <span class="triage-age">3d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+          </div>
+
+          <div class="triage-group">
+            <div class="triage-group-head">
+              <span class="dot" style="background:#16a34a"></span>
+              Energy Hero Marketing
+              <span class="count">· 4 overdue</span>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Send Q1 partner report</span>
+              <span class="triage-priority">High</span>
+              <span class="triage-age">12d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Approve voucher campaign copy</span>
+              <span class="triage-age">5d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Sign off newsletter visuals</span>
+              <span class="triage-age">3d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Brief design team for Mai campaign</span>
+              <span class="triage-age">1d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+          </div>
+
+          <div class="triage-group">
+            <div class="triage-group-head">
+              <span class="dot" style="background:#ea580c"></span>
+              Solar Pipeline
+              <span class="count">· 3 overdue</span>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Confirm site survey, Linz</span>
+              <span class="triage-age">8d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Update pricing sheet for Q2</span>
+              <span class="triage-age">4d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Forward Klimaaktiv förderung form</span>
+              <span class="triage-age">2d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+          </div>
+
+          <div class="triage-group">
+            <div class="triage-group-head">
+              <span class="dot" style="background:#9333ea"></span>
+              Personal
+              <span class="count">· 2 overdue</span>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Renew Reisepass</span>
+              <span class="triage-priority">High</span>
+              <span class="triage-age">28d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+            <div class="triage-row">
+              <div class="triage-check"></div>
+              <span class="triage-title-text">Pay quarterly tax</span>
+              <span class="triage-age">5d</span>
+              <button class="triage-push">+1d</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: compact stats + projects -->
+      <div class="right-col">
+
+        <div class="compact-stats">
+          <div class="compact-stat alert">
+            <div class="num">14</div>
+            <div class="label">Overdue todos</div>
+          </div>
+          <div class="compact-stat alert">
+            <div class="num">9</div>
+            <div class="label">Commitments</div>
+          </div>
+          <div class="compact-stat">
+            <div class="num">62</div>
+            <div class="label">Open todos</div>
+          </div>
+          <div class="compact-stat">
+            <div class="num">6</div>
+            <div class="label">Reminders</div>
+          </div>
+        </div>
+
+        <div class="project-rail">
+          <div class="project-rail-head">Projects · 4 active</div>
+          <div class="project-rail-row" style="--c:#2563eb">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="project-rail-name">Vertriebspartner App</span>
+                <span class="project-rail-alert">!5</span>
+                <span class="project-rail-pct">62%</span>
+              </div>
+              <div class="mini-progress"><div class="mini-progress-fill" style="width:62%"></div></div>
+            </div>
+          </div>
+          <div class="project-rail-row" style="--c:#16a34a">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="project-rail-name">Energy Hero Marketing</span>
+                <span class="project-rail-alert">!4</span>
+                <span class="project-rail-pct">38%</span>
+              </div>
+              <div class="mini-progress"><div class="mini-progress-fill" style="width:38%"></div></div>
+            </div>
+          </div>
+          <div class="project-rail-row" style="--c:#ea580c">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="project-rail-name">Solar Pipeline</span>
+                <span class="project-rail-alert">!3</span>
+                <span class="project-rail-pct">71%</span>
+              </div>
+              <div class="mini-progress"><div class="mini-progress-fill" style="width:71%"></div></div>
+            </div>
+          </div>
+          <div class="project-rail-row" style="--c:#9333ea">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="project-rail-name">Personal</span>
+                <span class="project-rail-alert">!2</span>
+                <span class="project-rail-pct">22%</span>
+              </div>
+              <div class="mini-progress"><div class="mini-progress-fill" style="width:22%"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div><!-- /hero -->
+
+    <!-- secondary content -->
+    <div class="secondary-grid">
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Due this week</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#2563eb"></span><span class="list-title">Ship beta to TestFlight</span><span class="list-meta">Wed</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">Schedule influencer call</span><span class="list-meta">Thu</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#ea580c"></span><span class="list-title">Pricing review meeting</span><span class="list-meta">Fri</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#2563eb"></span><span class="list-title">Q&amp;A doc for support</span><span class="list-meta">Fri</span></div>
+      </div>
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Quietly slipping</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">📝 Brand guidelines doc</span><span class="list-meta">23d untouched</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#9333ea"></span><span class="list-title">📝 Investment plan 2026</span><span class="list-meta">19d untouched</span></div>
+      </div>
+      <div class="dash-section">
+        <div class="dash-section-header"><span class="dash-section-title">Upcoming reminders</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#16a34a"></span><span class="list-title">🔔 Send weekly digest</span><span class="list-meta">Wed 09:00</span></div>
+        <div class="list-row"><span class="list-dot" style="background:#ea580c"></span><span class="list-title">🔔 Site visit prep</span><span class="list-meta">Thu 14:00</span></div>
+      </div>
+    </div>
+
+    <div class="section-title">Project timelines</div>
+    <div class="timeline-stub">[gantt timelines for each project — unchanged]</div>
+
+  </div>
+</div>
+
+</body>
+</html>
