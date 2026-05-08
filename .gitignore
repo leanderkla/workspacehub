@@ -37,5 +37,12 @@ yarn-error.log*
 # User data (if Electron stores anything locally that shouldn't be tracked)
 userData/
 
+# Personal seed / source assets — these dirs only ever held personal-build
+# data (Energy Hero brainmap JSON + Miro source SVG/JPG). Both removed in
+# the public-ready cleanup; gitignored so future stray personal files
+# don't accidentally land in the public repo.
+data/
+misc/
+
 # Claude Code per-user state (allowed-tools history etc.); keep settings.json tracked
 .claude/settings.local.json

@@ -45,37 +45,10 @@ let reminderInterval;
 // auto-updater, etc.).
 let isQuitting = false;
 
-// Personal-build flag. The plain `npm start` ships a generic "My Workspace"
-// project; `npm run start:personal` (which sets WORKSPACEHUB_PERSONAL=1) loads
-// the Energy Hero + AI5innovation seed, the Rückbucher workflow UI, and the
-// energy-hero brainmap import. The .trim() defends against cmd.exe leaving a
-// trailing space in the value when `set FOO=1 && ...` syntax is used.
-const IS_PERSONAL_BUILD = (process.env.WORKSPACEHUB_PERSONAL || '').trim() === '1';
-
-const ENERGY_HERO_SEED_VERSION = 2;
-
-let _cachedEnergyHeroBrainmap = null;
-function loadEnergyHeroBrainmap() {
-  // The energy-hero brainmap seed is personal data and is excluded from the
-  // distribution build. Returning null in non-personal mode lets every caller
-  // fall back to the generic makeDefaultBrainmap() path without conditionals.
-  if (!IS_PERSONAL_BUILD) return null;
-  if (_cachedEnergyHeroBrainmap) return _cachedEnergyHeroBrainmap;
-  try {
-    const p = path.join(__dirname, 'data', 'energy-hero-brainmap.json');
-    const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-    _cachedEnergyHeroBrainmap = raw;
-    return raw;
-  } catch (e) {
-    console.error('Failed to load energy-hero brainmap seed:', e);
-    return null;
-  }
-}
-
 // Migrate existing data to include new fields without losing anything
 function migrateData(data) {
   if (!data || !data.projects) return data;
-  for (const [projKey, proj] of Object.entries(data.projects)) {
+  for (const proj of Object.values(data.projects)) {
     if (!Array.isArray(proj.subprojects)) proj.subprojects = [];
     for (const note of (proj.notes || [])) {
       if (note.subprojectId === undefined) note.subprojectId = null;
@@ -95,19 +68,6 @@ function migrateData(data) {
     for (const bn of Object.values(proj.brainmap.nodes)) {
       if (bn.subprojectId === undefined) bn.subprojectId = null;
     }
-
-    // Force-replace Energy Hero brainmap with the Miro import on first load
-    // after upgrade. Gated by seedVersion so we only do it once, and by
-    // IS_PERSONAL_BUILD so distribution builds never touch Energy-Hero seed
-    // data even if a user imports a personal JSON dump.
-    if (IS_PERSONAL_BUILD &&
-        projKey === 'energy-hero' &&
-        (proj.brainmap.seedVersion || 0) < ENERGY_HERO_SEED_VERSION) {
-      const seed = loadEnergyHeroBrainmap();
-      if (seed) {
-        proj.brainmap = JSON.parse(JSON.stringify(seed));
-      }
-    }
   }
   return data;
 }
@@ -124,110 +84,25 @@ function makeDefaultBrainmap(rootLabel) {
 
 function getDefaultData() {
   const now = new Date().toISOString();
-
-  // Distribution build — neutral single-project seed. No branded content,
-  // no personal projects. Anything else (templates, multi-project starter
-  // packs, etc.) lives in a future onboarding wizard, not here.
-  if (!IS_PERSONAL_BUILD) {
-    return {
-      activeProject: 'workspace',
-      projects: {
-        'workspace': {
-          name: 'My Workspace',
-          subprojects: [],
-          notes: [
-            {
-              id: 'note-welcome', title: 'Welcome to WorkspaceHub',
-              content: 'This is your local-first workspace.\n\n**Quick start:**\n- Press Ctrl+K to open the command palette\n- Use the sidebar to switch between Notes, Todos, Reminders, and other views\n- Create new projects from the project switcher in the sidebar\n\nAll your data is stored locally on this device. Nothing leaves your computer.',
-              priority: 'medium', tags: ['welcome'], subprojectId: null,
-              linkedTodos: [], created: now, updated: now
-            }
-          ],
-          todos: [],
-          brainmap: makeDefaultBrainmap('My Workspace'),
-          reminders: []
-        }
-      }
-    };
-  }
-
-  // Personal build — Energy Hero + AI5innovation seed.
-  const d = (offset) => {
-    const dd = new Date(); dd.setDate(dd.getDate() + offset);
-    return dd.toISOString().split('T')[0];
-  };
+  // Single neutral starter project. The future onboarding wizard (M5
+  // §1.3) will offer template choices; for now, fresh installs land
+  // here.
   return {
-    activeProject: 'energy-hero',
+    activeProject: 'workspace',
     projects: {
-      'energy-hero': {
-        name: 'Energy Hero',
-        subprojects: [
-          { id: 'sp-eh-1', name: 'Q2 Campaign', description: 'Energy Hero Q2 marketing initiative', color: '#3b82f6' }
-        ],
+      'workspace': {
+        name: 'My Workspace',
+        subprojects: [],
         notes: [
           {
-            id: 'note-eh-1', title: 'Campaign Brief',
-            content: 'Key messages and goals for the Q2 campaign.\n\n- Target audience: SME energy managers\n- Core message: Save 30% on energy bills\n- Channels: LinkedIn, email, webinar',
-            priority: 'high', tags: ['campaign'], subprojectId: 'sp-eh-1',
-            linkedTodos: ['todo-eh-1'], created: now, updated: now
-          },
-          {
-            id: 'note-eh-2', title: 'Welcome to Energy Hero',
-            content: 'This is your workspace for Energy Hero.\n\nUse Subprojects to group related notes, todos, and track progress with a Gantt chart.',
+            id: 'note-welcome', title: 'Welcome to WorkspaceHub',
+            content: 'This is your local-first workspace.\n\n**Quick start:**\n- Press Ctrl+K to open the command palette\n- Use the sidebar to switch between Notes, Todos, Reminders, and other views\n- Create new projects from the project switcher in the sidebar\n\nAll your data is stored locally on this device. Nothing leaves your computer.',
             priority: 'medium', tags: ['welcome'], subprojectId: null,
             linkedTodos: [], created: now, updated: now
           }
         ],
-        todos: [
-          { id: 'todo-eh-1', title: 'Design campaign mockups', done: false, priority: 'high', startDate: d(0), dueDate: d(7), subprojectId: 'sp-eh-1', created: now },
-          { id: 'todo-eh-2', title: 'Write copy', done: false, priority: 'medium', startDate: d(5), dueDate: d(14), subprojectId: 'sp-eh-1', created: now },
-          { id: 'todo-eh-3', title: 'Review & approve', done: false, priority: 'low', startDate: d(14), dueDate: d(21), subprojectId: 'sp-eh-1', created: now },
-          { id: 'todo-eh-4', title: 'Set up workspace', done: true, priority: 'high', startDate: '', dueDate: '', subprojectId: null, created: now }
-        ],
-        brainmap: JSON.parse(JSON.stringify(loadEnergyHeroBrainmap() || makeDefaultBrainmap('Energy Hero'))),
-        reminders: []
-      },
-      'ai5innovation': {
-        name: 'AI5innovation',
-        subprojects: [
-          { id: 'sp-ai-1', name: 'MVP Launch', description: 'First product release milestone', color: '#8b5cf6' }
-        ],
-        notes: [
-          {
-            id: 'note-ai-1', title: 'MVP Scope',
-            content: 'Define what goes into the first release.\n\n- Core AI feature\n- Basic user auth\n- Dashboard v1',
-            priority: 'high', tags: ['mvp'], subprojectId: 'sp-ai-1',
-            linkedTodos: ['todo-ai-1'], created: now, updated: now
-          },
-          {
-            id: 'note-ai-2', title: 'AI5innovation Workspace',
-            content: 'Your workspace for AI5innovation.\n\nCreate subprojects to track major initiatives and use the Gantt view to plan timelines.',
-            priority: 'medium', tags: ['welcome'], subprojectId: null,
-            linkedTodos: [], created: now, updated: now
-          }
-        ],
-        todos: [
-          { id: 'todo-ai-1', title: 'Define MVP scope', done: false, priority: 'high', startDate: d(0), dueDate: d(7), subprojectId: 'sp-ai-1', created: now },
-          { id: 'todo-ai-2', title: 'Build prototype', done: false, priority: 'high', startDate: d(7), dueDate: d(21), subprojectId: 'sp-ai-1', created: now },
-          { id: 'todo-ai-3', title: 'User testing', done: false, priority: 'medium', startDate: d(21), dueDate: d(30), subprojectId: 'sp-ai-1', created: now },
-          { id: 'todo-ai-4', title: 'Launch prep', done: false, priority: 'low', startDate: d(28), dueDate: d(35), subprojectId: 'sp-ai-1', created: now }
-        ],
-        brainmap: {
-          rootId: 'bm-ai-root',
-          nodes: {
-            'bm-ai-root':  { id: 'bm-ai-root',  parentId: null,          label: 'AI5innovation', color: null,      side: null,    collapsed: false, note: '', order: 0, subprojectId: null },
-            'bm-ai-res':   { id: 'bm-ai-res',   parentId: 'bm-ai-root',  label: 'Research',      color: '#7c3aed', side: 'right', collapsed: false, note: '', order: 0, subprojectId: null },
-            'bm-ai-prod':  { id: 'bm-ai-prod',  parentId: 'bm-ai-root',  label: 'Product',       color: '#3b82f6', side: 'right', collapsed: false, note: '', order: 1, subprojectId: 'sp-ai-1' },
-            'bm-ai-ops':   { id: 'bm-ai-ops',   parentId: 'bm-ai-root',  label: 'Operations',    color: '#f59e0b', side: 'left',  collapsed: false, note: '', order: 0, subprojectId: null },
-            'bm-ai-comm':  { id: 'bm-ai-comm',  parentId: 'bm-ai-root',  label: 'Community',     color: '#ec4899', side: 'left',  collapsed: false, note: '', order: 1, subprojectId: null },
-            'bm-ai-r1':    { id: 'bm-ai-r1',    parentId: 'bm-ai-res',   label: 'Models',        color: null,      side: null,    collapsed: false, note: '', order: 0, subprojectId: null },
-            'bm-ai-r2':    { id: 'bm-ai-r2',    parentId: 'bm-ai-res',   label: 'Datasets',      color: null,      side: null,    collapsed: false, note: '', order: 1, subprojectId: null },
-            'bm-ai-p1':    { id: 'bm-ai-p1',    parentId: 'bm-ai-prod',  label: 'MVP',           color: null,      side: null,    collapsed: false, note: '', order: 0, subprojectId: 'sp-ai-1' },
-            'bm-ai-p2':    { id: 'bm-ai-p2',    parentId: 'bm-ai-prod',  label: 'Dashboard',     color: null,      side: null,    collapsed: false, note: '', order: 1, subprojectId: null },
-            'bm-ai-c1':    { id: 'bm-ai-c1',    parentId: 'bm-ai-comm',  label: 'Discord',       color: null,      side: null,    collapsed: false, note: '', order: 0, subprojectId: null },
-            'bm-ai-c2':    { id: 'bm-ai-c2',    parentId: 'bm-ai-comm',  label: 'Newsletter',    color: null,      side: null,    collapsed: false, note: '', order: 1, subprojectId: null }
-          }
-        },
+        todos: [],
+        brainmap: makeDefaultBrainmap('My Workspace'),
         reminders: []
       }
     }

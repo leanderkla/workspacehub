@@ -314,7 +314,11 @@ var SUBPROJECT_COLORS = [
   '#7c3aed','#6366f1','#64748b','#404a4f'
 ];
 var PROJECT_COLORS = ['#16a34a','#7c3aed','#3b82f6','#f59e0b','#ec4899','#14b8a6','#f97316','#dc2626'];
-var LEGACY_PROJECT_COLORS = { 'energy-hero': '#16a34a', 'ai5innovation': '#7c3aed' };
+// Legacy color overrides for project keys imported from older data dumps.
+// Empty by default; the `LEGACY_PROJECT_COLORS[key] || fallback` pattern
+// in projects-init.js still resolves cleanly to the fallback when no
+// override exists.
+var LEGACY_PROJECT_COLORS = {};
 
 function getAllProjectColorOptions() {
   const seen = new Set();
