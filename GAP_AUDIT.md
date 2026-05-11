@@ -33,7 +33,7 @@ Things on your roadmap are out of scope here unless I'd reprioritize them — fl
 **Fix shape (small):**
 - Replace `getDefaultData()` with either (a) an empty workspace + first-run "Create your project" wizard, or (b) a generic "My Workspace" / "Personal" pair with neutral example notes/todos.
 - Gate the Energy Hero seed + brainmap behind a build flag (`process.env.WORKSPACEHUB_PERSONAL=1`) so your own install is unaffected, but distribution builds get the generic seed.
-- Generalize the Rückbucher feature to "Custom escalation chain" with user-defined offsets, OR strip it from public builds with the same flag.
+- Generalize the Rückbucher feature to "Custom escalation chain" with user-defined offsets, OR strip it from public builds with the same flag. → ✅ Shipped in `d7b631a` as Custom Escalation Chains; legacy `kind:'rueckbucher'` data auto-migrates via schema v4.
 - Update package.json description to something neutral.
 
 ### 1.2 No installer, no auto-update

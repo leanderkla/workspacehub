@@ -24,7 +24,7 @@ The author works two demanding day jobs alongside this. All effort estimates ass
 
 ## What's already DONE (verified against current commits)
 
-These four features from `GAP_AUDIT.md` are shipped and verified — they should be removed from any remaining work list:
+These five features from `GAP_AUDIT.md` are shipped and verified — they should be removed from any remaining work list:
 
 | Audit ref | Feature | Shipping commits |
 |---|---|---|
@@ -32,6 +32,7 @@ These four features from `GAP_AUDIT.md` are shipped and verified — they should
 | §3.2 | Full Tags system — schema v3, chips on every entity, editors, palette `#tag` filter, workspace-wide Tags view | 5-stage rollout `e2a4ede`→`245de2f`, polish `568e6d0` |
 | §3.3 | Smart link suggestions while typing — workspace-wide entity+tag index, Tab-to-insert, anchored popover | `832cbb6` |
 | Spark-map linking | Phases 1-3 (data model + helpers, detail panel, reverse-link chips) + 8 polish commits | `a80bcbb`, `e231713`, `22f5104` plus `8b09dc1`, `b5db48e`, `0a61ffb`, `973103b`, `e6dbad6`, `ba82e01`, `5c324f0`, `1e3fadf`, `bc5246a` |
+| §1.1 (chain half) | Custom Escalation Chains — workspace-wide chain config + spawn dropdown/palette + Settings → Workflows CRUD + schema v3→v4 migration of legacy `kind:'rueckbucher'` todos | `186beca`, `d750ca5`, `d7b631a` |
 
 **Audit items whose framing has changed since:**
 - §4.1 "Phone read-only via cloud folder" was reframed by the audit itself as Markdown export (§4.2b). User has now confirmed: defer past v1.0. Ship JSON-only in M3.
@@ -57,7 +58,7 @@ The current `main.js:100-181` returns `activeProject: 'energy-hero'` and seeds t
 **Changes:**
 - `main.js:100-181` — extract `getDefaultData()` so it returns a **single neutral project** ("My Workspace") in distribution builds. Personal builds keep the two-project seed via `process.env.WORKSPACEHUB_PERSONAL === '1'`.
 - `main.js:134` — gate `loadEnergyHeroBrainmap()` behind the same env flag.
-- `app.js:1298` (Rückbucher checkbox) — gate the visible UI behind `WORKSPACEHUB_PERSONAL`. Do **not** generalize the workflow into "Custom escalation chain" yet (cut for v1.0).
+- ~~`app.js:1298` (Rückbucher checkbox) — gate the visible UI behind `WORKSPACEHUB_PERSONAL`. Do **not** generalize the workflow into "Custom escalation chain" yet (cut for v1.0).~~ **Superseded by `d7b631a`:** chains shipped as workspace-wide CRUD UI (Settings → Workflows); legacy `kind:'rueckbucher'` todos auto-migrate to the synthesized "Rückbucher (legacy)" chain on first launch via schema v4. No env-gating needed.
 - `package.json:4` — change description to neutral text (e.g., "Personal workspace manager — local-first").
 - `package.json:6-9` — add a personal launch script: `"start:personal": "set WORKSPACEHUB_PERSONAL=1 && electron ."`. The plain `start` script becomes the distribution-mode default.
 
@@ -400,7 +401,6 @@ Pure recurrence tests load ~1,500 lines instead of 16,835.
 
 **Skip in M4:**
 - Code signing ($200/yr OV cert; revisit if you ever charge or hit ≥50 downloads)
-- Generalized Rückbucher → Custom escalation chain (gated by env in distribution; ship as v1.1 if real demand)
 
 **Exit criteria:**
 - Notes have done/priority/subproject/tags/archive/delete bulk actions
@@ -440,7 +440,6 @@ Pure recurrence tests load ~1,500 lines instead of 16,835.
 | M5 3-screen onboarding + templates + README | §4.3d Saved/smart filters (Tags + palette `#tag` already cover) |
 | | Month grid view |
 | | §5.4 Audit trail (only if insights demand it) |
-| | Generalized Rückbucher escalation chain |
 | | Code signing |
 | | AI features (correctly deferred) |
 | | Path B 12-file modularization (Path A is enough) |

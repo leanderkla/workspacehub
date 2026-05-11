@@ -1,5 +1,9 @@
 # Custom Escalation Chains — Implementation Plan (v0.1.0)
 
+---
+**STATUS: SHIPPED.** Implemented in commit `d7b631a` (2026-05-11). This document is preserved as design history. Do not follow the implementation phases below — they are complete. For the current state of the feature, read the code in [src/10-schema-attachments.js](src/10-schema-attachments.js) (migration), [src/11-projects-init.js](src/11-projects-init.js) (`spawnChain`), [src/09-themes.js](src/09-themes.js) (Settings UI), and [app.js](app.js) (rendering).
+---
+
 ## Status
 
 Design locked from the 6-decision Q&A on **2026-05-08**. This document drives commit #2 of the public-ready cleanup arc. Awaiting user approval before any implementation begins.
