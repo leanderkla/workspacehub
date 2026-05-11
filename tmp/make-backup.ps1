@@ -1,10 +1,11 @@
 $ErrorActionPreference = 'Stop'
 $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
-$bakRoot = 'C:\Users\hallo\Desktop\WorkspaceHub-Backups'
+$bakRoot = Join-Path $env:USERPROFILE 'Desktop\WorkspaceHub-Backups'
 $stage = Join-Path $bakRoot ('stage-' + $ts)
 $zip = Join-Path $bakRoot ('workspacehub-backup-' + $ts + '.zip')
-$srcRoot = 'C:\Users\hallo\Desktop\WorkspaceHub'
-$dataRoot = 'C:\Users\hallo\AppData\Roaming\workspacehub'
+# The script lives in tmp/, so the repo root is its parent directory.
+$srcRoot = Split-Path -Parent $PSScriptRoot
+$dataRoot = Join-Path $env:APPDATA 'workspacehub'
 
 if (-not (Test-Path $bakRoot)) { New-Item -ItemType Directory -Path $bakRoot | Out-Null }
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
@@ -34,7 +35,7 @@ Timestamp: $ts
 
 Contents:
   source/  Full project source (excluding node_modules). Restore by copying
-           back to C:\Users\hallo\Desktop\WorkspaceHub then running start.bat
+           back to %USERPROFILE%\Desktop\WorkspaceHub then running start.bat
            once to reinstall node dependencies.
   data/    Electron userData:
              - workspace-data.json  (all project data)
@@ -45,8 +46,8 @@ Contents:
 
 How to fully reset the app:
   1. Fully quit WorkspaceHub.
-  2. Delete C:\Users\hallo\Desktop\WorkspaceHub and %APPDATA%\workspacehub.
-  3. Re-extract this zip: source/ -> Desktop\WorkspaceHub,
+  2. Delete %USERPROFILE%\Desktop\WorkspaceHub and %APPDATA%\workspacehub.
+  3. Re-extract this zip: source/ -> %USERPROFILE%\Desktop\WorkspaceHub,
      data/ -> %APPDATA%\workspacehub.
   4. Double-click start.bat to reinstall dependencies, then launch.
 "@
