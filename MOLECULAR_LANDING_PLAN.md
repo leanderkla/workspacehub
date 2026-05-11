@@ -7,7 +7,7 @@
 ## Context
 
 WorkspaceHub is a vanilla-JS Electron desktop app — a personal hub for one
-user's work. Multi-project (Energy Hero, AI5innovation, WorkspaceHub, Erasmus
+user's work. Multi-project (My Workspace, My Side Project, WorkspaceHub, Erasmus
 Buch, Memory Pix). Built around the thesis: **"a hub for one person's work,
 where everything connects."** The user is at the centre; everything radiates
 from them.
@@ -59,7 +59,7 @@ Default view shows **only You + Projects** (5–7 nodes, breathable). Click a
 project → camera flies in, its subprojects expand, the other projects shrink
 and fade to ghosts in the background. Click a subproject → its items fan out.
 Click an item → preview panel slides in. Always-visible breadcrumb at top:
-`You › Energy Hero › Q4 Push`.
+`You › My Workspace › Q4 Push`.
 
 **Pros:** Bounded depth (4 levels max). Camera-inside-cluster always. Apple-Maps-style mental model. Solves cramping naturally because each level shows ~5–20 nodes.
 **Cons:** More state to manage (current focus path, transition animations). Loses the "see everything at once" feel — but that's exactly what the user said is too much.
@@ -173,7 +173,7 @@ the legend:
 <div class="mol-breadcrumb">
   <button data-mol-focus="__you">⌂ You</button>
   <span class="mol-bc-sep">›</span>
-  <button data-mol-focus="p:eh">Energy Hero</button>
+  <button data-mol-focus="p:eh">My Workspace</button>
   <span class="mol-bc-sep">›</span>
   <span class="mol-bc-current">Q4 Push</span>
 </div>
@@ -211,7 +211,7 @@ Width 360px, animated `transform: translateX()`. Contents:
 ```
 ┌────────────────────────────────────────────┐
 │ ◆ Q4 Strategy                              │
-│ Note · Energy Hero · Q4 Push subproject    │
+│ Note · My Workspace · Q4 Push subproject    │
 │ Updated 2 hours ago                        │
 ├────────────────────────────────────────────┤
 │ Tags: #q4 #campaign                         │

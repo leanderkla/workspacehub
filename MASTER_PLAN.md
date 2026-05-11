@@ -6,7 +6,7 @@ WorkspaceHub is a one-developer local-first Electron workspace tool. The current
 
 - `app.js` is 16,835 lines (single file, ES5-style, raw `<script>` in renderer). The author is overwhelmed by it; tests are slow because they vm-load the whole thing.
 - The most recent strategic audit (`GAP_AUDIT.md`) was written before four major features shipped (Tags system, @-mentions everywhere, smart link suggestions, spark-map linking phases 1-3 + polish). All four are now verified DONE in code and commits.
-- The target is a shippable v1.0 within 6-12 months, distributed to others (so ship-blockers like genericizing the Energy Hero seed, building an installer, and onboarding all have to land).
+- The target is a shippable v1.0 within 6-12 months, distributed to others (so ship-blockers like genericizing the My Workspace seed, building an installer, and onboarding all have to land).
 
 **Decisions locked during planning:**
 1. **Freeze current `styles.css` as the v1.0 visual identity.** No theme cut milestone.
@@ -53,11 +53,11 @@ These five features from `GAP_AUDIT.md` are shipped and verified — they should
 
 #### Task A — §1.1 seed cleanup
 
-The current `main.js:100-181` returns `activeProject: 'energy-hero'` and seeds two named projects. `data/energy-hero-brainmap.json` is loaded unconditionally. `package.json:4` description still names both. Until this is fixed, no other distribution work is meaningful.
+The current `main.js:100-181` returns `activeProject: 'my-workspace'` and seeds two named projects. `data/my-workspace-brainmap.json` is loaded unconditionally. `package.json:4` description still names both. Until this is fixed, no other distribution work is meaningful.
 
 **Changes:**
 - `main.js:100-181` — extract `getDefaultData()` so it returns a **single neutral project** ("My Workspace") in distribution builds. Personal builds keep the two-project seed via `process.env.WORKSPACEHUB_PERSONAL === '1'`.
-- `main.js:134` — gate `loadEnergyHeroBrainmap()` behind the same env flag.
+- `main.js:134` — gate `loadMyWorkspaceBrainmap()` behind the same env flag.
 - ~~`app.js:1298` (Rückbucher checkbox) — gate the visible UI behind `WORKSPACEHUB_PERSONAL`. Do **not** generalize the workflow into "Custom escalation chain" yet (cut for v1.0).~~ **Superseded by `d7b631a`:** chains shipped as workspace-wide CRUD UI (Settings → Workflows); legacy `kind:'rueckbucher'` todos auto-migrate to the synthesized "Rückbucher (legacy)" chain on first launch via schema v4. No env-gating needed.
 - `package.json:4` — change description to neutral text (e.g., "Personal workspace manager — local-first").
 - `package.json:6-9` — add a personal launch script: `"start:personal": "set WORKSPACEHUB_PERSONAL=1 && electron ."`. The plain `start` script becomes the distribution-mode default.
@@ -70,10 +70,10 @@ Move all `.html` files from `drafts/` and `previews/` into a new `themes-explore
 
 #### Verification
 
-1. `npm start` → app launches with one project named "My Workspace", no Rückbucher checkbox visible, no Energy Hero strings.
-2. `npm run start:personal` → both Energy Hero and AI5innovation visible, Rückbucher restored, brainmap loaded.
+1. `npm start` → app launches with one project named "My Workspace", no Rückbucher checkbox visible, no My Workspace strings.
+2. `npm run start:personal` → both My Workspace and My Side Project visible, Rückbucher restored, brainmap loaded.
 3. Repo root no longer has draft `.html` or theme-draft `.md` files; `themes-explored/` exists and contains them.
-4. `grep -ri "energy hero\|ai5innovation\|rückbucher" .` of the eventual built artifact (after M1 lands) shows zero matches outside `themes-explored/`.
+4. `grep -ri "my workspace\|my side project\|rückbucher" .` of the eventual built artifact (after M1 lands) shows zero matches outside `themes-explored/`.
 
 **Effort:** 1-3 days. No tests will break (none of the seed code is covered).
 
@@ -350,7 +350,7 @@ Pure recurrence tests load ~1,500 lines instead of 16,835.
 **Skip in M1:** §4.1c JumpList (defer past v1.0).
 
 **Exit criteria:**
-- `.exe` installer in GitHub Releases that installs WorkspaceHub on a Win11 VM with no Energy Hero data visible
+- `.exe` installer in GitHub Releases that installs WorkspaceHub on a Win11 VM with no My Workspace data visible
 - Auto-update loop: bump version, tag a release, installed v0.9.0 picks up v0.9.1 within minutes
 - Tray icon shows on launch with right-click Open / Quit
 - Ctrl+Shift+Space anywhere in Windows opens a tiny capture popup that routes through the palette parser
@@ -586,7 +586,7 @@ Assuming work starts mid-May 2026:
 | `c:\Users\hallo\Desktop\WorkspaceHub\preload.js` | IPC bridge (~36 lines after recent WIP) | M3: extend with export/import APIs if needed |
 | `c:\Users\hallo\Desktop\WorkspaceHub\tests\run.js` | Test harness (146 lines) | M0 Wave 1: glob `src/*.js` + concat; Level-1 `loadModules()` improvement |
 | `c:\Users\hallo\Desktop\WorkspaceHub\styles.css` | Visual layer (~10,175 lines after recent WIP) | **Frozen for v1.0; small targeted edits as features ship. Wholesale modularization is a known future concern — separate post-v1.0 plan if/when CSS work becomes painful.** |
-| `c:\Users\hallo\Desktop\WorkspaceHub\data\energy-hero-brainmap.json` | Personal seed data | Phase 0 §1.1: gate behind `WORKSPACEHUB_PERSONAL` env var |
+| `c:\Users\hallo\Desktop\WorkspaceHub\data\my-workspace-brainmap.json` | Personal seed data | Phase 0 §1.1: gate behind `WORKSPACEHUB_PERSONAL` env var |
 | `c:\Users\hallo\Desktop\WorkspaceHub\themes-explored/` (NEW) | Archived theme drafts + theme-draft markdown files | Phase 0 Task B: created and populated |
 
 ---
@@ -598,7 +598,7 @@ Each phase has its own exit criteria above. The cumulative v1.0 verification:
 1. **Fresh-VM smoke test:** Spin a clean Win11 VM. Download v1.0.0 installer from GitHub Releases. Install. Launch.
    - First-run wizard appears, shows 3 templates.
    - Pick "Blank" — empty workspace.
-   - No "Energy Hero" or "AI5innovation" strings anywhere.
+   - No "My Workspace" or "My Side Project" strings anywhere.
    - No Rückbucher checkbox.
 2. **Capture loop:** Press Ctrl+Shift+Space anywhere in Windows. Quick capture popup appears. Type "remind me tomorrow at 3pm Lunch with Alex". Verify reminder created with correct date.
 3. **The "when":** Open Week view. Drag a todo from Today onto Thursday. Persisted. Reopen → still Thursday.

@@ -25,14 +25,14 @@ Things on your roadmap are out of scope here unless I'd reprioritize them — fl
 ### 1.1 The seed data is your real business — not generic
 **Severity: critical. Privacy + branding leak.**
 
-- [main.js:100-181](main.js#L100) `getDefaultData()` returns `activeProject: 'energy-hero'` with two pre-named projects: **"Energy Hero"** and **"AI5innovation"**. Anyone who installs the app and opens it sees your two real businesses as their starter projects.
-- [main.js:134](main.js#L134) loads [data/energy-hero-brainmap.json](data/energy-hero-brainmap.json) into the seed brainmap. Your actual strategy nodes ship with the binary.
-- [package.json:4](package.json#L4) `"description": "Personal workspace manager for Energy Hero & AI5innovation"` — this is the description users see in installers and process lists.
-- [app.js:1298](app.js#L1298) the Settings UI has a literal *"Energy Hero — ↻ Rückbucher button"* checkbox baked into global Workflow shortcuts. Visible only when Energy Hero is active, but it's still a vendor-specific item in a public Settings tab.
+- [main.js:100-181](main.js#L100) `getDefaultData()` returns `activeProject: 'my-workspace'` with two pre-named projects: **"My Workspace"** and **"My Side Project"**. Anyone who installs the app and opens it sees your two real businesses as their starter projects.
+- [main.js:134](main.js#L134) loads [data/my-workspace-brainmap.json](data/my-workspace-brainmap.json) into the seed brainmap. Your actual strategy nodes ship with the binary.
+- [package.json:4](package.json#L4) `"description": "Personal workspace manager for My Workspace & My Side Project"` — this is the description users see in installers and process lists.
+- [app.js:1298](app.js#L1298) the Settings UI has a literal *"My Workspace — ↻ Rückbucher button"* checkbox baked into global Workflow shortcuts. Visible only when My Workspace is active, but it's still a vendor-specific item in a public Settings tab.
 
 **Fix shape (small):**
 - Replace `getDefaultData()` with either (a) an empty workspace + first-run "Create your project" wizard, or (b) a generic "My Workspace" / "Personal" pair with neutral example notes/todos.
-- Gate the Energy Hero seed + brainmap behind a build flag (`process.env.WORKSPACEHUB_PERSONAL=1`) so your own install is unaffected, but distribution builds get the generic seed.
+- Gate the My Workspace seed + brainmap behind a build flag (`process.env.WORKSPACEHUB_PERSONAL=1`) so your own install is unaffected, but distribution builds get the generic seed.
 - Generalize the Rückbucher feature to "Custom escalation chain" with user-defined offsets, OR strip it from public builds with the same flag. → ✅ Shipped in `d7b631a` as Custom Escalation Chains; legacy `kind:'rueckbucher'` data auto-migrates via schema v4.
 - Update package.json description to something neutral.
 
@@ -48,7 +48,7 @@ Things on your roadmap are out of scope here unless I'd reprioritize them — fl
 - Once shipped: version reporting, taskbar pin survives updates, automatic delta downloads.
 
 ### 1.3 No first-run / onboarding
-- Today: install → silently load Energy Hero seed → no welcome, no tour. For a paid product, the first 60 seconds is the make-or-break demo.
+- Today: install → silently load My Workspace seed → no welcome, no tour. For a paid product, the first 60 seconds is the make-or-break demo.
 - Pairs naturally with **§5.1 (Project templates)** which is already on your roadmap. Once you fix 1.1, you need *something* to populate a fresh install — templates are exactly that. Promote §5.1.
 
 ---
@@ -153,10 +153,10 @@ Everything in Bucket 3 and the rest of Bucket 4 lands in v1.1+ without blocking 
 ## Critical files referenced
 
 - [main.js:100-181](main.js#L100) — `getDefaultData()` — must be genericized
-- [main.js:134](main.js#L134) — `loadEnergyHeroBrainmap()` — must be gated
-- [data/energy-hero-brainmap.json](data/energy-hero-brainmap.json) — must not ship in distribution build
+- [main.js:134](main.js#L134) — `loadMyWorkspaceBrainmap()` — must be gated
+- [data/my-workspace-brainmap.json](data/my-workspace-brainmap.json) — must not ship in distribution build
 - [package.json](package.json) — needs `electron-builder` + `electron-updater` + neutral description
-- [app.js:1291-1303](app.js#L1291) — Energy Hero Rückbucher Settings entry — must be gated or generalized
+- [app.js:1291-1303](app.js#L1291) — My Workspace Rückbucher Settings entry — must be gated or generalized
 - [app.js:9444-9523](app.js#L9444) — todo bulk bar (model for extending other entities)
 - [app.js:8194-8260](app.js#L8194) — notes bulk bar (currently minimal)
 - [FUTURE_CHANGES.md](FUTURE_CHANGES.md) — your existing roadmap; reorder per table above
