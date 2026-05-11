@@ -561,24 +561,99 @@ function settingsContextsHTML() {
     </div>`;
 }
 
+
 function settingsWorkflowsHTML() {
-  // The Rückbucher toggle is the only entry today and it's Energy-Hero-
-  // specific. In distribution builds (window.api.isPersonalBuild === false)
-  // the row is hidden, leaving a placeholder so the section reads as a
-  // future extension point rather than a missing feature.
-  const isPersonal = (typeof window !== 'undefined' && window.api && window.api.isPersonalBuild === true);
+  const chains = (state.data && Array.isArray(state.data.escalationChains))
+    ? state.data.escalationChains : [];
   return `
     <div class="settings-section">
-      <div class="settings-section-title">Workflow shortcuts</div>
-      <div class="settings-hint">Per-project quick-action buttons on the Todos view.</div>
-      ${isPersonal ? `
-      <label class="dev-checkbox-row">
-        <input type="checkbox" id="workflow-rueckbucher-toggle" ${isRueckbucherButtonEnabled()?'checked':''}>
-        <span>Energy Hero — "↻ Rückbucher" button
-          <span class="settings-hint" style="display:block;margin-top:2px">Spawns three follow-up todos in one click: "2nd reminder" +7 calendar days, "last reminder" +14 calendar days, "inaktiv stellen" +3 workdays after the last reminder (skips Sat/Sun). Visible only when Energy Hero is the active project.</span>
-        </span>
-      </label>` : `
-      <div class="settings-hint" style="font-style:italic;margin-top:6px">No workflow shortcuts available yet.</div>`}
+      <div class="settings-section-title">Escalation chains</div>
+      <div class="settings-hint">
+        Define follow-up workflows that spawn timed todos. Use them from the
+        <strong>↻ Spawn chain</strong> button on the Todos view, or via the
+        command palette (<kbd>Ctrl+K</kbd> → start typing the chain name).
+      </div>
+      <div class="escalation-chains-list">
+        ${chains.length === 0
+          ? '<div class="settings-hint" style="font-style:italic;margin:10px 0">No chains yet. Click "+ New chain" to define your first follow-up workflow.</div>'
+          : chains.map((c, i) => escalationChainCardHTML(c, i, chains.length)).join('')}
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-new-chain" type="button" style="margin-top:10px">+ New chain</button>
+    </div>`;
+}
+
+// Per-chain card markup. Reorder ↑/↓ disabled at edges. Drag-reorder is
+// deferred to v0.2 — buttons cover the v0.1 use case.
+function escalationChainCardHTML(chain, idx, totalChains) {
+  const items = Array.isArray(chain.items) ? chain.items : [];
+  const safeId = escapeHTML(chain.id || '');
+  return `
+    <div class="escalation-chain-card" data-chain-id="${safeId}">
+      <div class="escalation-chain-header">
+        <input class="form-input escalation-chain-name" type="text"
+               value="${escapeHTML(chain.name || '')}"
+               data-chain-id="${safeId}"
+               placeholder="Chain name">
+        <div class="escalation-chain-reorder">
+          <button class="btn btn-ghost btn-sm escalation-chain-up"   type="button" data-chain-id="${safeId}" title="Move up"   ${idx === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn btn-ghost btn-sm escalation-chain-down" type="button" data-chain-id="${safeId}" title="Move down" ${idx === totalChains - 1 ? 'disabled' : ''}>↓</button>
+        </div>
+        <button class="btn btn-ghost btn-sm escalation-chain-delete" type="button" data-chain-id="${safeId}" title="Delete chain">🗑</button>
+      </div>
+      <div class="escalation-chain-items">
+        ${items.length === 0
+          ? '<div class="settings-hint" style="font-style:italic;padding:6px 0">No items yet. Click "+ Add item" below.</div>'
+          : items.map((it, i) => escalationChainItemHTML(chain.id, it, i, items.length)).join('')}
+      </div>
+      <button class="btn btn-ghost btn-sm escalation-chain-add-item" type="button" data-chain-id="${safeId}" style="margin-top:6px">+ Add item</button>
+    </div>`;
+}
+
+// Per-item row markup. Offset uses the structured form locked in design
+// decision 2: number + days/workdays dropdown + optional "+N workdays
+// after" toggle. XOR enforced by data layer (setChainItemField).
+function escalationChainItemHTML(chainId, item, idx, totalItems) {
+  const safeId = escapeHTML(chainId);
+  const offset = (item && item.offset) || {};
+  const isWorkdays = (typeof offset.workdays === 'number');
+  const primaryValue = isWorkdays
+    ? offset.workdays
+    : (typeof offset.days === 'number' ? offset.days : 0);
+  const plusValue = (typeof offset.plusWorkdays === 'number') ? offset.plusWorkdays : 0;
+  const plusEnabled = plusValue > 0;
+  return `
+    <div class="escalation-chain-item" data-chain-id="${safeId}" data-item-idx="${idx}">
+      <div class="escalation-chain-item-reorder">
+        <button class="btn btn-ghost btn-sm escalation-item-up"   type="button" data-chain-id="${safeId}" data-item-idx="${idx}" title="Move up"   ${idx === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn btn-ghost btn-sm escalation-item-down" type="button" data-chain-id="${safeId}" data-item-idx="${idx}" title="Move down" ${idx === totalItems - 1 ? 'disabled' : ''}>↓</button>
+      </div>
+      <input class="form-input escalation-item-title" type="text"
+             value="${escapeHTML(item.title || '')}"
+             data-chain-id="${safeId}" data-item-idx="${idx}"
+             placeholder="Item title">
+      <div class="escalation-item-offset">
+        <span class="escalation-item-offset-label">in</span>
+        <input class="form-input escalation-item-magnitude" type="number" min="0"
+               value="${primaryValue}"
+               data-chain-id="${safeId}" data-item-idx="${idx}">
+        <select class="form-select escalation-item-unit"
+                data-chain-id="${safeId}" data-item-idx="${idx}">
+          <option value="days"     ${!isWorkdays ? 'selected' : ''}>days</option>
+          <option value="workdays" ${ isWorkdays ? 'selected' : ''}>workdays</option>
+        </select>
+        <label class="escalation-item-plus-toggle">
+          <input type="checkbox" class="escalation-item-plus"
+                 ${plusEnabled ? 'checked' : ''}
+                 data-chain-id="${safeId}" data-item-idx="${idx}">
+          <span>+</span>
+          <input class="form-input escalation-item-plus-magnitude" type="number" min="0"
+                 value="${plusValue}"
+                 data-chain-id="${safeId}" data-item-idx="${idx}"
+                 ${plusEnabled ? '' : 'disabled'}>
+          <span>workdays after</span>
+        </label>
+      </div>
+      <button class="btn btn-ghost btn-sm escalation-item-delete" type="button" data-chain-id="${safeId}" data-item-idx="${idx}" title="Remove item">×</button>
     </div>`;
 }
 
@@ -631,6 +706,16 @@ function openSettings() {
   }
 
   const renderKeepingScroll = () => {
+    // Blur any focus inside the overlay before the DOM is replaced.
+    // Without this, the focused element gets removed mid-render and
+    // Chromium's focus state is left pointing at a detached node — the
+    // user's next click on a freshly-rendered input doesn't focus it on
+    // the first try (clicking outside the window and back resets state
+    // and "fixes" it). Matters most after structural changes
+    // (+ New chain, + Add item, Delete, reorder).
+    if (document.activeElement && overlay.contains(document.activeElement)) {
+      try { document.activeElement.blur(); } catch {}
+    }
     const pane = overlay.querySelector('.settings-content');
     const top = pane ? pane.scrollTop : 0;
     render();
@@ -705,9 +790,21 @@ function openSettings() {
       btn.addEventListener('click', () => {
         const t = loadCustomGlassThemes().find(x => x.id === btn.dataset.glassDelete);
         if (!t) return;
-        if (!confirm(`Delete custom glass theme "${t.name}"?`)) return;
-        deleteCustomGlassTheme(t.id);
-        renderKeepingScroll();
+        // Use showConfirmModal instead of native confirm() — see
+        // memory:no-native-dialogs. Native dialogs steal OS focus on
+        // Windows and the renderer can't recover. showConfirmModal
+        // shares #modal-overlay with Settings, so we re-open Settings
+        // inside onConfirm to land back on the Appearance tab.
+        showConfirmModal({
+          title: `Delete custom glass theme "${t.name}"?`,
+          body: 'This action can be undone with Ctrl+Z.',
+          confirmLabel: 'Delete',
+          danger: true,
+          onConfirm: () => {
+            deleteCustomGlassTheme(t.id);
+            openSettings();
+          }
+        });
       }));
 
     document.getElementById('custom-glass-new')?.addEventListener('click', () => {
@@ -929,10 +1026,271 @@ function openSettings() {
       render();
     });
 
-    document.getElementById('workflow-rueckbucher-toggle')?.addEventListener('change', e => {
-      setRueckbucherButtonEnabled(e.target.checked);
-      if (state.view === 'todos') renderTodos();
+    // ----- Escalation chain editor (Workflows tab) -----
+    // Text inputs (chain name, item title) use 'input' without re-rendering
+    // so typing doesn't lose focus. Number/dropdown/checkbox use 'change'.
+    // The plus-toggle re-renders to enable/disable its secondary input.
+    //
+    // ARCHITECTURE NOTE — surgical DOM updates:
+    // Earlier versions called renderKeepingScroll() on +New chain and
+    // +Add item, which replaces the entire overlay innerHTML. That
+    // removed the just-clicked button mid-event, leaving Chromium's
+    // keyboard event router stuck on the detached node. Symptom: input
+    // got logical focus (.activeElement updated, .select() worked
+    // visually) but typing didn't reach it until window-focus cycled.
+    // Programmatic blur/focus from main process didn't penetrate
+    // (Chromium gates router updates on isTrusted events).
+    //
+    // Fix: for +New chain and +Add item, we surgically APPEND to the
+    // existing list instead of re-rendering. The clicked button stays
+    // in DOM, no detached-node state, focus works normally. Other
+    // operations (delete/reorder/plus-toggle) still call
+    // renderKeepingScroll because they don't need to auto-focus.
+    const _refreshTodosViewIfActive = () => { if (state.view === 'todos') renderTodos(); };
+
+    // Attaches all chain-editor handlers to elements WITHIN `scope`.
+    // scope = overlay → full render path (every chain card, every item
+    //                   row, plus the section-level controls).
+    // scope = single chain card → after surgical append of a new chain.
+    // scope = single item row → after surgical append of a new item.
+    const _attachChainEditorHandlers = (scope) => {
+      scope.querySelectorAll('.escalation-chain-name').forEach(input => {
+        input.addEventListener('input', e => {
+          renameChain(e.currentTarget.dataset.chainId, e.currentTarget.value);
+        });
+        input.addEventListener('blur', () => {
+          const id = input.dataset.chainId;
+          const chain = (state.data.escalationChains || []).find(c => c.id === id);
+          if (chain && (chain.name || '').trim() === '') {
+            chain.name = 'Untitled chain';
+            saveData();
+            renderKeepingScroll();
+          }
+        });
+      });
+
+      scope.querySelectorAll('.escalation-chain-up').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const chains = state.data.escalationChains || [];
+          const idx = chains.findIndex(c => c.id === e.currentTarget.dataset.chainId);
+          if (idx > 0) { reorderChain(idx, idx - 1); renderKeepingScroll(); _refreshTodosViewIfActive(); }
+        });
+      });
+      scope.querySelectorAll('.escalation-chain-down').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const chains = state.data.escalationChains || [];
+          const idx = chains.findIndex(c => c.id === e.currentTarget.dataset.chainId);
+          if (idx >= 0 && idx < chains.length - 1) { reorderChain(idx, idx + 1); renderKeepingScroll(); _refreshTodosViewIfActive(); }
+        });
+      });
+
+      scope.querySelectorAll('.escalation-chain-delete').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = e.currentTarget.dataset.chainId;
+          const chain = (state.data.escalationChains || []).find(c => c.id === id);
+          if (!chain) return;
+          const refs = countTodosUsingChain(id);
+          const body = refs > 0
+            ? `${refs} existing todo${refs === 1 ? '' : 's'} reference this chain. They'll lose their chain grouping but remain valid todos in the main list. Undo with Ctrl+Z.`
+            : `This action can be undone with Ctrl+Z.`;
+          // IMPORTANT: don't use the native confirm() dialog. On Windows
+          // it steals OS focus from the renderer and Chromium fails to
+          // pick up the focus-back event reliably — the renderer ends
+          // up in a state where document.hasFocus() returns false even
+          // though the window is the active foreground app, and any
+          // subsequent .focus()/click on input elements doesn't
+          // establish real keyboard routing. The only known workaround
+          // is for the user to click another window and back, which
+          // generates a real OS focus event. So we use the in-app
+          // showConfirmModal instead — pure DOM, no native dialog, no
+          // focus theft. It shares the modal-overlay element with
+          // Settings, so we re-open Settings inside onConfirm to
+          // restore the user's place.
+          showConfirmModal({
+            title: `Delete "${chain.name}"?`,
+            body,
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: () => {
+              deleteChain(id);
+              openSettings();   // settingsTab is still 'workflows' — lands back here
+            }
+          });
+        });
+      });
+
+      // + Add item — surgical append within this chain card. The +Add item
+      // button stays in DOM (it's a sibling of .escalation-chain-items, not
+      // inside it), so the focus-routing bug doesn't trigger.
+      scope.querySelectorAll('.escalation-chain-add-item').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const chainId = e.currentTarget.dataset.chainId;
+          addChainItem(chainId);
+          const chain = (state.data.escalationChains || []).find(c => c.id === chainId);
+          if (!chain) return;
+          const items = Array.isArray(chain.items) ? chain.items : [];
+          const newIdx = items.length - 1;
+          if (newIdx < 0) return;
+          const card = e.currentTarget.closest('.escalation-chain-card');
+          if (!card) { renderKeepingScroll(); return; }
+          const itemsContainer = card.querySelector('.escalation-chain-items');
+          if (!itemsContainer) { renderKeepingScroll(); return; }
+          // Clear the empty-state placeholder if this is the first item
+          if (itemsContainer.querySelector('.settings-hint') && itemsContainer.children.length === 1) {
+            itemsContainer.innerHTML = '';
+          }
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = escalationChainItemHTML(chainId, items[newIdx], newIdx, items.length).trim();
+          const newRow = wrapper.firstElementChild;
+          if (!newRow) { renderKeepingScroll(); return; }
+          itemsContainer.appendChild(newRow);
+          // Refresh reorder up/down disabled-state on existing rows
+          itemsContainer.querySelectorAll('.escalation-chain-item').forEach((row, i, all) => {
+            const upBtn = row.querySelector('.escalation-item-up');
+            const dnBtn = row.querySelector('.escalation-item-down');
+            if (upBtn) upBtn.disabled = (i === 0);
+            if (dnBtn) dnBtn.disabled = (i === all.length - 1);
+          });
+          // Attach handlers to just the new row
+          _attachChainEditorHandlers(newRow);
+          // Focus the new item title — bug doesn't apply (button still in DOM)
+          const titleInput = newRow.querySelector('.escalation-item-title');
+          if (titleInput) { try { titleInput.focus(); titleInput.select(); } catch {} }
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-title').forEach(input => {
+        input.addEventListener('input', e => {
+          setChainItemField(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx),
+            'title',
+            e.currentTarget.value
+          );
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-magnitude').forEach(input => {
+        input.addEventListener('change', e => {
+          setChainItemField(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx),
+            'primaryValue',
+            e.currentTarget.value
+          );
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-unit').forEach(sel => {
+        sel.addEventListener('change', e => {
+          setChainItemField(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx),
+            'primaryUnit',
+            e.currentTarget.value
+          );
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-plus').forEach(input => {
+        input.addEventListener('change', e => {
+          setChainItemField(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx),
+            'plusEnabled',
+            e.currentTarget.checked
+          );
+          renderKeepingScroll();   // re-render to enable/disable secondary input
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-plus-magnitude').forEach(input => {
+        input.addEventListener('change', e => {
+          setChainItemField(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx),
+            'plusValue',
+            e.currentTarget.value
+          );
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-up').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const idx = Number(e.currentTarget.dataset.itemIdx);
+          if (idx > 0) {
+            reorderChainItem(e.currentTarget.dataset.chainId, idx, idx - 1);
+            renderKeepingScroll();
+          }
+        });
+      });
+      scope.querySelectorAll('.escalation-item-down').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = e.currentTarget.dataset.chainId;
+          const idx = Number(e.currentTarget.dataset.itemIdx);
+          const chain = (state.data.escalationChains || []).find(c => c.id === id);
+          if (!chain || !Array.isArray(chain.items)) return;
+          if (idx < chain.items.length - 1) {
+            reorderChainItem(id, idx, idx + 1);
+            renderKeepingScroll();
+          }
+        });
+      });
+
+      scope.querySelectorAll('.escalation-item-delete').forEach(btn => {
+        btn.addEventListener('click', e => {
+          removeChainItem(
+            e.currentTarget.dataset.chainId,
+            Number(e.currentTarget.dataset.itemIdx)
+          );
+          renderKeepingScroll();
+        });
+      });
+    };
+
+    // Attach all chain editor handlers within the just-rendered overlay.
+    _attachChainEditorHandlers(overlay);
+
+    // + New chain — surgical append. The +New chain button stays in DOM
+    // (it's a sibling of .escalation-chains-list), so Chromium's focus
+    // router has no detached node to get stuck on.
+    document.getElementById('btn-new-chain')?.addEventListener('click', () => {
+      const newId = createChain();
+      if (!newId) return;
+      const list = overlay.querySelector('.escalation-chains-list');
+      if (!list) { renderKeepingScroll(); _refreshTodosViewIfActive(); return; }
+      const chains = state.data.escalationChains || [];
+      const chain = chains.find(c => c.id === newId);
+      if (!chain) return;
+      // Clear the empty-state placeholder if this is the first chain
+      if (list.querySelector('.settings-hint') && list.children.length === 1) {
+        list.innerHTML = '';
+      }
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = escalationChainCardHTML(chain, chains.length - 1, chains.length).trim();
+      const newCard = wrapper.firstElementChild;
+      if (!newCard) { renderKeepingScroll(); return; }
+      list.appendChild(newCard);
+      // Refresh reorder up/down disabled-state on existing cards
+      list.querySelectorAll('.escalation-chain-card').forEach((card, i, all) => {
+        const upBtn = card.querySelector('.escalation-chain-up');
+        const dnBtn = card.querySelector('.escalation-chain-down');
+        if (upBtn) upBtn.disabled = (i === 0);
+        if (dnBtn) dnBtn.disabled = (i === all.length - 1);
+      });
+      _attachChainEditorHandlers(newCard);
+      // Focus + select the new chain's name input so the user can
+      // start renaming immediately.
+      const nameInput = newCard.querySelector('.escalation-chain-name');
+      if (nameInput) { try { nameInput.focus(); nameInput.select(); } catch {} }
+      // NOTE: deliberately NOT calling _refreshTodosViewIfActive here.
+      // Re-rendering the underlying todos view mid-Settings-modal would
+      // wipe #content innerHTML, which causes a brief flicker; the
+      // todos-side spawn-chain dropdown will pick up the new chain on
+      // the next renderTodos (e.g. when the user navigates back to
+      // Todos). Acceptable UX trade-off.
     });
+
     document.getElementById('dev-mode-toggle')?.addEventListener('change', e => {
       setDeveloperMode(e.target.checked);
       renderKeepingScroll();

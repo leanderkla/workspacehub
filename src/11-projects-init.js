@@ -38,13 +38,18 @@ var lastBackupPromptShownAt = 0;
 function isDeveloperMode() { return localStorage.getItem('developerMode') === 'true'; }
 function isAskForBackups() { return localStorage.getItem('askForBackups') === 'true'; }
 
-function isRueckbucherButtonEnabled() { return localStorage.getItem('rueckbucherButtonEnabled') === 'true'; }
-function setRueckbucherButtonEnabled(on) { localStorage.setItem('rueckbucherButtonEnabled', on ? 'true' : 'false'); }
-
 function isRecurringBoxCollapsed() { return localStorage.getItem('recurringBoxCollapsed') === 'true'; }
 function setRecurringBoxCollapsed(on) { localStorage.setItem('recurringBoxCollapsed', on ? 'true' : 'false'); }
-function isRueckbucherBoxCollapsed() { return localStorage.getItem('rueckbucherBoxCollapsed') === 'true'; }
-function setRueckbucherBoxCollapsed(on) { localStorage.setItem('rueckbucherBoxCollapsed', on ? 'true' : 'false'); }
+
+// Per-chain collapsed state for escalation-chain follow-up boxes. Keyed
+// by chainId so each chain's box collapses/expands independently. Same
+// pattern as isRecurringBoxCollapsed but parameterized.
+function isEscalationBoxCollapsed(chainId) {
+  return localStorage.getItem(`escalationBoxCollapsed:${chainId}`) === 'true';
+}
+function setEscalationBoxCollapsed(chainId, on) {
+  localStorage.setItem(`escalationBoxCollapsed:${chainId}`, on ? 'true' : 'false');
+}
 
 function addWorkdays(fromDate, n) {
   // Skips Saturday (6) and Sunday (0). n counts actual workdays past fromDate.
@@ -58,40 +63,243 @@ function addWorkdays(fromDate, n) {
   return d;
 }
 
-function spawnRueckbucherFollowups() {
+// Applies an Offset object to an anchor Date for escalation-chain item due
+// dates. Returns a NEW Date; never mutates the anchor. Offset shape:
+//   { days?: number, workdays?: number, plusWorkdays?: number }
+// Exactly one of `days` (calendar) or `workdays` (skip Sat/Sun) is the
+// primary magnitude — both > 0 throws (XOR enforced). `plusWorkdays` is an
+// optional non-negative tail of additional working days added AFTER the
+// primary, used for compound offsets like the legacy "+14 calendar days
+// then +3 workdays". Negatives are clamped to 0 (so a corrupted offset
+// degrades to the anchor rather than producing a past date). NaN inputs
+// throw — corrupted data should surface, not silently return today.
+function applyOffset(anchorDate, offset) {
+  if (!(anchorDate instanceof Date) || isNaN(anchorDate)) {
+    throw new Error('applyOffset: anchor is not a valid Date');
+  }
+  if (!offset || typeof offset !== 'object') {
+    throw new Error('applyOffset: offset is missing or not an object');
+  }
+  const rawDays = offset.days;
+  const rawWorkdays = offset.workdays;
+  const rawTail = offset.plusWorkdays;
+  // Reject NaN explicitly so a typo like { days: parseInt('x') } surfaces
+  // instead of silently degrading to 0.
+  if (rawDays !== undefined && Number.isNaN(Number(rawDays))) {
+    throw new Error('applyOffset: offset.days is NaN');
+  }
+  if (rawWorkdays !== undefined && Number.isNaN(Number(rawWorkdays))) {
+    throw new Error('applyOffset: offset.workdays is NaN');
+  }
+  if (rawTail !== undefined && Number.isNaN(Number(rawTail))) {
+    throw new Error('applyOffset: offset.plusWorkdays is NaN');
+  }
+  const primaryDays     = Math.max(0, Number(rawDays)     || 0);
+  const primaryWorkdays = Math.max(0, Number(rawWorkdays) || 0);
+  const tail            = Math.max(0, Number(rawTail)     || 0);
+
+  if (primaryDays > 0 && primaryWorkdays > 0) {
+    throw new Error('applyOffset: cannot mix offset.days and offset.workdays (XOR violated)');
+  }
+
+  let d = new Date(anchorDate);
+  if (primaryDays > 0) {
+    d.setDate(d.getDate() + primaryDays);
+  } else if (primaryWorkdays > 0) {
+    d = addWorkdays(d, primaryWorkdays);
+  }
+  if (tail > 0) {
+    d = addWorkdays(d, tail);
+  }
+  return d;
+}
+
+// Spawns an escalation chain in the active project. Walks chain.items,
+// computes each item's dueDate via applyOffset (anchored to today),
+// creates kind:'escalation' todos with the chainId reference, and
+// persists. v0.1 defaults: anchor=today, project=active, titles=verbatim.
+// Cross-project spawn, anchor picker, and title placeholders are deferred
+// to post-v0.1 (see ESCALATION_CHAINS_PLAN.md non-goals).
+function spawnChain(chainId) {
+  const chains = (state.data && state.data.escalationChains) || [];
+  const chain = chains.find(c => c.id === chainId);
+  if (!chain) { showToast('Chain not found.', 'error'); return; }
   const proj = getProject();
-  if (!proj) return;
+  if (!proj) { showToast('No active project.', 'error'); return; }
   if (!Array.isArray(proj.todos)) proj.todos = [];
-  const now = new Date();
-  const addDays = (n) => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
-  const lastReminder = addDays(14);
-  const inaktivStellen = addWorkdays(lastReminder, 3); // 3 workdays after "last reminder"
-  const items = [
-    { title: 'Rückbucher 2nd reminder',       dueDate: toDateString(addDays(7))        },
-    { title: 'Rückbucher last reminder',      dueDate: toDateString(lastReminder)      },
-    { title: 'Rückbucher inaktiv stellen',    dueDate: toDateString(inaktivStellen)    }
-  ];
-  const createdAt = now.toISOString();
-  items.forEach((item, i) => {
+
+  const items = Array.isArray(chain.items) ? chain.items : [];
+  if (items.length === 0) {
+    showToast(`"${chain.name}" has no items to spawn.`, 'info');
+    return;
+  }
+
+  const anchor = new Date();
+  const createdBase = Date.now();
+  // Insert in REVERSE order so the first item ends up at the top of the
+  // todo list (matches the visual order users expect: step 1 first).
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    const due = applyOffset(anchor, item.offset || {});
     proj.todos.unshift({
       id: generateId('todo'),
       title: item.title,
       done: false,
       priority: 'medium',
-      startDate: null,
-      dueDate: item.dueDate,
+      startDate: '',
+      dueDate: toDateString(due),
       subprojectId: null,
       tags: [],
-      created: new Date(Date.now() + i).toISOString(),
+      created: new Date(createdBase + i).toISOString(),
       completedAt: null,
       attachments: [],
       steps: [],
       recurrence: null,
-      kind: 'rueckbucher'
+      archived: false,
+      kind: 'escalation',
+      chainId: chain.id
     });
-  });
+  }
   saveData();
-  showToast('3 Rückbucher follow-ups created.', 'success');
+  showToast(`${items.length} item${items.length === 1 ? '' : 's'} spawned from "${chain.name}".`, 'success');
+}
+
+// ----- Escalation chain CRUD -----
+// All mutations call saveData() so changes persist immediately. Caller
+// (Settings UI) is responsible for re-rendering on structural changes
+// (add/remove/reorder); plain text/number edits don't need a re-render
+// because the DOM input value is already user-updated and the data layer
+// just follows along — re-rendering would steal focus mid-typing.
+
+function createChain() {
+  if (!state.data) return null;
+  if (!Array.isArray(state.data.escalationChains)) state.data.escalationChains = [];
+  const newChain = {
+    id: generateId('chain'),
+    name: 'New chain',
+    items: [{ title: 'Step 1', offset: { days: 7 } }]
+  };
+  state.data.escalationChains.push(newChain);
+  saveData();
+  return newChain.id;
+}
+
+function deleteChain(chainId) {
+  if (!state.data || !Array.isArray(state.data.escalationChains)) return;
+  state.data.escalationChains = state.data.escalationChains.filter(c => c.id !== chainId);
+  saveData();
+}
+
+function renameChain(chainId, newName) {
+  const chain = (state.data && state.data.escalationChains || []).find(c => c.id === chainId);
+  if (!chain) return;
+  // Allow empty intermediate values during typing; canonicalize on blur.
+  chain.name = String(newName == null ? '' : newName);
+  saveData();
+}
+
+function reorderChain(fromIdx, toIdx) {
+  const chains = state.data && state.data.escalationChains;
+  if (!Array.isArray(chains)) return;
+  if (fromIdx < 0 || fromIdx >= chains.length || toIdx < 0 || toIdx >= chains.length) return;
+  const [moved] = chains.splice(fromIdx, 1);
+  chains.splice(toIdx, 0, moved);
+  saveData();
+}
+
+function addChainItem(chainId) {
+  const chain = (state.data && state.data.escalationChains || []).find(c => c.id === chainId);
+  if (!chain) return;
+  if (!Array.isArray(chain.items)) chain.items = [];
+  chain.items.push({ title: `Step ${chain.items.length + 1}`, offset: { days: 7 } });
+  saveData();
+}
+
+function removeChainItem(chainId, itemIndex) {
+  const chain = (state.data && state.data.escalationChains || []).find(c => c.id === chainId);
+  if (!chain || !Array.isArray(chain.items)) return;
+  if (itemIndex < 0 || itemIndex >= chain.items.length) return;
+  chain.items.splice(itemIndex, 1);
+  saveData();
+}
+
+function reorderChainItem(chainId, fromIdx, toIdx) {
+  const chain = (state.data && state.data.escalationChains || []).find(c => c.id === chainId);
+  if (!chain || !Array.isArray(chain.items)) return;
+  if (fromIdx < 0 || fromIdx >= chain.items.length || toIdx < 0 || toIdx >= chain.items.length) return;
+  const [moved] = chain.items.splice(fromIdx, 1);
+  chain.items.splice(toIdx, 0, moved);
+  saveData();
+}
+
+// Granular setter for chain-item fields. Field is one of:
+//   'title'         → string
+//   'primaryUnit'   → 'days' | 'workdays' (preserves magnitude)
+//   'primaryValue'  → number (clamped >= 0; preserves unit)
+//   'plusEnabled'   → boolean (adds/removes offset.plusWorkdays;
+//                     defaults to 1 when enabled with no prior value)
+//   'plusValue'     → number (clamped >= 0; deletes plusWorkdays at 0)
+function setChainItemField(chainId, itemIndex, field, value) {
+  const chain = (state.data && state.data.escalationChains || []).find(c => c.id === chainId);
+  if (!chain || !Array.isArray(chain.items) || !chain.items[itemIndex]) return;
+  const item = chain.items[itemIndex];
+  if (!item.offset || typeof item.offset !== 'object') item.offset = {};
+  switch (field) {
+    case 'title':
+      item.title = String(value == null ? '' : value);
+      break;
+    case 'primaryUnit': {
+      // Preserve current magnitude across the unit switch.
+      const cur = (typeof item.offset.workdays === 'number') ? item.offset.workdays
+                : (typeof item.offset.days     === 'number') ? item.offset.days
+                : 0;
+      delete item.offset.days;
+      delete item.offset.workdays;
+      if (value === 'workdays') item.offset.workdays = cur;
+      else item.offset.days = cur;
+      break;
+    }
+    case 'primaryValue': {
+      const v = Math.max(0, Number(value) || 0);
+      const isWorkdays = (typeof item.offset.workdays === 'number');
+      delete item.offset.days;
+      delete item.offset.workdays;
+      if (isWorkdays) item.offset.workdays = v;
+      else item.offset.days = v;
+      break;
+    }
+    case 'plusEnabled':
+      if (value) {
+        if (typeof item.offset.plusWorkdays !== 'number' || item.offset.plusWorkdays <= 0) {
+          item.offset.plusWorkdays = 1;
+        }
+      } else {
+        delete item.offset.plusWorkdays;
+      }
+      break;
+    case 'plusValue': {
+      const v = Math.max(0, Number(value) || 0);
+      if (v > 0) item.offset.plusWorkdays = v;
+      else delete item.offset.plusWorkdays;
+      break;
+    }
+  }
+  saveData();
+}
+
+// How many todos across the workspace point at this chainId? Used by the
+// Settings delete-chain confirmation so the user knows whether deleting
+// will leave orphan todos in the main list.
+function countTodosUsingChain(chainId) {
+  if (!state.data || !state.data.projects) return 0;
+  let n = 0;
+  for (const proj of Object.values(state.data.projects)) {
+    if (!Array.isArray(proj.todos)) continue;
+    for (const t of proj.todos) {
+      if (t && t.chainId === chainId) n++;
+    }
+  }
+  return n;
 }
 
 function setDeveloperMode(on) {

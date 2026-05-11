@@ -448,7 +448,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       const data = { projects: { p: { name: 'P' } } };
       const out = fn(data);
       eq(Array.isArray(out.pinned), true);
-      eq(out.schemaVersion, 3);
+      eq(out.schemaVersion, 4);
     });
 
     it('does not re-run migrations once schemaVersion is current', () => {
@@ -476,7 +476,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(Array.isArray(out.projects.p.brainmap.nodes.r.linkedItems), true);
-      eq(out.schemaVersion, 3);
+      eq(out.schemaVersion, 4);
     });
 
     it('v2 migration is idempotent', () => {
@@ -490,7 +490,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(out.projects.p.brainmap.nodes.r.linkedItems.length, 1);
-      eq(out.schemaVersion, 3);
+      eq(out.schemaVersion, 4);
     });
 
     it('v3 backfills tags on every taggable entity type', () => {
@@ -514,7 +514,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       eq(Array.isArray(p.delegations[0].tags), true);
       eq(Array.isArray(p.dumps[0].tags),       true);
       eq(Array.isArray(p.reminders[0].tags),   true);
-      eq(out.schemaVersion, 3);
+      eq(out.schemaVersion, 4);
     });
 
     it('v3 migration is idempotent (preserves existing tags)', () => {
@@ -740,6 +740,239 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       ok(evalIn(`typeof window.__nodeLinks.items === 'function'`), 'items');
       ok(evalIn(`typeof window.__nodeLinks.nodes === 'function'`), 'nodes');
       ok(evalIn(`typeof window.__nodeLinks.cleanup === 'function'`), 'cleanup');
+    });
+  });
+
+  // ---------- applyOffset (escalation-chain due-date arithmetic) ----------
+  describe('applyOffset', (it) => {
+    const fn = get('applyOffset');
+    // Fixed reference dates so day-of-week behavior is deterministic
+    // across runs. Using local-time constructor (year, month, day) so
+    // tests don't depend on the test runner's timezone.
+    const monday    = () => new Date(2026, 4, 4);   // 2026-05-04 = Monday
+    const friday    = () => new Date(2026, 4, 8);   // 2026-05-08 = Friday
+    const saturday  = () => new Date(2026, 4, 9);   // 2026-05-09 = Saturday
+
+    it('returns a NEW Date (does not mutate anchor)', () => {
+      const anchor = monday();
+      const before = anchor.getTime();
+      const out = fn(anchor, { days: 7 });
+      eq(anchor.getTime(), before);                 // anchor unchanged
+      ok(out !== anchor, 'output should be a new Date instance');
+    });
+
+    it('calendar days: { days: 7 } from Monday → next Monday', () => {
+      const out = fn(monday(), { days: 7 });
+      eq(out.getDate(), 11);                        // 2026-05-11
+      eq(out.getDay(), 1);                          // Monday
+    });
+
+    it('calendar days: { days: 0 } returns anchor unchanged', () => {
+      const out = fn(monday(), { days: 0 });
+      eq(out.getTime(), monday().getTime());
+    });
+
+    it('calendar days: { days: 30 } across month boundary', () => {
+      const out = fn(monday(), { days: 30 });       // 2026-05-04 + 30 = 2026-06-03
+      eq(out.getMonth(), 5);                        // June (0-indexed)
+      eq(out.getDate(), 3);
+    });
+
+    it('workdays: { workdays: 5 } from Monday → next Monday (skips weekend)', () => {
+      const out = fn(monday(), { workdays: 5 });
+      eq(out.getDate(), 11);                        // 7 calendar days later
+      eq(out.getDay(), 1);                          // Monday
+    });
+
+    it('workdays: { workdays: 5 } from Friday → next Friday', () => {
+      const out = fn(friday(), { workdays: 5 });
+      eq(out.getDate(), 15);                        // 2026-05-15
+      eq(out.getDay(), 5);                          // Friday
+    });
+
+    it('workdays: { workdays: 1 } from Friday → following Monday', () => {
+      const out = fn(friday(), { workdays: 1 });
+      eq(out.getDate(), 11);                        // 2026-05-11 = Monday
+      eq(out.getDay(), 1);
+    });
+
+    it('compound: { days: 14, plusWorkdays: 3 } from Monday → +14d (Mon) + 3wd (Thu)', () => {
+      // Monday 2026-05-04 + 14 calendar days = Monday 2026-05-18
+      // Then +3 workdays: Tue 19, Wed 20, Thu 21
+      const out = fn(monday(), { days: 14, plusWorkdays: 3 });
+      eq(out.getDate(), 21);
+      eq(out.getDay(), 4);                          // Thursday
+    });
+
+    it('compound: { days: 14, plusWorkdays: 3 } from Saturday lands correctly', () => {
+      // Saturday 2026-05-09 + 14 days = Saturday 2026-05-23
+      // Then +3 workdays: Sun (skip) → Mon 25, Tue 26, Wed 27
+      const out = fn(saturday(), { days: 14, plusWorkdays: 3 });
+      eq(out.getDate(), 27);
+      eq(out.getDay(), 3);                          // Wednesday
+    });
+
+    it('compound: { workdays: 5, plusWorkdays: 2 } chains both segments', () => {
+      // Monday + 5 workdays = following Monday (2026-05-11)
+      // + 2 workdays = Wednesday (2026-05-13)
+      const out = fn(monday(), { workdays: 5, plusWorkdays: 2 });
+      eq(out.getDate(), 13);
+      eq(out.getDay(), 3);                          // Wednesday
+    });
+
+    it('empty offset {} returns anchor unchanged', () => {
+      const out = fn(monday(), {});
+      eq(out.getTime(), monday().getTime());
+    });
+
+    it('negative inputs clamp to 0 ({ days: -5 } → anchor)', () => {
+      const out = fn(monday(), { days: -5 });
+      eq(out.getTime(), monday().getTime());
+    });
+
+    it('throws on XOR violation ({ days: 5, workdays: 3 })', () => {
+      let threw = false;
+      try { fn(monday(), { days: 5, workdays: 3 }); }
+      catch (e) { threw = true; }
+      ok(threw, 'should throw on mixed days + workdays');
+    });
+
+    it('throws on invalid anchor (non-Date)', () => {
+      let threw = false;
+      try { fn('2026-05-04', { days: 7 }); }
+      catch (e) { threw = true; }
+      ok(threw, 'string anchor should throw');
+    });
+
+    it('throws on null/undefined offset', () => {
+      let threwNull = false, threwUndef = false;
+      try { fn(monday(), null);      } catch (e) { threwNull = true; }
+      try { fn(monday(), undefined); } catch (e) { threwUndef = true; }
+      ok(threwNull,  'null offset should throw');
+      ok(threwUndef, 'undefined offset should throw');
+    });
+
+    it('throws on NaN numeric inputs', () => {
+      let threw = false;
+      try { fn(monday(), { days: NaN }); } catch (e) { threw = true; }
+      ok(threw, 'NaN days should throw');
+    });
+  });
+
+  // ---------- SCHEMA_MIGRATIONS[4] (escalation-chain v4 behavior) ----------
+  // Tests the v4-specific behavior of the existing runSchemaMigrations
+  // pipeline. Conditional synthesis (legacy chain only when rueckbucher
+  // todos exist) is the v4 contract that fresh installs should NOT see.
+  describe('SCHEMA_MIGRATIONS[4]', (it) => {
+    const fn = get('runSchemaMigrations');
+    const RU = 'rueckbucher';
+    const LEGACY_CHAIN = 'chain-rueckbucher-legacy';
+
+    it('does NOT synthesize legacy chain when no rueckbucher todos exist', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: { p: { todos: [{ id: 't1', title: 'plain todo' }] } }
+      };
+      const out = fn(data);
+      eq(out.schemaVersion, 4);
+      eq(out.escalationChains.length, 0);   // empty array, NOT seeded
+    });
+
+    it('synthesizes legacy chain when rueckbucher todos exist', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: { p: { todos: [{ id: 't1', title: 'r1', kind: RU }] } }
+      };
+      const out = fn(data);
+      eq(out.schemaVersion, 4);
+      eq(out.escalationChains.length, 1);
+      const chain = out.escalationChains[0];
+      eq(chain.id, LEGACY_CHAIN);
+      eq(chain.name, 'Rückbucher (legacy)');
+      eq(chain.items.length, 3);
+      eq(chain.items[2].offset.plusWorkdays, 3);   // legacy compound offset preserved
+    });
+
+    it('re-tags rueckbucher todos to escalation + chainId', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: {
+          p: {
+            todos: [
+              { id: 't1', title: 'r1', kind: RU, dueDate: '2026-05-15' },
+              { id: 't2', title: 'plain' },
+              { id: 't3', title: 'r2', kind: RU, priority: 'high' }
+            ]
+          }
+        }
+      };
+      const out = fn(data);
+      const todos = out.projects.p.todos;
+      eq(todos[0].kind, 'escalation');
+      eq(todos[0].chainId, LEGACY_CHAIN);
+      eq(todos[0].dueDate, '2026-05-15');           // other fields preserved
+      eq(todos[1].kind, undefined);                  // plain todo untouched
+      eq(todos[1].chainId, undefined);
+      eq(todos[2].kind, 'escalation');
+      eq(todos[2].chainId, LEGACY_CHAIN);
+      eq(todos[2].priority, 'high');                 // priority preserved
+    });
+
+    it('is idempotent — running twice produces the same result', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: { p: { todos: [{ id: 't1', title: 'r', kind: RU }] } }
+      };
+      const out1 = fn(data);
+      const chainsAfterFirst = out1.escalationChains.length;
+      // Reset schemaVersion to force the migrations to re-run; the
+      // chain-id dedup + todo kind check should make this a no-op.
+      out1.schemaVersion = 3;
+      const out2 = fn(out1);
+      eq(out2.schemaVersion, 4);
+      eq(out2.escalationChains.length, chainsAfterFirst);   // no duplicate
+      eq(out2.projects.p.todos[0].kind, 'escalation');       // already migrated
+      eq(out2.projects.p.todos[0].chainId, LEGACY_CHAIN);
+    });
+
+    it('does not re-synthesize legacy chain if it already exists', () => {
+      // Hand-rolled legacy chain present pre-migration → should NOT be duplicated
+      const data = {
+        schemaVersion: 3,
+        escalationChains: [{ id: LEGACY_CHAIN, name: 'manual', items: [] }],
+        projects: { p: { todos: [{ id: 't1', title: 'r', kind: RU }] } }
+      };
+      const out = fn(data);
+      eq(out.escalationChains.length, 1);
+      eq(out.escalationChains[0].name, 'manual');   // existing chain kept verbatim
+    });
+
+    it('handles malformed proj.todos gracefully (no throw)', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: {
+          p1: { todos: 'not an array' },               // wrong type
+          p2: { /* no todos field at all */ },
+          p3: { todos: [null, undefined, 'string', { id: 't1', kind: RU }] }
+        }
+      };
+      let threw = false;
+      try { fn(data); } catch (e) { threw = true; }
+      ok(!threw, 'should not throw on malformed proj.todos');
+      // Valid rueckbucher todo within malformed list still gets migrated
+      const t = data.projects.p3.todos.find(x => x && typeof x === 'object' && x.id === 't1');
+      eq(t.kind, 'escalation');
+      eq(t.chainId, LEGACY_CHAIN);
+    });
+
+    it('initializes data.escalationChains as [] if missing', () => {
+      const data = {
+        schemaVersion: 3,
+        projects: { p: { todos: [] } }
+      };
+      const out = fn(data);
+      ok(Array.isArray(out.escalationChains), 'escalationChains should be an array');
+      eq(out.escalationChains.length, 0);
     });
   });
 };

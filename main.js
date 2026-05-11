@@ -45,7 +45,11 @@ let reminderInterval;
 // auto-updater, etc.).
 let isQuitting = false;
 
-// Migrate existing data to include new fields without losing anything
+// Per-load defaults: idempotent backfills of missing fields. Always run on
+// every load. Schema-versioned one-shot migrations live in the renderer at
+// src/10-schema-attachments.js (SCHEMA_MIGRATIONS dict); main.js's job is
+// just (a) per-load default normalization and (b) pre-migration backup of
+// the on-disk file before the renderer's runSchemaMigrations touches it.
 function migrateData(data) {
   if (!data || !data.projects) return data;
   for (const proj of Object.values(data.projects)) {
@@ -72,6 +76,42 @@ function migrateData(data) {
   return data;
 }
 
+// Pre-v4-migration backup. Called by loadData ONLY when the on-disk
+// raw.schemaVersion is below 4 (the target the renderer's
+// SCHEMA_MIGRATIONS[4] will bump to). Throws on any I/O failure so the
+// caller can abort the migration path and keep the live data untouched.
+// Backups accumulate; no auto-rotation in v0.1 (volume is bounded — one
+// backup per schema-version migration per workspace).
+//
+// Session-flag guard: loadData can be called many times in one session
+// (init's first call, periodic checkReminders ticks, IPC re-entry). All
+// of those see the same pre-migration disk state until the renderer's
+// post-migration saveData fires. Without this guard, every loadData
+// re-entry would write a fresh backup. Once we've successfully written
+// one backup this session, subsequent calls short-circuit and return
+// the existing path. The flag resets on app restart, which is
+// intentional — a new session with on-disk schemaVersion still < 4 IS
+// a new migration attempt and deserves a fresh backup.
+let v4BackupTakenThisSession = false;
+let v4BackupPathThisSession = null;
+function backupBeforeV4Migration() {
+  if (v4BackupTakenThisSession) return v4BackupPathThisSession;
+  const backupsDir = path.join(app.getPath('userData'), 'backups');
+  try { fs.mkdirSync(backupsDir, { recursive: true }); } catch {}
+  // ISO timestamp with millisecond precision; colons + dots stripped so
+  // the path is filesystem-safe on Windows. Collisions are essentially
+  // impossible at millisecond resolution.
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.join(backupsDir, `workspace-data.pre-migration-v4.${ts}.json`);
+  fs.copyFileSync(dataPath, backupPath);
+  console.log('Pre-migration backup written to', backupPath);
+  // Set flag AFTER successful copy so a copy failure doesn't suppress
+  // future attempts in the same session.
+  v4BackupTakenThisSession = true;
+  v4BackupPathThisSession = backupPath;
+  return backupPath;
+}
+
 function makeDefaultBrainmap(rootLabel) {
   const rootId = 'bm-root';
   return {
@@ -84,9 +124,13 @@ function makeDefaultBrainmap(rootLabel) {
 
 function getDefaultData() {
   const now = new Date().toISOString();
-  // Single neutral starter project. The future onboarding wizard (M5
-  // §1.3) will offer template choices; for now, fresh installs land
-  // here.
+  // Single neutral starter project + a generic example escalation chain to
+  // demonstrate the Settings → Workflows feature on first launch. The future
+  // onboarding wizard (M5 §1.3) will offer template choices; for now, fresh
+  // installs land here. schemaVersion is intentionally NOT set: the renderer's
+  // runSchemaMigrations walks fresh data through every shipped migration in
+  // sequence, so all idempotent backfills run on first launch and the data
+  // ends up at the latest version automatically.
   return {
     activeProject: 'workspace',
     projects: {
@@ -105,32 +149,91 @@ function getDefaultData() {
         brainmap: makeDefaultBrainmap('My Workspace'),
         reminders: []
       }
-    }
+    },
+    escalationChains: [
+      {
+        id: 'chain-example-3-step',
+        name: 'Example: 3-step follow-up',
+        items: [
+          { title: 'Day 7 check-in',   offset: { days: 7 } },
+          { title: 'Day 14 follow-up', offset: { days: 14 } },
+          { title: 'Final reminder',   offset: { days: 14, plusWorkdays: 3 } }
+        ]
+      }
+    ]
   };
 }
 
+// Hardened load pipeline. Failures at each stage have a specific recovery:
+//   - file missing            → fresh seed (getDefaultData)
+//   - read error              → fresh seed (disk problem; safer than crash)
+//   - JSON parse error        → fresh seed (file is corrupted; user has
+//                               %APPDATA% backup history if needed)
+//   - backup error            → return raw UNTOUCHED, skip migration
+//                               (user fixes backup target, relaunches; data
+//                               sits in v1 shape, fully readable by code)
+//   - migrateData throw       → return raw UNMIGRATED so the user keeps the
+//                               full workspace; schemaVersion stays unbumped,
+//                               migration retries next launch
 function loadData() {
-  try {
-    if (fs.existsSync(dataPath)) {
-      const rawText = fs.readFileSync(dataPath, 'utf-8');
-      const raw = JSON.parse(rawText);
-      const migrated = migrateData(raw);
-      // If migration changed the brainmap seed, persist immediately so the
-      // one-time forced replacement isn't redone on every launch.
-      const migratedText = JSON.stringify(migrated, null, 2);
-      if (migratedText !== rawText) {
-        try {
-          fs.writeFileSync(dataPath, migratedText, 'utf-8');
-        } catch (e) {
-          console.error('Failed to persist migrated data:', e);
-        }
-      }
-      return migrated;
-    }
-  } catch (e) {
-    console.error('Failed to load data:', e);
+  if (!fs.existsSync(dataPath)) {
+    return getDefaultData();
   }
-  return getDefaultData();
+
+  let rawText;
+  try {
+    rawText = fs.readFileSync(dataPath, 'utf-8');
+  } catch (e) {
+    console.error('workspace-data.json unreadable; falling back to default seed:', e);
+    return getDefaultData();
+  }
+
+  let raw;
+  try {
+    raw = JSON.parse(rawText);
+  } catch (e) {
+    console.error('workspace-data.json contains invalid JSON; falling back to default seed:', e);
+    return getDefaultData();
+  }
+
+  // Pre-migration backup — gated on raw.schemaVersion below the renderer's
+  // CURRENT_SCHEMA_VERSION (currently 4). Defensive: even if the backup
+  // returns successfully but the renderer-side migration later throws, the
+  // backup is still on disk for manual recovery. If the backup ITSELF fails
+  // for any reason (disk full, permissions), we refuse to surface the data
+  // for migration and return it unmodified — user fixes backup target and
+  // relaunches; nothing is lost.
+  //
+  // The 4 here is hardcoded (not imported from the renderer) because main
+  // and renderer don't share globals at module load. When future schema
+  // versions ship, bump this constant alongside CURRENT_SCHEMA_VERSION in
+  // src/10-schema-attachments.js.
+  if (typeof raw.schemaVersion !== 'number' || raw.schemaVersion < 4) {
+    try {
+      backupBeforeV4Migration();
+    } catch (e) {
+      console.error('Pre-migration backup failed; skipping migration to preserve data integrity:', e);
+      return raw;
+    }
+  }
+
+  let migrated;
+  try {
+    migrated = migrateData(raw);
+  } catch (e) {
+    console.error('Migration threw; returning UNMIGRATED data so user keeps full workspace:', e);
+    return raw;
+  }
+
+  const migratedText = JSON.stringify(migrated, null, 2);
+  if (migratedText !== rawText) {
+    try {
+      fs.writeFileSync(dataPath, migratedText, 'utf-8');
+    } catch (e) {
+      console.error('Failed to persist migrated data:', e);
+    }
+  }
+  return migrated;
 }
 
 function saveData(data) {

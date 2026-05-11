@@ -757,6 +757,25 @@ function searchEverything(query) {
       }
     });
   }
+  // Escalation chains — workspace-wide, not per-project. Activating a chain
+  // result spawns it into the currently active project. Query "spawn"
+  // matches because of the subtitle text; the chain name itself also
+  // matches via standard substring search.
+  const chainsList = (state.data && Array.isArray(state.data.escalationChains)) ? state.data.escalationChains : [];
+  chainsList.forEach(chain => {
+    const name = (chain.name || '').toLowerCase();
+    const itemCount = (chain.items || []).length;
+    const subtitle = `Spawn chain · ${itemCount} item${itemCount === 1 ? '' : 's'}`;
+    if (name.includes(q) || subtitle.toLowerCase().includes(q)) {
+      out.push({
+        type: 'spawn-chain',
+        icon: '↻',
+        title: chain.name,
+        subtitle,
+        chainId: chain.id
+      });
+    }
+  });
   out.sort((a, b) => {
     const at = (a.title || '').toLowerCase();
     const bt = (b.title || '').toLowerCase();
@@ -1082,6 +1101,14 @@ function renderPaletteResults() {
 
 function activatePaletteResult(r) {
   if (r.type === '__capture') { captureFromPalette(); return; }
+  if (r.type === 'spawn-chain') {
+    // Spawn into the active project; close palette; surface the result by
+    // jumping to the Todos view so the user sees the new items.
+    spawnChain(r.chainId);
+    closePalette();
+    if (state.view === 'todos') renderTodos(); else { showView('todos'); }
+    return;
+  }
   if (r.project && r.project !== state.project) switchProject(r.project);
   const viewMap = { todo: 'todos', note: 'notes', commitment: 'commitments', delegation: 'delegations', subproject: 'subprojects', dump: 'dumpzone', brainmap: 'brainmap', project: 'dashboard' };
   const target = viewMap[r.type] || 'dashboard';
@@ -5323,26 +5350,49 @@ function renderTodos() {
     return true;
   });
   const todayStr = toDateString(new Date());
-  const isFutureRecurring = (t) => !!t.recurrence && !t.done && !!t.dueDate && t.dueDate > todayStr;
-  const isFutureRueckbucher = (t) => t.kind === 'rueckbucher' && !t.done && !!t.dueDate && t.dueDate > todayStr;
+  const isFutureRecurring   = (t) => !!t.recurrence && !t.done && !!t.dueDate && t.dueDate > todayStr;
+  const isFutureEscalation  = (t) => t.kind === 'escalation' && !!t.chainId && !t.done && !!t.dueDate && t.dueDate > todayStr;
   const futureRecurring = sortTodosByStatus(filteredRaw.filter(isFutureRecurring), { sortBy: state.todoSortBy, spOrder: spOrderMap });
-  const futureRueckbucher = sortTodosByStatus(filteredRaw.filter(t => !isFutureRecurring(t) && isFutureRueckbucher(t)), { sortBy: state.todoSortBy, spOrder: spOrderMap });
-  const filtered = sortTodosByStatus(filteredRaw.filter(t => !isFutureRecurring(t) && !isFutureRueckbucher(t)), { sortBy: state.todoSortBy, spOrder: spOrderMap });
-  // Rückbucher is an Energy-Hero-specific escalation workflow. Triple-gated:
-  // (1) personal build (set via WORKSPACEHUB_PERSONAL) — distribution builds
-  //     never show this button even if the user imports a personal data dump,
-  // (2) the active project is Energy Hero,
-  // (3) the per-project Rückbucher toggle in Settings is on.
-  const showRueckbucherBtn = (window.api?.isPersonalBuild === true) && state.project === 'energy-hero' && isRueckbucherButtonEnabled();
+  // Group future-dated escalation todos by their owning chain. Chains with
+  // zero matching todos don't render a box. Orphan escalation todos
+  // (chainId points to a deleted chain) fall through to the main list
+  // below — they remain valid todos, just ungrouped, until the user fixes
+  // them via Settings or deletes them.
+  const chains = Array.isArray(state.data.escalationChains) ? state.data.escalationChains : [];
+  const chainsById = Object.fromEntries(chains.map(c => [c.id, c]));
+  const futureEscalationByChain = chains.map(chain => ({
+    chain,
+    items: sortTodosByStatus(
+      filteredRaw.filter(t => !isFutureRecurring(t) && isFutureEscalation(t) && t.chainId === chain.id),
+      { sortBy: state.todoSortBy, spOrder: spOrderMap }
+    )
+  })).filter(g => g.items.length > 0);
+  const filtered = sortTodosByStatus(filteredRaw.filter(t => {
+    if (isFutureRecurring(t)) return false;
+    if (isFutureEscalation(t) && chainsById[t.chainId]) return false;  // grouped above
+    return true;
+  }), { sortBy: state.todoSortBy, spOrder: spOrderMap });
+  // Union of every todo that's actually rendered in this view — main list
+  // plus the recurring box plus every escalation chain box. Used as the
+  // "visible set" for the bulk-action bar's stale-id cleanup: passing only
+  // `filtered` would drop any box-item IDs from state.selectedTodos on
+  // every re-render, making bulk-select inside collapsible boxes feel
+  // silently dead. Collapsed-box items are included intentionally so the
+  // user can select items, collapse the box for clarity, and still run
+  // bulk actions on the full selection.
+  const allVisibleTodos = [
+    ...futureRecurring,
+    ...futureEscalationByChain.flatMap(g => g.items),
+    ...filtered
+  ];
   const recurringCollapsed = isRecurringBoxCollapsed();
-  const rueckbucherCollapsed = isRueckbucherBoxCollapsed();
 
   document.getElementById('content').innerHTML = `
     <div class="view active" id="view-todos">
       <div class="view-header">
         <div class="view-header-row"><div class="view-title">Todos</div></div>
       </div>
-      ${bulkActionBarHTML(filtered)}
+      ${bulkActionBarHTML(allVisibleTodos)}
       <div class="view-body-scrollable">
         <div class="todo-add-form">
           <div class="todo-add-row1">
@@ -5370,7 +5420,21 @@ function renderTodos() {
             <button class="btn btn-ghost btn-sm todo-add-recur ${state.pendingTodoRecurrence?'active':''}" id="btn-add-todo-recur" title="${state.pendingTodoRecurrence ? describeRecurrence(state.pendingTodoRecurrence) : 'Set recurrence'}">
               🔁 ${state.pendingTodoRecurrence ? escapeHTML(describeRecurrence(state.pendingTodoRecurrence)) : 'Repeat'}
             </button>
-            ${showRueckbucherBtn ? `<button class="btn btn-secondary btn-sm" id="btn-spawn-rueckbucher" title="Spawn 3 Rückbucher follow-ups: +7 days, +14 days, +14 days + 3 workdays">↻ Rückbucher</button>` : ''}
+            ${chains.length > 0 ? `
+              <div class="dropdown" id="spawn-chain-dropdown">
+                <button class="btn btn-secondary btn-sm" id="btn-spawn-chain" type="button" title="Spawn an escalation chain in this project">↻ Spawn chain ▾</button>
+                <div class="dropdown-menu" id="spawn-chain-dropdown-menu" hidden>
+                  ${chains.map(c => {
+                    const itemCount = (c.items || []).length;
+                    return `<button class="dropdown-item" type="button" data-spawn-chain-id="${escapeHTML(c.id)}">
+                      <span class="dropdown-item-label">${escapeHTML(c.name)}</span>
+                      <span class="dropdown-item-meta">${itemCount} item${itemCount === 1 ? '' : 's'}</span>
+                    </button>`;
+                  }).join('')}
+                  <hr>
+                  <button class="dropdown-item dropdown-item-secondary" type="button" id="dropdown-manage-chains">Manage chains in Settings…</button>
+                </div>
+              </div>` : ''}
           </div>
         </div>
         <div class="todo-filters">
@@ -5421,23 +5485,25 @@ function renderTodos() {
                 ${futureRecurring.map(t => todoItemHTML(t)).join('')}
               </div>`}
             </div>` : ''}
-          ${futureRueckbucher.length ? `
-            <div class="todo-recurring-box todo-rueckbucher-box ${rueckbucherCollapsed?'collapsed':''}">
+          ${futureEscalationByChain.map(g => {
+            const collapsed = isEscalationBoxCollapsed(g.chain.id);
+            return `<div class="todo-recurring-box todo-escalation-box ${collapsed ? 'collapsed' : ''}" data-chain-id="${escapeHTML(g.chain.id)}">
               <div class="todo-recurring-box-header">
-                <button class="todo-box-toggle" id="btn-toggle-rueckbucher-box" title="${rueckbucherCollapsed?'Expand':'Collapse'}">${rueckbucherCollapsed?'▸':'▾'}</button>
-                <span class="todo-recurring-box-title">↻ Rückbucher — follow-ups</span>
-                <span class="todo-recurring-box-count">${futureRueckbucher.length}</span>
+                <button class="todo-box-toggle" data-toggle-escalation-chain="${escapeHTML(g.chain.id)}" title="${collapsed ? 'Expand' : 'Collapse'}">${collapsed ? '▸' : '▾'}</button>
+                <span class="todo-recurring-box-title">↻ ${escapeHTML(g.chain.name)} — follow-ups</span>
+                <span class="todo-recurring-box-count">${g.items.length}</span>
                 <span class="todo-recurring-box-hint">Moves to the main list once due date is reached</span>
               </div>
-              ${rueckbucherCollapsed ? '' : `<div class="todo-list todo-recurring-list">
-                ${futureRueckbucher.map(t => todoItemHTML(t)).join('')}
+              ${collapsed ? '' : `<div class="todo-list todo-recurring-list">
+                ${g.items.map(t => todoItemHTML(t)).join('')}
               </div>`}
-            </div>` : ''}
+            </div>`;
+          }).join('')}
           <div class="todo-list" id="todo-list">
             ${filtered.length
               ? filtered.map(t => todoItemHTML(t)).join('')
               : `<div class="empty-state" style="padding:20px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">
-                  ${f==='done' ? 'Nothing done yet — keep going!' : ((futureRecurring.length || futureRueckbucher.length) ? 'Nothing due yet — upcoming follow-ups are above.' : 'No todos here. Add one above.')}</div>`}
+                  ${f==='done' ? 'Nothing done yet — keep going!' : ((futureRecurring.length || futureEscalationByChain.length) ? 'Nothing due yet — upcoming follow-ups are above.' : 'No todos here. Add one above.')}</div>`}
           </div>
         </div>
       </div>
@@ -5464,16 +5530,52 @@ function renderTodos() {
   });
   document.getElementById('btn-todo-slash-help')?.addEventListener('click', openTodoSlashHelp);
   document.getElementById('btn-add-todo-recur')?.addEventListener('click', openPendingRecurrenceEditor);
-  document.getElementById('btn-spawn-rueckbucher')?.addEventListener('click', () => {
-    spawnRueckbucherFollowups();
-    renderTodos();
+
+  // Spawn-chain dropdown: button toggles the menu; menu items spawn the
+  // chain into the active project. Click-outside closes via a captured
+  // document handler (mirrors the _todoOverflowOutsideHandler pattern).
+  const spawnChainBtn  = document.getElementById('btn-spawn-chain');
+  const spawnChainMenu = document.getElementById('spawn-chain-dropdown-menu');
+  if (spawnChainBtn && spawnChainMenu) {
+    spawnChainBtn.addEventListener('click', () => {
+      const willOpen = spawnChainMenu.hidden;
+      spawnChainMenu.hidden = !willOpen;
+      if (willOpen) {
+        // Defer attachment so the click that opened it doesn't immediately
+        // close it via the outside-click handler.
+        setTimeout(() => document.addEventListener('click', _spawnChainOutsideHandler, true), 0);
+      } else {
+        document.removeEventListener('click', _spawnChainOutsideHandler, true);
+      }
+    });
+  }
+  document.querySelectorAll('[data-spawn-chain-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chainId = btn.dataset.spawnChainId;
+      _closeSpawnChainMenu();
+      spawnChain(chainId);
+      renderTodos();
+    });
   });
+  document.getElementById('dropdown-manage-chains')?.addEventListener('click', () => {
+    _closeSpawnChainMenu();
+    state.settingsTab = 'workflows';
+    localStorage.setItem('settingsLastTab', 'workflows');
+    openSettings();
+  });
+
+  // Per-chain collapsible-box toggle. Each chain box has a unique
+  // data-toggle-escalation-chain attribute carrying the chainId.
+  document.querySelectorAll('[data-toggle-escalation-chain]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chainId = btn.dataset.toggleEscalationChain;
+      setEscalationBoxCollapsed(chainId, !isEscalationBoxCollapsed(chainId));
+      renderTodos();
+    });
+  });
+
   document.getElementById('btn-toggle-recurring-box')?.addEventListener('click', () => {
     setRecurringBoxCollapsed(!isRecurringBoxCollapsed());
-    renderTodos();
-  });
-  document.getElementById('btn-toggle-rueckbucher-box')?.addEventListener('click', () => {
-    setRueckbucherBoxCollapsed(!isRueckbucherBoxCollapsed());
     renderTodos();
   });
   document.querySelectorAll('.filter-btn').forEach(b =>
@@ -5729,6 +5831,19 @@ function _todoOverflowOutsideHandler(e) {
   if (e.target.closest('#todo-overflow-menu')) return;
   if (e.target.closest('.todo-overflow'))      return;
   closeTodoOverflowMenu();
+}
+
+// Spawn-chain dropdown: click-outside-to-close + close helper. Mirrors the
+// _todoOverflowOutsideHandler pattern. Attached/detached by the renderTodos
+// click handler so listeners don't accumulate across re-renders.
+function _spawnChainOutsideHandler(e) {
+  if (e.target.closest('#spawn-chain-dropdown')) return;   // click inside dropdown — keep open
+  _closeSpawnChainMenu();
+}
+function _closeSpawnChainMenu() {
+  const menu = document.getElementById('spawn-chain-dropdown-menu');
+  if (menu && !menu.hidden) menu.hidden = true;
+  document.removeEventListener('click', _spawnChainOutsideHandler, true);
 }
 
 function todoItemHTML(t) {

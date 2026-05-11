@@ -27,7 +27,7 @@
 // ===== SCHEMA VERSIONING + MIGRATIONS =====
 // Each migration brings data from version N-1 → N. Numbered, runs in order.
 // Add new migrations as new keys; never edit shipped ones.
-var CURRENT_SCHEMA_VERSION = 3;
+var CURRENT_SCHEMA_VERSION = 4;
 var SCHEMA_MIGRATIONS = {
   // v1: consolidates everything migrateAttachments() used to do ad-hoc.
   // For fresh installs schemaVersion starts at 0 and runs through all.
@@ -86,6 +86,57 @@ var SCHEMA_MIGRATIONS = {
       (proj.reminders   || []).forEach(r => { if (!Array.isArray(r.tags)) r.tags = []; });
     }
     return data;
+  },
+  // v4: generalize the legacy Rückbucher follow-up workflow into the public
+  // Custom Escalation Chains feature. CONDITIONAL synthesis: the German
+  // legacy chain is only inserted when this workspace actually has
+  // kind:'rueckbucher' todos. Fresh installs and users who never used
+  // Rückbucher get nothing here (their generic example chain comes from
+  // getDefaultData in main.js). Strings preserved verbatim from the
+  // pre-v0.1 private German workflow so existing user todos stay
+  // display-consistent with the synthesized chain template. Public feature
+  // code (Settings UI, spawn UX, runtime rendering) contains no such
+  // strings — THIS BLOCK IS THE ONLY PLACE "Rückbucher" appears in
+  // post-cleanup source. Idempotent: hasLegacyTodos check + chain dedup
+  // + todo kind predicate make repeat runs no-ops.
+  4: (data) => {
+    if (!Array.isArray(data.escalationChains)) data.escalationChains = [];
+
+    // Detect the user came from the legacy workflow. Single pass; bail on
+    // first hit. Fresh installs and users who never used Rückbucher: false.
+    let hasLegacyTodos = false;
+    for (const proj of Object.values(data.projects || {})) {
+      if (!Array.isArray(proj.todos)) continue;
+      if (proj.todos.some(t => t && t.kind === 'rueckbucher')) {
+        hasLegacyTodos = true;
+        break;
+      }
+    }
+
+    if (hasLegacyTodos &&
+        !data.escalationChains.find(c => c.id === 'chain-rueckbucher-legacy')) {
+      data.escalationChains.push({
+        id: 'chain-rueckbucher-legacy',
+        name: 'Rückbucher (legacy)',
+        items: [
+          { title: 'Rückbucher 2nd reminder',    offset: { days: 7 } },
+          { title: 'Rückbucher last reminder',   offset: { days: 14 } },
+          { title: 'Rückbucher inaktiv stellen', offset: { days: 14, plusWorkdays: 3 } }
+        ]
+      });
+    }
+
+    for (const proj of Object.values(data.projects || {})) {
+      if (!Array.isArray(proj.todos)) continue;
+      for (const todo of proj.todos) {
+        if (!todo || typeof todo !== 'object') continue;
+        if (todo.kind === 'rueckbucher') {
+          todo.kind = 'escalation';
+          todo.chainId = 'chain-rueckbucher-legacy';
+        }
+      }
+    }
+    return data;
   }
 };
 
@@ -110,9 +161,26 @@ function runSchemaMigrations(data) {
 
 // Backwards-compatible wrapper. Init still calls migrateAttachments();
 // keep the name so existing call sites don't break.
+//
+// Post-migration persist: if runSchemaMigrations bumped the schema
+// version (i.e. some migration actually ran on this load), we IMMEDIATELY
+// write the migrated data to disk via the IPC saveData. Otherwise the
+// in-memory data sits at the new version while the on-disk file lags at
+// the old version until the user happens to make a saveData-triggering
+// edit, which causes main's pre-migration backup gate to refire on every
+// subsequent loadData (e.g. periodic checkReminders ticks). Bypasses the
+// renderer's saveData() wrapper because that wrapper participates in the
+// undo stack — this is a one-shot internal write, not a user-visible
+// mutation. Fire-and-forget; if the IPC fails for some reason, the next
+// real saveData will catch up.
 function migrateAttachments() {
   if (!state.data) return;
+  const before = (typeof state.data.schemaVersion === 'number') ? state.data.schemaVersion : 0;
   state.data = runSchemaMigrations(state.data);
+  const after = (typeof state.data.schemaVersion === 'number') ? state.data.schemaVersion : 0;
+  if (after > before && typeof window !== 'undefined' && window.api && typeof window.api.saveData === 'function') {
+    try { window.api.saveData(state.data); } catch (e) { console.error('post-migration persist failed:', e); }
+  }
 }
 
 function formatFileSize(bytes) {

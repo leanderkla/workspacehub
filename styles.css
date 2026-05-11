@@ -3113,7 +3113,151 @@ button.tag-chip { line-height: 1.5; }
   margin-bottom: 16px;
 }
 .todo-recurring-box.collapsed { padding-bottom: 10px; }
-.todo-recurring-box.todo-rueckbucher-box { border-color: color-mix(in srgb, var(--accent) 50%, var(--border-strong)); }
+.todo-recurring-box.todo-escalation-box { border-color: color-mix(in srgb, var(--accent) 50%, var(--border-strong)); }
+
+/* Spawn-chain dropdown — appears in the todo-add-form row next to the
+   recurrence button. Used by [src/09-themes.js] Workflows tab too once
+   Phase E lands; the styles are intentionally generic so other dropdowns
+   can adopt them. */
+.dropdown { position: relative; display: inline-block; }
+.dropdown-menu {
+  position: absolute;
+  top: 100%; right: 0;
+  min-width: 240px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+  margin-top: 4px;
+  z-index: 100;
+}
+.dropdown-menu[hidden] { display: none; }
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.dropdown-item:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.dropdown-item-label { flex: 1; min-width: 0; }
+.dropdown-item-meta {
+  flex-shrink: 0;
+  margin-left: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.dropdown-item.dropdown-item-secondary {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+.dropdown-menu hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+/* Escalation chain editor — Settings → Workflows tab */
+.escalation-chains-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0;
+}
+.escalation-chain-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.escalation-chain-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.escalation-chain-name { flex: 1; font-weight: 600; }
+.escalation-chain-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.escalation-chain-reorder .btn {
+  padding: 1px 7px;
+  font-size: 11px;
+  line-height: 1.1;
+  min-width: 0;
+}
+.escalation-chain-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 6px 0;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.escalation-chain-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+.escalation-chain-item-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.escalation-chain-item-reorder .btn {
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 1.1;
+  min-width: 0;
+}
+.escalation-item-title {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+.escalation-item-offset {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.escalation-item-offset-label { padding: 0 2px; }
+.escalation-item-magnitude,
+.escalation-item-plus-magnitude {
+  width: 60px;
+}
+.escalation-item-unit { min-width: 95px; }
+.escalation-item-plus-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding-left: 4px;
+}
+.escalation-item-plus-toggle input[type="checkbox"] { margin: 0; }
+.escalation-item-plus-magnitude:disabled { opacity: 0.4; }
+.escalation-item-delete {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+}
 
 .todo-box-toggle {
   width: 22px;

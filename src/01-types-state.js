@@ -54,7 +54,8 @@
  * @property {Attachment[]} attachments
  * @property {TodoStep[]} steps
  * @property {Recurrence|null} recurrence
- * @property {string} [kind]            e.g. 'rueckbucher'
+ * @property {'escalation'|string} [kind]  Generic categorization. 'escalation' = spawned from an escalation chain.
+ * @property {string} [chainId]            Set when kind === 'escalation'; foreign key into data.escalationChains.
  */
 
 /**
@@ -217,11 +218,40 @@
  */
 
 /**
+ * @typedef {Object} Offset
+ * Time offset for an escalation chain item, applied to a spawn anchor date.
+ * Exactly one of `days` or `workdays` is the primary magnitude (XOR — both
+ * set is invalid; both zero is treated as no-offset). `plusWorkdays` is an
+ * optional non-negative tail of additional working days added AFTER the
+ * primary, used to express patterns like "+14 calendar days then +3 working
+ * days". Negatives are clamped to 0 by applyOffset.
+ * @property {number} [days]           Calendar-day primary offset.
+ * @property {number} [workdays]       Working-day primary offset (skips Sat/Sun).
+ * @property {number} [plusWorkdays]   Additional workdays appended after the primary.
+ */
+
+/**
+ * @typedef {Object} EscalationChainItem
+ * @property {string} title            Verbatim title for the spawned todo.
+ * @property {Offset} offset           Anchor-relative due date.
+ */
+
+/**
+ * @typedef {Object} EscalationChain
+ * @property {string} id               Stable id (generateId('chain') for user-created;
+ *   'chain-rueckbucher-legacy' for the one-shot v2 migration synthesis;
+ *   'chain-example-3-step' for the fresh-install seed).
+ * @property {string} name             User-editable display name.
+ * @property {EscalationChainItem[]} items
+ */
+
+/**
  * @typedef {Object} WorkspaceData
- * @property {number} schemaVersion
+ * @property {number} schemaVersion         Bumped on each one-shot migration. v2 = escalation chains.
  * @property {string} [activeProject]
  * @property {Object<string, Project>} projects
  * @property {PinnedItem[]} pinned
+ * @property {EscalationChain[]} escalationChains   Workspace-wide chain definitions.
  */
 
 // ===== STATE =====
