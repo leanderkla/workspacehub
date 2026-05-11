@@ -9,7 +9,8 @@
     "test": "node tests/run.js",
     "build:three": "esbuild vendor-three-loader.js --bundle --format=iife --outfile=vendor/three.bundle.js --minify",
     "pack": "electron-builder --dir --publish never",
-    "dist": "electron-builder --publish never"
+    "dist": "electron-builder --publish never",
+    "dist:publish": "electron-builder --publish always"
   },
   "devDependencies": {
     "electron": "^28.3.0",
@@ -65,7 +66,8 @@
     "publish": {
       "provider": "github",
       "owner": "leanderkla",
-      "repo": "workspacehub"
+      "repo": "workspacehub",
+      "releaseType": "draft"
     }
   }
 }
