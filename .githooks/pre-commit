@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Pre-commit hook — blocks staged changes containing personal-data markers
+# defined in .pre-commit-personal-markers (gitignored at repo root).
+#
+# Installed via `git config --local core.hooksPath .githooks` (one-time
+# per clone). The hook reads the marker file at commit time and greps the
+# staged diff (only added lines, no context, no full-file scan) against an
+# alternation of the markers. Pre-existing matches in unchanged content
+# are ignored — only what this commit actually adds gets checked.
+#
+# Bypass: `git commit --no-verify`
+# Legitimate bypass cases: editing the hook itself, updating cleanup-narrative
+# docs that mention markers deliberately, working on .pre-commit-personal-markers.
+
+set -uo pipefail
+
+MARKER_FILE=".pre-commit-personal-markers"
+
+# No marker file present → no rules to enforce; silent pass.
+if [[ ! -f "$MARKER_FILE" ]]; then
+  exit 0
+fi
+
+# Build alternation pattern from non-comment non-empty lines.
+PATTERNS=$(grep -v '^[[:space:]]*#' "$MARKER_FILE" \
+  | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+  | grep -v '^$' \
+  | paste -sd '|' -)
+
+if [[ -z "$PATTERNS" ]]; then
+  exit 0
+fi
+
+# Get staged diff with no context lines. We deliberately skip context because
+# we want to catch ONLY what this commit adds, not pre-existing content
+# elsewhere in the file.
+DIFF=$(git diff --cached --unified=0 --no-color)
+if [[ -z "$DIFF" ]]; then
+  exit 0
+fi
+
+# Scan diff with awk: track current file + line, check each added line.
+# Case-insensitive via gawk's IGNORECASE. Output format:
+#   <path>:<line>  →  matched "<marker text>"
+#      <full content of the offending line>
+RESULT=$(echo "$DIFF" | awk -v patterns="$PATTERNS" '
+BEGIN { IGNORECASE = 1 }
+/^diff --git / {
+  if (match($0, /b\/.*/)) {
+    file = substr($0, RSTART + 2)
+  }
+  next
+}
+/^@@/ {
+  # Hunk header: "@@ -OLD,LEN +NEW,LEN @@". Capture NEW start line.
+  if (match($0, /\+[0-9]+/)) {
+    line_num = substr($0, RSTART + 1, RLENGTH - 1) + 0
+  }
+  next
+}
+/^\+\+\+/ { next }
+/^---/    { next }
+/^\+/ {
+  # Added line. Strip the leading + and test against patterns.
+  content = substr($0, 2)
+  if (match(content, patterns)) {
+    matched = substr(content, RSTART, RLENGTH)
+    printf "  %s:%d  →  matched \"%s\"\n     %s\n", file, line_num, matched, content
+  }
+  line_num++
+  next
+}
+/^-/ {
+  # Deleted line — does not advance the new-file line counter.
+  next
+}
+')
+
+if [[ -n "$RESULT" ]]; then
+  cat <<EOF >&2
+
+❌ pre-commit blocked: staged diff contains personal-data markers
+
+$RESULT
+Markers checked from: $MARKER_FILE (gitignored)
+
+If this match is intentional (editing the hook itself, updating
+cleanup-narrative docs that mention markers deliberately, working
+on the marker file), bypass with:
+
+    git commit --no-verify
+
+EOF
+  exit 1
+fi
+
+exit 0

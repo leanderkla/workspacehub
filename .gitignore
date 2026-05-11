@@ -46,3 +46,8 @@ misc/
 
 # Claude Code per-user state (allowed-tools history etc.); keep settings.json tracked
 .claude/settings.local.json
+
+# Pre-commit hook marker file — patterns the hook greps against the staged
+# diff to prevent personal-data leaks. Gitignored so the markers themselves
+# never ship publicly. See .githooks/pre-commit for the hook that reads it.
+.pre-commit-personal-markers
