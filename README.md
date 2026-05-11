@@ -1,27 +1,19 @@
 # WorkspaceHub
 
-A local-first personal workspace manager. Single-developer hobby project — see [MASTER_PLAN.md](MASTER_PLAN.md) for the v1.0 roadmap.
+Local-first personal workspace manager for Windows.
 
-(Full README coming with v1.0 in M5. This intermediate version documents install + the dev-setup step that matters most right now.)
+## Download
 
-## Install
+**[⬇ Get the latest release](https://github.com/leanderkla/workspacehub/releases/latest)**
 
-Download the latest `WorkspaceHub-Setup-X.Y.Z.exe` from [Releases](https://github.com/leanderkla/workspacehub/releases) and run it.
+First time installing? Windows will show a SmartScreen warning 
+("Windows protected your PC"). This is normal for unsigned apps. 
+Click "More info" → "Run anyway".
 
-**Windows SmartScreen will show "Windows protected your PC"** because the build is unsigned. To proceed:
+The app auto-updates from future releases. Your data stays local 
+at `%APPDATA%\workspacehub\`.
 
-1. Click **More info**
-2. Click **Run anyway**
-
-This warning will appear on every fresh download until either the installer accumulates enough Microsoft SmartScreen reputation (typically hundreds of installs) or the binary gets code-signed in a later release.
-
-The installer is **per-user** — no admin / UAC prompt. Default install path is `%LOCALAPPDATA%\Programs\WorkspaceHub`; you can change it during install. A desktop shortcut and Start-menu entry are created. The installed app auto-updates from GitHub Releases (silent download, applies on next quit).
-
-## Where your data lives
-
-`%APPDATA%\workspacehub` — i.e. `C:\Users\<you>\AppData\Roaming\workspacehub`.
-
-This directory **survives uninstall and upgrade**. Back it up to keep your workspace safe across machine moves.
+---
 
 ## Development
 
