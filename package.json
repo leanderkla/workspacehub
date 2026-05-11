@@ -17,6 +17,8 @@
     "esbuild": "^0.28.0"
   },
   "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "three": "^0.184.0"
   },
   "build": {
@@ -43,7 +45,12 @@
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "icons/workspacehub.ico"
     },

@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, Notification, dialog, shell, Tray, Menu } =
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
+const { autoUpdater } = require('electron-updater');
+const log = require('electron-log/main');
 
 // Must be set BEFORE the app is ready so Windows correctly groups
 // taskbar icons and pinning works as one instance.
@@ -524,6 +526,35 @@ function createTray() {
   });
 }
 
+// ===== AUTO-UPDATE (M1 §1.2) =====
+// Two concerns wired together:
+//   1. electron-log captures the autoUpdater trace to a rotating file at
+//      %APPDATA%\workspacehub\logs\main.log. Failures (network, sha
+//      mismatch, install-on-quit interrupt) leave a forensic trail —
+//      without this, post-hoc debugging on a user machine is hopeless.
+//   2. autoUpdater defaults are exactly what we want for v0.1:
+//        autoDownload: true             → download begins on update-available
+//        autoInstallOnAppQuit: true     → installs silently on next quit
+//      User decision (locked): "silent download, apply on next quit".
+//      checkForUpdatesAndNotify() additionally fires an OS notification
+//      when the download completes so the user knows a restart will
+//      pick up the update — passive, non-blocking.
+//
+// Skipped entirely in dev builds (`npm start`): an unpackaged build has
+// no app-update.yml resource, and calling checkForUpdates would throw.
+// `app.isPackaged` is the canonical electron guard for production-only
+// code paths.
+log.initialize();
+log.transports.file.level = 'info';
+autoUpdater.logger = log;
+
+autoUpdater.on('checking-for-update', () => log.info('[updater] checking'));
+autoUpdater.on('update-available', (info) => log.info('[updater] update available: v' + info.version));
+autoUpdater.on('update-not-available', (info) => log.info('[updater] no update (current is latest): v' + info.version));
+autoUpdater.on('download-progress', (p) => log.info('[updater] download ' + (p.percent || 0).toFixed(1) + '%'));
+autoUpdater.on('update-downloaded', (info) => log.info('[updater] downloaded v' + info.version + '; will install on next quit'));
+autoUpdater.on('error', (err) => log.error('[updater] error:', err));
+
 app.whenReady().then(() => {
   // If another instance already holds the lock, skip bootstrapping entirely
   // — we're in the middle of quitting, and creating a window here is what
@@ -538,6 +569,15 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   reminderInterval = setInterval(checkReminders, 60000);
+
+  // Kick off the update check. Packaged-build only; dev launches log a
+  // one-liner and move on. Errors here are caught and logged but never
+  // re-thrown — a flaky update server must not crash app startup.
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => log.error('[updater] check failed:', err));
+  } else {
+    log.info('[updater] skipped (not packaged build)');
+  }
 });
 
 // Set the quit flag before windows start closing so the 'close' interceptor
