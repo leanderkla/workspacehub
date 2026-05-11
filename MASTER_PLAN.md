@@ -14,8 +14,13 @@ WorkspaceHub is a one-developer local-first Electron workspace tool. The current
 3. **Markdown export is speculative; defer past v1.0.** JSON-only export+import in M3.
 4. **§1.1 (genericize seed) goes BEFORE modularization** — it's mostly `main.js`/`package.json` work and doesn't conflict with the app.js split.
 
-**Velocity assumption:**
-The author works two demanding day jobs alongside this. All effort estimates assume 30-50% lower velocity than a focused-side-project pace. Calendar dates compound that: a "1-day" task is 1-3 elapsed days, a "1-week" task is 1.5-2 weeks elapsed. Plan v1.0 to land **late November / December 2026** if work starts mid-May 2026.
+**Velocity assumption (revised 11 May 2026 after observed pattern):**
+
+The original plan assumed 30-50% lower velocity than a focused-side-project pace, with multi-week elapsed estimates per milestone. **Observed shipped work disagrees, consistently.** M0 modularization (budgeted 4-6 weeks elapsed) shipped its waves in ~45 minutes of focused work. Spark-map linking phases (budgeted days) shipped in hours. M1 §1.2 installer + auto-update (budgeted 3-4 weeks elapsed with a "long debug tail") shipped in ~70 minutes with zero debug. The cleanup arc that genericized the seed and scrubbed history shipped in one afternoon. The compression is consistent across feature work, modularization, distribution config, and history-rewriting — not §1.2-specific.
+
+The honest read: **focused-session work for the remaining v1.0 milestones is on the order of 1-2 weeks total**, not 5-7 calendar months. The real constraint is how much focused-session time the author has, which depends on life (two day jobs, energy, other obligations) — not on work complexity.
+
+**The 6-12 month outer window is a comfortable ceiling for life to happen in, not a target.** If a free weekend opens up, v1.0 could ship in a weekend. If life is busy, the December 2026 outer bound still holds comfortably. Plan around life, not around work-time estimates. The risk-language about burnout (Risk #6, #14) is the genuinely binding constraint and stays intact.
 
 **Scope explicitly out:**
 - `styles.css` (8,940 lines) is at the edge of overwhelming and is **a known future concern**. Not in scope for this plan. Will be revisited if and when CSS work becomes painful — likely a separate themed plan after v1.0 ships.
@@ -500,56 +505,46 @@ Pure recurrence tests load ~1,500 lines instead of 16,835.
 
 ---
 
-## Sizing estimates (S/M/L/XL, with velocity adjustment for two-day-jobs author)
+## Sizing estimates (revised May 2026 after observed velocity)
 
-| Item | Audit/optimistic | This plan |
+| Item | Original this-plan estimate | Revised May 2026 |
 |---|---|---|
-| Phase 0 §1.1 + theme archival | 1 day | **1-3 days** |
-| M0 modularization Path A (Waves 1-4) | 4-6 days | **30-45 hours actual / 4-6 weeks elapsed** |
-| §1.2 installer + auto-update | 1-2 days | **15-20 days actual / 3-4 weeks elapsed** |
-| §4.1a tray icon | 1 day | 1-2 days |
-| §4.1b global hotkey + capture popup | 2-3 days | 3-5 days |
-| §2.1 Week view | "few hundred lines" | **15-20 days actual / 4-5 weeks elapsed** |
-| §2.2 focus session persistence | 1 day | 1-2 days |
-| §2.3 insights / streaks / heatmap | 4-6 days | **7-10 days actual** |
-| §4.2a JSON export | 1 day | 1-2 days |
-| §4.2c JSON import | 2-3 days | 3-4 days |
-| §4.3a notes bulk parity | 1 day | 1-2 days |
-| §4.3b bulk add/remove tags | 1 day | 1-2 days |
-| §1.3 + §5.1 onboarding + templates | 3-5 days | **5-7 days, gets its own milestone (M5)** |
+| Phase 0 §1.1 + theme archival | 1-3 days | ✅ **DONE** (~1 afternoon actual) |
+| M0 modularization Path A (Waves 1-4) | 30-45 hours actual / 4-6 weeks elapsed | ✅ **DONE** (~45 min focused for shipped waves) |
+| §1.2 installer + auto-update | 15-20 days actual / 3-4 weeks elapsed | ✅ **DONE** (~70 min focused, zero debug tail) |
+| §4.1a tray icon | 1-2 days | ✅ **DONE** (commit `4968cc3`) |
+| §4.1b global hotkey + capture popup | 3-5 days | **2-4 hours focused** |
+| §2.1 Week view | 15-20 days actual / 4-5 weeks elapsed | **1-3 days focused** |
+| §2.2 focus session persistence | 1-2 days | **2-4 hours focused** |
+| §2.3 insights / streaks / heatmap | 7-10 days actual | **1-2 days focused** |
+| §4.2a JSON export | 1-2 days | **2-4 hours focused** |
+| §4.2c JSON import | 3-4 days | **2-4 hours focused** |
+| §4.3a notes bulk parity | 1-2 days | **2-4 hours focused** |
+| §4.3b bulk add/remove tags | 1-2 days | **1-2 hours focused** |
+| §1.3 + §5.1 onboarding + templates | 5-7 days, gets its own milestone (M5) | **1-2 days focused for the build; template content decisions take longer than the code itself** |
 
-**Calendar totals (with velocity buffer):**
-- Phase 0: 1 week
-- M0: 4-6 weeks
-- M1: 5-6 weeks
-- M2: 5-6 weeks
-- M3: 4-5 weeks
-- M4: 2 weeks
-- M5: 2 weeks
-- **Total: 23-28 weeks ≈ 5.5-7 calendar months elapsed.** Comfortably inside 6-12 month window.
+**Total focused work remaining to v1.0: ~1-2 weeks of clear-headed sessions** (rough sum of the per-milestone "focused" estimates above). Spread across however many calendar weeks or months life affords. The 6-12 month outer window has very substantial slack — see the velocity assumption near the top of this document.
 
 ---
 
-## Final recommended sequence (calendar dates with velocity buffer)
+## Status & remaining work (revised May 2026)
 
-Assuming work starts mid-May 2026:
+The original "calendar dates with velocity buffer" table assigned multi-week date ranges to each milestone. Observed actual velocity made those ranges misleading; the table below shows real shipping status + realistic focused-work estimates for what's left. Calendar dates aren't assigned because the constraint is life, not work — see velocity assumption.
 
-| Phase | Date range | Deliverable |
+| Phase | Status | Focused-work estimate |
 |---|---|---|
-| Phase 0 — §1.1 seed + theme drafts archive | 15 May → 22 May | Distribution build neutral; workspace clutter gone |
-| M0 Wave 1 — pure leaves | 22 May → 5 June | 5 modules, app.js residual reduced |
-| **🛑 Stress-test gate** | early June | Decide: continue, narrow scope, or stop entirely |
-| M0 Wave 2 — big UIs | 5 June → 19 June | 3 more modules |
-| M0 Wave 3 — settings/schema | 19 June → 30 June | 2 more modules |
-| M0 Wave 4 — risky residuals | 30 June → 14 July | 2 more modules; app.js residual ~7,700 lines |
-| M1 — distribution v0.9 | 14 July → 25 August | Installer + auto-update + tray + hotkey |
-| M2 — Week view + focus persist | 25 August → 5 October | The "when" view |
-| M3 — insights + JSON export/import | 5 October → 8 November | Heatmap + portability |
-| M4 — bulk parity & polish | 8 November → 22 November | Notes bulk + bulk tags |
-| M5 — onboarding & ship | 22 November → 6 December | First-run wizard + templates + ship |
-| **v1.0 ship** | **early-to-mid December 2026** | GitHub Release with installer |
+| Phase 0 — §1.1 seed + theme drafts archive | ✅ shipped | one afternoon (actual) |
+| M0 Waves 1-4 — modularization | ✅ shipped | ~45 min focused (actual) |
+| M1 §1.2 — distribution v0.9 (installer + auto-update) | ✅ shipped 11 May 2026 | ~70 min focused, zero debug (actual) |
+| M1 §4.1a — tray icon | ✅ shipped (commit `4968cc3`) | one session (actual) |
+| M1 §4.1b — global hotkey + capture popup | ⏳ **next** | 2-4 hours focused |
+| M2 — Week view + focus persistence | pending | 1-3 days focused |
+| M3 — insights + JSON export/import | pending | 1-2 days focused |
+| M4 — bulk parity & polish | pending | half a day focused |
+| M5 — onboarding & ship | pending | 1-2 days focused for the build; template content decisions take longer |
+| **v1.0 ship** | **floor: a free weekend could close it. Ceiling: December 2026 outer bound still holds comfortably.** | |
 
-**Optional post-v1.0 (Jan-March 2027):** §3.1 ICS export, §4.3-rest bulk bars (only if demanded), Month grid, §5.4 audit trail, §4.2b Markdown export (if phone workflow emerges), `styles.css` modularization (separate plan).
+**Optional post-v1.0:** §3.1 ICS export, §4.3-rest bulk bars (only if demanded), Month grid, §5.4 audit trail, §4.2b Markdown export (if phone workflow emerges), `styles.css` modularization (separate plan).
 
 ---
 
