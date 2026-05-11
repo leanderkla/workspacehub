@@ -1,18 +1,64 @@
 {
   "name": "workspacehub",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Personal workspace manager — local-first",
   "main": "main.js",
+  "author": "Leander Klass",
   "scripts": {
     "start": "electron .",
     "test": "node tests/run.js",
-    "build:three": "esbuild vendor-three-loader.js --bundle --format=iife --outfile=vendor/three.bundle.js --minify"
+    "build:three": "esbuild vendor-three-loader.js --bundle --format=iife --outfile=vendor/three.bundle.js --minify",
+    "pack": "electron-builder --dir --publish never",
+    "dist": "electron-builder --publish never"
   },
   "devDependencies": {
     "electron": "^28.3.0",
+    "electron-builder": "^26.8.1",
     "esbuild": "^0.28.0"
   },
   "dependencies": {
     "three": "^0.184.0"
+  },
+  "build": {
+    "appId": "com.workspacehub.app",
+    "productName": "WorkspaceHub",
+    "copyright": "Copyright © 2026 Leander Klass",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app.js",
+      "index.html",
+      "styles.css",
+      "src/**/*",
+      "vendor/**/*",
+      "icons/workspacehub.ico",
+      "README.md",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "icons/workspacehub.ico"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "icons/workspacehub.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WorkspaceHub"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "leanderkla",
+      "repo": "workspacehub"
+    }
   }
 }
