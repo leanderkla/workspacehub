@@ -2,9 +2,8 @@
 
 // ===== src/11-projects-init.js =====
 // Wave-4 extraction (M0): the bootstrap-adjacent helpers — developer-mode
-// toggles, the backup-prompt timer machinery, the Rueckbucher follow-up
-// spawner (gated by the personal-build env at the call site in residual
-// app.js's todo view), sidebar / gantt / list-panel resizers, project
+// toggles, the backup-prompt timer machinery, the escalation chain
+// spawner (`spawnChain`), sidebar / gantt / list-panel resizers, project
 // CRUD (createProject, slug, migrateProjectColors, applyProjectAccent
 // + the rename / delete / new-project modals + project context menu).
 //

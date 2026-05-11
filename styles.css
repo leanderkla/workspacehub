@@ -28,7 +28,7 @@
   --transition: 150ms ease;
 }
 
-/* Energy Hero — Sun (yellow/orange on slate) */
+/* Sun (yellow/orange on slate) */
 html[data-theme="eh-sun"] {
   --accent: #F9A81A;
   --accent-light: #FEF3D4;
@@ -45,7 +45,7 @@ html[data-theme="eh-sun"] {
   --border-strong: #C9D1D6;
 }
 
-/* Energy Hero — Sepia (warm paper + EH orange accent) */
+/* Sepia (warm paper + warm orange accent) */
 html[data-theme="eh-sepia"] {
   --accent: #F9A81A;
   --accent-light: #FBE4B3;

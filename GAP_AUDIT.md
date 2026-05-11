@@ -28,7 +28,7 @@ Things on your roadmap are out of scope here unless I'd reprioritize them — fl
 - [main.js:100-181](main.js#L100) `getDefaultData()` returns `activeProject: 'my-workspace'` with two pre-named projects: **"My Workspace"** and **"My Side Project"**. Anyone who installs the app and opens it sees your two real businesses as their starter projects.
 - [main.js:134](main.js#L134) loads [data/my-workspace-brainmap.json](data/my-workspace-brainmap.json) into the seed brainmap. Your actual strategy nodes ship with the binary.
 - [package.json:4](package.json#L4) `"description": "Personal workspace manager for My Workspace & My Side Project"` — this is the description users see in installers and process lists.
-- [app.js:1298](app.js#L1298) the Settings UI has a literal *"My Workspace — ↻ Rückbucher button"* checkbox baked into global Workflow shortcuts. Visible only when My Workspace is active, but it's still a vendor-specific item in a public Settings tab.
+- [app.js:1298](app.js#L1298) the Settings UI has a literal *"My Workspace — ↻ follow-up workflow button"* checkbox baked into global Workflow shortcuts. Visible only when My Workspace is active, but it's still a vendor-specific item in a public Settings tab.
 
 **Fix shape (small):**
 - Replace `getDefaultData()` with either (a) an empty workspace + first-run "Create your project" wizard, or (b) a generic "My Workspace" / "Personal" pair with neutral example notes/todos.
@@ -156,7 +156,7 @@ Everything in Bucket 3 and the rest of Bucket 4 lands in v1.1+ without blocking 
 - [main.js:134](main.js#L134) — `loadMyWorkspaceBrainmap()` — must be gated
 - [data/my-workspace-brainmap.json](data/my-workspace-brainmap.json) — must not ship in distribution build
 - [package.json](package.json) — needs `electron-builder` + `electron-updater` + neutral description
-- [app.js:1291-1303](app.js#L1291) — My Workspace Rückbucher Settings entry — must be gated or generalized
+- [app.js:1291-1303](app.js#L1291) — My Workspace follow-up workflow Settings entry — must be gated or generalized
 - [app.js:9444-9523](app.js#L9444) — todo bulk bar (model for extending other entities)
 - [app.js:8194-8260](app.js#L8194) — notes bulk bar (currently minimal)
 - [FUTURE_CHANGES.md](FUTURE_CHANGES.md) — your existing roadmap; reorder per table above

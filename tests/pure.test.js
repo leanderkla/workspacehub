@@ -58,8 +58,8 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       evalIn(`state.project = 'eh';`);
       evalIn(`state.data = {
         projects: {
-          'eh':  { name: 'Energy Hero',    color: '#f59e0b', todos: [] },
-          'ai5': { name: 'AI5innovation',  color: '#0ea5e9', todos: [] }
+          'eh':  { name: 'My Workspace',   color: '#f59e0b', todos: [] },
+          'ai5': { name: 'My Side Project', color: '#0ea5e9', todos: [] }
         },
         pinned: []
       };`);
@@ -116,7 +116,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
     const setup = () => {
       evalIn(`state.project = 'eh';`);
       evalIn(`state.data = {
-        projects: { 'eh': { name: 'Energy Hero', subprojects: [{ id: 'sp1', name: 'Sales' }, { id: 'sp2', name: 'Marketing' }], todos: [] } }
+        projects: { 'eh': { name: 'My Workspace', subprojects: [{ id: 'sp1', name: 'Sales' }, { id: 'sp2', name: 'Marketing' }], todos: [] } }
       };`);
     };
 

@@ -70,10 +70,9 @@ Move all `.html` files from `drafts/` and `previews/` into a new `themes-explore
 
 #### Verification
 
-1. `npm start` → app launches with one project named "My Workspace", no Rückbucher checkbox visible, no My Workspace strings.
-2. `npm run start:personal` → both My Workspace and My Side Project visible, Rückbucher restored, brainmap loaded.
-3. Repo root no longer has draft `.html` or theme-draft `.md` files; `themes-explored/` exists and contains them.
-4. `grep -ri "my workspace\|my side project\|rückbucher" .` of the eventual built artifact (after M1 lands) shows zero matches outside `themes-explored/`.
+1. `npm start` → fresh install opens with the neutral default workspace; no personal-data branding anywhere; Settings → Workflows shows the chain CRUD editor (with the generic example chain shipped via `getDefaultData()`).
+2. Repo root no longer has draft `.html` or theme-draft `.md` files; `themes-explored/` exists and contains them.
+3. `grep -ri "my workspace\|my side project\|rückbucher" .` of the eventual built artifact (after M1 lands) shows zero matches outside `themes-explored/` and the deliberately-preserved v4 migration block in `src/10-schema-attachments.js`.
 
 **Effort:** 1-3 days. No tests will break (none of the seed code is covered).
 
@@ -599,7 +598,7 @@ Each phase has its own exit criteria above. The cumulative v1.0 verification:
    - First-run wizard appears, shows 3 templates.
    - Pick "Blank" — empty workspace.
    - No "My Workspace" or "My Side Project" strings anywhere.
-   - No Rückbucher checkbox.
+   - Settings → Workflows: chain CRUD editor present; no legacy chain pre-seeded for the Blank template.
 2. **Capture loop:** Press Ctrl+Shift+Space anywhere in Windows. Quick capture popup appears. Type "remind me tomorrow at 3pm Lunch with Alex". Verify reminder created with correct date.
 3. **The "when":** Open Week view. Drag a todo from Today onto Thursday. Persisted. Reopen → still Thursday.
 4. **Focus + insights:** Start a Pomodoro on a todo, end it. Open Insights tab. Today shows the focus minutes, heatmap has a square, streak counter says 1.
