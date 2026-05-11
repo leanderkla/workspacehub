@@ -3813,8 +3813,14 @@ function renderNotes() {
 
   // Bulk-select checkbox: stop propagation so clicking the ☑ doesn't also
   // open the note in the editor pane. Plain click toggles, Shift+Click
-  // extends from the anchor (Windows Explorer style).
-  document.querySelectorAll('.note-bulk-select').forEach(el =>
+  // extends from the anchor (Windows Explorer style). The mousedown
+  // preventDefault suppresses the browser's native shift+click text-range
+  // extension — without it the cards between the anchor and the click
+  // target briefly flash as text selection before the re-render clears
+  // them. Conditional on shiftKey so normal copy-paste selection in card
+  // titles still works.
+  document.querySelectorAll('.note-bulk-select').forEach(el => {
+    el.addEventListener('mousedown', (e) => { if (e.shiftKey) e.preventDefault(); });
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       bulkSelectHandler({
@@ -3826,7 +3832,8 @@ function renderNotes() {
         idAttr: 'data-bulk-id'
       });
       renderNotes();
-    }));
+    });
+  });
   document.querySelectorAll('.note-list-item').forEach(el =>
     el.addEventListener('click', (e) => {
       // Don't open the editor when the click landed on the select checkbox
@@ -5527,8 +5534,14 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
   toggleFrom = toggleFrom || 'todos';
   // Bulk-select on each row — plain click toggles, Shift+Click extends from
   // the last anchor (Windows Explorer style). Ctrl is treated as plain so
-  // users coming from File Explorer's Ctrl+Click still get a toggle.
-  scope.querySelectorAll('.todo-bulk-select').forEach(el =>
+  // users coming from File Explorer's Ctrl+Click still get a toggle. The
+  // mousedown preventDefault matches the .note-bulk-select wiring: it
+  // suppresses the browser's native shift+click text-range extension so
+  // rows between anchor and target don't briefly flash as text selection
+  // before the re-render. Conditional on shiftKey so normal copy-paste
+  // selection in todo titles still works.
+  scope.querySelectorAll('.todo-bulk-select').forEach(el => {
+    el.addEventListener('mousedown', (e) => { if (e.shiftKey) e.preventDefault(); });
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       bulkSelectHandler({
@@ -5540,7 +5553,8 @@ function bindTodoRowEvents(scopeSelector, onRefresh, toggleFrom) {
         idAttr: 'data-bulk-id'
       });
       renderTodos();
-    }));
+    });
+  });
   scope.querySelectorAll('.todo-checkbox').forEach(cb =>
     cb.addEventListener('click', () => toggleTodoFrom(cb.dataset.id, toggleFrom)));
   scope.querySelectorAll('.todo-archive').forEach(b =>
