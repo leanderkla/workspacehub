@@ -61,8 +61,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "WorkspaceHub",
-      "disableWebInstaller": true
+      "shortcutName": "WorkspaceHub"
     },
     "publish": {
       "provider": "github",
