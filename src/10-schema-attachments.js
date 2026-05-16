@@ -27,7 +27,7 @@
 // ===== SCHEMA VERSIONING + MIGRATIONS =====
 // Each migration brings data from version N-1 → N. Numbered, runs in order.
 // Add new migrations as new keys; never edit shipped ones.
-var CURRENT_SCHEMA_VERSION = 4;
+var CURRENT_SCHEMA_VERSION = 5;
 var SCHEMA_MIGRATIONS = {
   // v1: consolidates everything migrateAttachments() used to do ad-hoc.
   // For fresh installs schemaVersion starts at 0 and runs through all.
@@ -135,6 +135,16 @@ var SCHEMA_MIGRATIONS = {
           todo.chainId = 'chain-rueckbucher-legacy';
         }
       }
+    }
+    return data;
+  },
+  // v5: milestones — a separate per-project collection of fixed-date markers
+  // rendered on the Gantt as vertical lines + side labels. Backfills an empty
+  // array on every project so render code can iterate without guards.
+  // Idempotent: the Array.isArray check skips already-populated projects.
+  5: (data) => {
+    for (const proj of Object.values(data.projects || {})) {
+      if (!Array.isArray(proj.milestones)) proj.milestones = [];
     }
     return data;
   }
@@ -338,6 +348,45 @@ function loadProjectIcons() {
   });
 }
 
+// Reads images from the OS clipboard via the async Clipboard API and saves
+// them as attachments on `owner`. Triggered by the "📋 Paste" button (button
+// clicks don't fire paste events, so we can't reuse the paste-event path).
+// Supports Snipping Tool screenshots and copied image files.
+async function pasteClipboardImagesToOwner(owner, onAfter) {
+  if (!navigator.clipboard || typeof navigator.clipboard.read !== 'function') {
+    showToast('Clipboard API not available in this build.', 'error');
+    return 0;
+  }
+  let items;
+  try {
+    items = await navigator.clipboard.read();
+  } catch (e) {
+    console.error('clipboard.read:', e);
+    showToast(`Clipboard read failed: ${e.message}`, 'error');
+    return 0;
+  }
+  const files = [];
+  let i = 0;
+  for (const item of items) {
+    const imageType = (item.types || []).find(t => typeof t === 'string' && t.startsWith('image/'));
+    if (!imageType) continue;
+    try {
+      const blob = await item.getType(imageType);
+      const ext = imageType.split('/')[1] || 'png';
+      const name = `snip-${Date.now()}${i ? `-${i}` : ''}.${ext}`;
+      files.push(new File([blob], name, { type: imageType }));
+      i++;
+    } catch (e) {
+      console.error('clipboard.getType:', e);
+    }
+  }
+  if (!files.length) {
+    showToast('No image on the clipboard. Snip something first.', 'info');
+    return 0;
+  }
+  return addDroppedFilesToOwner(owner, files, onAfter);
+}
+
 async function addDroppedFilesToOwner(owner, fileList, onAfter) {
   if (!owner || !fileList || !fileList.length) return 0;
   if (!Array.isArray(owner.attachments)) owner.attachments = [];
@@ -482,11 +531,12 @@ function attachmentPanelHTML(owner, ownerKind, ownerId, title = 'Attachments', t
       <span class="att-panel-title">${title} <span class="att-count">(${count})</span></span>
       <div class="att-panel-actions">
         <button class="btn btn-ghost btn-sm att-folder-btn" title="Open attachments folder in Explorer">📁 Folder</button>
+        <button class="btn btn-ghost btn-sm att-paste-btn" title="Paste image from clipboard (Snipping Tool, copied file)">📋 Paste</button>
         <button class="btn btn-ghost btn-sm att-add-btn">+ Add</button>
       </div>
     </div>
     <div class="att-dropzone">
-      <div class="att-dropzone-hint">📎 Drag & drop files here</div>
+      <div class="att-dropzone-hint">📎 Drag & drop files here · or paste an image (Ctrl+V)</div>
       ${attachmentListHTML(items)}
     </div>
   </div>`;
@@ -516,6 +566,31 @@ function bindAttachmentPanel(container, onAfter) {
       const o = owner();
       if (!o) return;
       await pickAndAddAttachments(o, onAfter);
+    });
+
+    panel.querySelector('.att-paste-btn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const o = owner();
+      if (!o) return;
+      await pasteClipboardImagesToOwner(o, onAfter);
+    });
+
+    // Ctrl+V anywhere in the panel uploads any clipboard images. Makes the
+    // dropzone focusable so the keydown actually reaches us when the user
+    // clicks the empty area before pasting.
+    const zoneFocusable = panel.querySelector('.att-dropzone');
+    if (zoneFocusable && !zoneFocusable.hasAttribute('tabindex')) {
+      zoneFocusable.setAttribute('tabindex', '-1');
+    }
+    panel.addEventListener('paste', async (e) => {
+      const cd = e.clipboardData;
+      if (!cd) return;
+      const imgs = collectClipboardImages(cd);
+      if (!imgs.length) return;
+      e.preventDefault();
+      const o = owner();
+      if (!o) return;
+      await addDroppedFilesToOwner(o, imgs, onAfter);
     });
 
     panel.querySelector('.att-folder-btn')?.addEventListener('click', async (e) => {

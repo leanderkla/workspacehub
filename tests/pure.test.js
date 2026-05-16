@@ -49,6 +49,15 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
     it('escapes HTML-unsafe characters in plain text', () => {
       eq(fn('a < b & c > d'), 'a &lt; b &amp; c &gt; d');
     });
+
+    it('preserves entity-only content (contenteditable "->" round-trip)', () => {
+      // innerHTML from a contenteditable returns ">" as "&gt;" even when the
+      // user just typed "->", so the stored string is entity-only. Escaping
+      // it again would double-encode and render literally as "-&gt;".
+      eq(fn('-&gt;'), '-&gt;');
+      eq(fn('a &amp; b'), 'a &amp; b');
+      eq(fn('&#39;quoted&#39;'), '&#39;quoted&#39;');
+    });
   });
 
   // ---------- parseQuickCapture: palette natural language ----------
@@ -203,6 +212,21 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       setup();
       const r = fn('/tomorrow Call Lukas /high');
       eq(r.title, 'Call Lukas');
+    });
+
+    it('parses /milestone as a kind switch', () => {
+      setup();
+      const r = fn('/milestone Launch v1 /due 2099-12-31');
+      eq(r.title, 'Launch v1');
+      eq(r.kind, 'milestone');
+      eq(r.dueDate, '2099-12-31');
+      eq(r.tokens.some(t => t.type === 'kind' && t.label === 'milestone'), true);
+    });
+
+    it('plain todo has kind null (not a milestone)', () => {
+      setup();
+      const r = fn('buy milk');
+      eq(r.kind, null);
     });
   });
 
@@ -448,7 +472,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       const data = { projects: { p: { name: 'P' } } };
       const out = fn(data);
       eq(Array.isArray(out.pinned), true);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
     });
 
     it('does not re-run migrations once schemaVersion is current', () => {
@@ -476,7 +500,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(Array.isArray(out.projects.p.brainmap.nodes.r.linkedItems), true);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
     });
 
     it('v2 migration is idempotent', () => {
@@ -490,7 +514,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       };
       const out = fn(data);
       eq(out.projects.p.brainmap.nodes.r.linkedItems.length, 1);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
     });
 
     it('v3 backfills tags on every taggable entity type', () => {
@@ -514,7 +538,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       eq(Array.isArray(p.delegations[0].tags), true);
       eq(Array.isArray(p.dumps[0].tags),       true);
       eq(Array.isArray(p.reminders[0].tags),   true);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
     });
 
     it('v3 migration is idempotent (preserves existing tags)', () => {
@@ -527,6 +551,22 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       const out = fn(data);
       eq(out.projects.p.todos[0].tags.length, 2);
       eq(out.projects.p.todos[0].tags[0], 'q4');
+    });
+
+    it('v5 backfills milestones array on every project', () => {
+      const data = {
+        projects: {
+          p: { name: 'P' },
+          q: { name: 'Q', milestones: [{ id: 'ms-1', title: 'Launch', date: '2099-01-01' }] }
+        }
+      };
+      const out = fn(data);
+      eq(Array.isArray(out.projects.p.milestones), true);
+      eq(out.projects.p.milestones.length, 0);
+      // existing milestones preserved (idempotent)
+      eq(out.projects.q.milestones.length, 1);
+      eq(out.projects.q.milestones[0].title, 'Launch');
+      eq(out.schemaVersion, 5);
     });
   });
 
@@ -874,7 +914,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
         projects: { p: { todos: [{ id: 't1', title: 'plain todo' }] } }
       };
       const out = fn(data);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
       eq(out.escalationChains.length, 0);   // empty array, NOT seeded
     });
 
@@ -884,7 +924,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
         projects: { p: { todos: [{ id: 't1', title: 'r1', kind: RU }] } }
       };
       const out = fn(data);
-      eq(out.schemaVersion, 4);
+      eq(out.schemaVersion, 5);
       eq(out.escalationChains.length, 1);
       const chain = out.escalationChains[0];
       eq(chain.id, LEGACY_CHAIN);
@@ -929,7 +969,7 @@ module.exports = function (describe, { eq, ok, get, sandbox, evalIn }) {
       // chain-id dedup + todo kind check should make this a no-op.
       out1.schemaVersion = 3;
       const out2 = fn(out1);
-      eq(out2.schemaVersion, 4);
+      eq(out2.schemaVersion, 5);
       eq(out2.escalationChains.length, chainsAfterFirst);   // no duplicate
       eq(out2.projects.p.todos[0].kind, 'escalation');       // already migrated
       eq(out2.projects.p.todos[0].chainId, LEGACY_CHAIN);

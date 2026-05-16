@@ -213,6 +213,7 @@ html[data-theme="glass"] {
      · .modal                — settings, confirm, etc.
      · .palette-box          — Ctrl+K command palette
      · #project-context-menu — right-click on a project in the sidebar
+     · #gantt-context-menu   — right-click on the Gantt timeline
      · .sv3-filter-menu      — sticky-mode project filter
      · .mention-menu         — @-completer dropdown
      · .smart-link-popover   — single-row link suggestion
@@ -220,17 +221,24 @@ html[data-theme="glass"] {
      · .todo-overflow-menu   — `⋯` menu on a todo card
      · .bm-context-menu      — spark-map node context menu
      · .node-link-chip-popover — list of items linked to a spark-map node
+     · .dropdown-menu        — generic dropdown (spawn-chain etc.)
+
+   ⚠ When you add a NEW floating panel, ADD ITS SELECTOR HERE too,
+   otherwise it will look right in the default theme but be near-invisible
+   in glass. Check by toggling to a glass theme before shipping.
 */
 html[data-theme="glass"] .modal,
 html[data-theme="glass"] .palette-box,
 html[data-theme="glass"] #project-context-menu,
+html[data-theme="glass"] #gantt-context-menu,
 html[data-theme="glass"] .sv3-filter-menu,
 html[data-theme="glass"] .mention-menu,
 html[data-theme="glass"] .smart-link-popover,
 html[data-theme="glass"] .theme-select-menu,
 html[data-theme="glass"] .todo-overflow-menu,
 html[data-theme="glass"] .bm-context-menu,
-html[data-theme="glass"] .node-link-chip-popover {
+html[data-theme="glass"] .node-link-chip-popover,
+html[data-theme="glass"] .dropdown-menu {
   background: var(--popover-bg, rgba(20, 18, 38, 0.92));
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
@@ -1634,6 +1642,17 @@ a.mention.mention-orphan {
   font-weight: 500;
   letter-spacing: 0.05em;
 }
+/* Done-state cue for the smart-link suggestion popover. Mirrors the
+ * @-completer's mention-row-is-done treatment: dimmed row + struck-through
+ * title, so the user can tell at a glance that the matched todo/reminder is
+ * already complete (subtitle gains "· Done"). The icon is swapped to ☑/🔕
+ * upstream in _smartLinkRender. */
+.smart-link-row-is-done { opacity: 0.6; }
+.smart-link-row-is-done .smart-link-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
 .mention-row {
   display: flex;
   align-items: center;
@@ -1690,13 +1709,23 @@ a.mention.mention-orphan {
   flex-shrink: 0;
   margin-right: 6px;
 }
+.mention-row-is-done {
+  /* Dim the entire row — pairing this with the strikethrough on the label
+   * and the swapped ☑/🔕 icon makes done items obviously different from
+   * open ones, even at a quick scan through a long candidate list. */
+  opacity: 0.6;
+}
 .mention-row-is-done .mention-row-label {
   color: var(--text-muted);
   text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 .mention-row-is-done .mention-row-icon {
-  opacity: 0.55;
+  opacity: 0.7;
 }
+/* Hover/active state keeps full opacity so the user can still see what they're
+ * about to pick — the strikethrough + badge alone carry the done signal. */
+.mention-row-is-done:hover, .mention-row-is-done.active { opacity: 1; }
 
 /* ===== BACKLINKS PANEL ===== */
 .backlinks-panel {
@@ -5136,57 +5165,6 @@ select.bm-dp-rich-input {
 }
 textarea.com-edit-field { min-height: 50px; resize: vertical; }
 
-/* ===== SUBPROJECT DUMPS LIST ===== */
-.sp-dumps-list { display: flex; flex-direction: column; gap: 6px; }
-.sp-dump-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: box-shadow var(--transition), border-color var(--transition);
-}
-.sp-dump-card:hover { box-shadow: var(--shadow); border-left-color: var(--accent-dark); }
-.sp-dump-card.processed { opacity: 0.55; border-left-color: var(--border-strong); }
-.sp-dump-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.sp-dump-type { font-size: 14px; }
-.sp-dump-tag {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: var(--content-bg);
-  color: var(--text-muted);
-}
-.sp-dump-tag-pending { background: var(--accent-light); color: var(--accent); }
-.sp-dump-unlink {
-  margin-left: auto;
-  font-size: 12px;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.sp-dump-text {
-  font-size: 13px;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.4;
-}
-
 /* ===== DUMP ZONE ===== */
 #view-dumpzone .view-title { font-size: 22px; }
 
@@ -6878,6 +6856,40 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
 }
 .sp-note-title:hover { color: var(--accent); text-decoration: underline; }
 
+.sp-note-expand {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sp-note-expand:hover:not(.disabled) { background: var(--accent-soft); color: var(--text-primary); }
+.sp-note-expand.disabled { opacity: 0.3; cursor: default; }
+
+.sp-note-body {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--content-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.sp-note-body p { margin: 0 0 6px 0; }
+.sp-note-body p:last-child { margin-bottom: 0; }
+.sp-note-body ul, .sp-note-body ol { margin: 4px 0; padding-left: 20px; }
+
 .sp-spark-list { display: flex; flex-direction: column; gap: 8px; }
 
 .sp-spark-card {
@@ -7177,7 +7189,12 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   border-right: 1px solid var(--border);
   display: flex;
   align-items: flex-end;
-  position: relative;
+  /* Sticky in both directions: pinned to the top-left corner so the column
+     stays visible while the day grid scrolls horizontally underneath. */
+  position: sticky;
+  left: 0;
+  background: var(--card-bg);
+  z-index: 6;
 }
 
 .gantt-label-resizer {
@@ -7255,7 +7272,14 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   align-items: center;
   gap: 6px;
   overflow: hidden;
+  /* Sticky on horizontal scroll so the task list stays visible. z-index needs
+     to beat bars (1), today-line (2), milestone vline (3) and side label (4). */
+  position: sticky;
+  left: 0;
+  background: var(--card-bg);
+  z-index: 5;
 }
+.dash-gantt-row:hover .gantt-row-label { background: var(--content-bg); }
 
 .gantt-label-text {
   font-size: 12px;
@@ -7324,6 +7348,117 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   pointer-events: none;
   z-index: 2;
 }
+
+/* ===== GANTT OVERVIEW BAR (one-line status row at the top of the Gantt) ===== */
+/* Rendered as a sibling BEFORE .gantt-container so it doesn't get pulled into
+   the horizontal scroll context (the inner is much wider than the viewport). */
+.gantt-ov-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--content-bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+/* When the bar is present, the Gantt container loses its top rounding so the
+   two read as one stacked unit. */
+.gantt-has-overview { border-top-left-radius: 0; border-top-right-radius: 0; border-top: none; }
+.gantt-ov-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.gantt-ov-overdue   { background: color-mix(in srgb, #dc2626 10%, transparent); color: #dc2626; }
+.gantt-ov-today     { background: color-mix(in srgb, #f59e0b 14%, transparent); color: #b45309; }
+.gantt-ov-open      { background: var(--accent-soft); color: var(--accent); }
+.gantt-ov-milestone { background: color-mix(in srgb, #a855f7 10%, transparent); color: #7c3aed; cursor: pointer; transition: filter var(--transition); }
+.gantt-ov-milestone:hover { filter: brightness(0.95); }
+.gantt-ov-diamond { width: 8px; height: 8px; transform: rotate(45deg); flex-shrink: 0; display: inline-block; }
+.gantt-ov-sep { color: var(--border); margin: 0 2px; }
+.gantt-ov-range { margin-left: auto; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gantt-ov-empty { color: var(--text-muted); font-style: italic; font-weight: 500; }
+
+/* Compact variant (dashboard) uses a smaller bar */
+.dash-gantt-compact .gantt-ov-bar { padding: 4px 10px; font-size: 11px; gap: 5px; }
+.dash-gantt-compact .gantt-ov-pill { padding: 1px 7px; }
+
+/* ===== GANTT MILESTONES (Variant D: vertical line + side label) ===== */
+.gantt-body { min-height: 60px; } /* keeps milestone vlines visible when there are no todo rows */
+
+.gantt-ms-vline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0.55;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 3;
+}
+.gantt-ms-vline:hover { opacity: 0.85; width: 3px; }
+
+.gantt-ms-side-label {
+  position: absolute;
+  top: 4px;
+  transform: translateX(4px);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--card-bg);
+  border: 1px solid;
+  padding: 2px 6px 2px 4px;
+  border-radius: 10px;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  transition: filter var(--transition), transform var(--transition);
+}
+.gantt-ms-side-label:hover { filter: brightness(1.05); transform: translateX(4px) translateY(-1px); }
+.gantt-ms-side-label.gantt-ms-label-left {
+  transform: translateX(calc(-100% - 4px));
+}
+.gantt-ms-side-label.gantt-ms-label-left:hover {
+  transform: translateX(calc(-100% - 4px)) translateY(-1px);
+}
+.gantt-ms-diamond {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* Milestone modal */
+.milestone-modal { min-width: 380px; max-width: 460px; }
+.milestone-modal .ms-row-2 { display: flex; gap: 12px; }
+.milestone-modal .ms-color-row { display: flex; gap: 8px; align-items: center; }
+.milestone-modal .ms-color-input { width: 40px; height: 32px; padding: 2px; flex-shrink: 0; }
+.milestone-modal .ms-color-swatches { display: flex; gap: 4px; flex-wrap: wrap; }
+.milestone-modal .ms-color-swatch {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition);
+}
+.milestone-modal .ms-color-swatch:hover { transform: scale(1.15); }
 
 .gantt-empty {
   padding: 20px;
@@ -8352,6 +8487,18 @@ body.sidebar-compact .pin-row .pin-drag-handle { display: none; }
 .dump-text p { margin: 0 0 0.3em; }
 .dump-text ul, .dump-text ol { margin: 0.2em 0 0.2em 1.3em; padding: 0; }
 .dump-text li { margin: 0.05em 0; }
+
+/* Pasted images (Snipping Tool, copy-as-image) embedded inline in rich-text
+   editors and the dump card. Cap width so a big screenshot doesn't blow out
+   the layout, and round the corners to match the rest of the chrome. */
+.note-rich img, .dump-rich img, .dump-text img, .rich-paste-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+  margin: 4px 0;
+  cursor: zoom-in;
+}
 .dump-text b, .dump-text strong { font-weight: 600; }
 
 /* Inline edit affordance: invisible at rest so cards still read as

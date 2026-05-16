@@ -48,7 +48,10 @@ function suggestDumpActions(text) {
 
 function addTextDump(text, type = 'text') {
   const trimmed = (text || '').trim();
-  if (!trimmed || !noteContentText(trimmed)) return null;
+  if (!trimmed) return null;
+  // Accept image-only HTML (pasted screenshots) — noteContentText strips tags
+  // and returns empty for an <img>-only paste, but the dump is still meaningful.
+  if (!noteContentText(trimmed) && !/<img\b/i.test(trimmed)) return null;
   const proj = getProject();
   if (!Array.isArray(proj.dumps)) proj.dumps = [];
   const dump = {
@@ -122,7 +125,16 @@ function deleteDump(dumpId) {
     attachmentThumbCache.delete(removed.image.relPath);
   }
   saveData();
-  renderDumpZone();
+  refreshDumpHostView();
+}
+
+// Re-render whichever view is currently hosting dump cards. Dump-creation flows
+// (voice stop, sketch save, archive/delete) used to hard-code renderDumpZone(),
+// which broke the subproject view's embedded capture once it gained the same
+// affordances.
+function refreshDumpHostView() {
+  if (state.view === 'subprojects') renderSubprojects();
+  else if (state.view === 'dumpzone') renderDumpZone();
 }
 
 function hasTouchScreen() {
@@ -518,7 +530,7 @@ function showSketchModal(existingDumpId) {
             showToast('Sketch saved.', 'success');
           }
           close();
-          renderDumpZone();
+          refreshDumpHostView();
         } else {
           showToast(`Save failed: ${res?.error || 'unknown'}`, 'error');
         }
@@ -539,7 +551,7 @@ function markDumpProcessed(dumpId) {
   dump.processed = true;
   dump.processedAt = new Date().toISOString();
   saveData();
-  renderDumpZone();
+  refreshDumpHostView();
 }
 
 function unprocessDump(dumpId) {
@@ -549,7 +561,7 @@ function unprocessDump(dumpId) {
   dump.processed = false;
   dump.processedAt = null;
   saveData();
-  renderDumpZone();
+  refreshDumpHostView();
 }
 
 function dumpSummary(dump) {
@@ -723,6 +735,189 @@ function convertDumpToReminder(dumpId) {
   };
 }
 
+// ===== Right-click "Create todo from selection" =====
+// Lets the user select any span of text inside the dump capture box or a dump
+// card, right-click, and spawn a todo from just that selection. Priority and
+// due date can come from /slash tokens (/high, /tomorrow, /due 5d) or from
+// natural-language phrases ("tomorrow", "fri", "in 3 days") — same parsers
+// the main todo input uses, so the behavior is consistent.
+
+// Returns the trimmed plain text of the current selection IF it lies entirely
+// inside `el`. Empty string otherwise — that's the signal to fall through to
+// the browser's default context menu (spellcheck, copy, paste, etc.).
+function dumpSelectionTextInside(el) {
+  const sel = (typeof window !== 'undefined' && window.getSelection) ? window.getSelection() : null;
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return '';
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.commonAncestorContainer)) return '';
+  return (sel.toString() || '').trim();
+}
+
+function hideDumpSelectionContextMenu() {
+  const m = document.getElementById('dump-selection-context-menu');
+  if (m) m.remove();
+  document.removeEventListener('mousedown', dumpSelectionContextMenuOutsideHandler, true);
+  document.removeEventListener('keydown', dumpSelectionContextMenuKeyHandler, true);
+  window.removeEventListener('blur', hideDumpSelectionContextMenu);
+}
+function dumpSelectionContextMenuOutsideHandler(e) {
+  const m = document.getElementById('dump-selection-context-menu');
+  if (m && !m.contains(e.target)) hideDumpSelectionContextMenu();
+}
+function dumpSelectionContextMenuKeyHandler(e) {
+  if (e.key === 'Escape') { e.preventDefault(); hideDumpSelectionContextMenu(); }
+}
+
+function showDumpSelectionContextMenu(clientX, clientY, selectedText, subprojectId) {
+  hideDumpSelectionContextMenu();
+  const menu = document.createElement('div');
+  menu.id = 'dump-selection-context-menu';
+  menu.className = 'bm-context-menu';
+  menu.innerHTML = `
+    <button class="bm-ctx-item" data-action="todo">
+      <span class="bm-ctx-icon">→</span><span>Create todo from selection</span>
+    </button>`;
+  document.body.appendChild(menu);
+  // Clamp to the viewport so the menu never spills off-screen.
+  const rect = menu.getBoundingClientRect();
+  const x = Math.min(clientX, window.innerWidth - rect.width - 8);
+  const y = Math.min(clientY, window.innerHeight - rect.height - 8);
+  menu.style.left = `${Math.max(4, x)}px`;
+  menu.style.top = `${Math.max(4, y)}px`;
+
+  menu.addEventListener('click', (e) => {
+    const btn = e.target.closest('.bm-ctx-item');
+    if (!btn || btn.disabled) return;
+    if (btn.dataset.action === 'todo') {
+      hideDumpSelectionContextMenu();
+      openCreateTodoFromSelectionModal(selectedText, subprojectId);
+    }
+  });
+
+  // Defer the outside-click listeners by a tick so the right-click that opened
+  // this menu doesn't immediately close it again.
+  setTimeout(() => {
+    document.addEventListener('mousedown', dumpSelectionContextMenuOutsideHandler, true);
+    document.addEventListener('keydown', dumpSelectionContextMenuKeyHandler, true);
+    window.addEventListener('blur', hideDumpSelectionContextMenu);
+  }, 0);
+}
+
+// Opens the create-todo modal pre-filled from the selected text. /slash tokens
+// (/high, /tomorrow, /due 5d) are stripped from the title and applied first.
+// If no /due was set, parseQuickCapture pulls a natural-language date phrase
+// ("tomorrow", "fri", "in 3 days") out of what remains. The form fields are
+// the final source of truth — the user can still override anything.
+function openCreateTodoFromSelectionModal(rawText, defaultSubprojectId) {
+  const proj = getProject();
+  if (!proj) return;
+  const slash = parseTodoSlashCommands(rawText || '');
+  let title = (slash.title || rawText || '').trim();
+  let priority = slash.priority || 'medium';
+  let dueDate = slash.dueDate || null;
+  if (!dueDate) {
+    const qc = parseQuickCapture(title);
+    if (qc && qc.dueDate) { dueDate = qc.dueDate; title = (qc.title || title).trim(); }
+  }
+  // Long selections (paragraphs) would blow out the input. 200 chars matches the
+  // longest practical title length the rest of the app handles comfortably.
+  title = title.replace(/\s+/g, ' ').slice(0, 200);
+
+  const overlay = document.getElementById('modal-overlay');
+  const close = () => { overlay.classList.add('hidden'); overlay.innerHTML = ''; overlay.onclick = null; };
+  const sps = proj.subprojects || [];
+  const spOptions = ['<option value="">— No subproject —</option>']
+    .concat(sps.map(s => `<option value="${s.id}" ${s.id === defaultSubprojectId ? 'selected' : ''}>${escapeHTML(s.name)}</option>`))
+    .join('');
+  overlay.innerHTML = `
+    <div class="modal dates-modal">
+      <h3>Create todo from selection</h3>
+      <div class="form-group" style="margin-bottom:10px">
+        <label class="form-label">Title</label>
+        <input type="text" class="form-input" id="sel-todo-title" value="${escapeHTML(title)}">
+      </div>
+      <div class="dates-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Priority</label>
+          <select class="form-input" id="sel-todo-priority">
+            <option value="high"   ${priority === 'high'   ? 'selected' : ''}>High</option>
+            <option value="medium" ${priority === 'medium' ? 'selected' : ''}>Medium</option>
+            <option value="low"    ${priority === 'low'    ? 'selected' : ''}>Low</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Due date</label>
+          <input type="date" class="form-input" id="sel-todo-due" value="${dueDate || ''}">
+        </div>
+      </div>
+      ${sps.length ? `
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">Subproject</label>
+          <select class="form-input" id="sel-todo-sp">${spOptions}</select>
+        </div>` : ''}
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" id="sel-todo-cancel">Cancel</button>
+        <button class="btn btn-primary" id="sel-todo-save">Create todo</button>
+      </div>
+    </div>`;
+  overlay.classList.remove('hidden');
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  document.getElementById('sel-todo-cancel').onclick = close;
+  // Focus + select the title so the user can either accept (Enter) or retype.
+  setTimeout(() => {
+    const t = document.getElementById('sel-todo-title');
+    if (t) { t.focus(); t.select(); }
+  }, 0);
+  const save = () => {
+    const t = (document.getElementById('sel-todo-title').value || '').trim();
+    if (!t) { showToast('Title is required.', 'error'); return; }
+    const p = document.getElementById('sel-todo-priority').value || 'medium';
+    const d = document.getElementById('sel-todo-due').value || null;
+    const sp = document.getElementById('sel-todo-sp')?.value || null;
+    proj.todos.unshift({
+      id: generateId('todo'),
+      title: t,
+      done: false,
+      priority: p,
+      startDate: null,
+      dueDate: d,
+      subprojectId: sp || null,
+      tags: [],
+      created: new Date().toISOString(),
+      completedAt: null,
+      attachments: [],
+      steps: [],
+      recurrence: null
+    });
+    saveData();
+    close();
+    showToast(`Added todo "${t}"`, 'success');
+  };
+  document.getElementById('sel-todo-save').onclick = save;
+  // Enter inside the title saves — matches the keyboard-only feel of the main
+  // todo input. Shift+Enter is left alone in case the field grows to textarea.
+  document.getElementById('sel-todo-title').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+  });
+}
+
+// Hooks `contextmenu` on a dump-zone editor. The menu only appears when there's
+// a non-empty selection inside `el` — right-clicks with no selection fall back
+// to the browser default so spellcheck and paste still work. `subprojectIdGetter`
+// is called lazily so per-card subproject changes (via the dropdown) are picked
+// up at right-click time, not at handler-install time.
+function attachDumpSelectionContextMenu(el, subprojectIdGetter) {
+  if (!el || el.dataset.dumpSelMenuHooked === '1') return;
+  el.dataset.dumpSelMenuHooked = '1';
+  el.addEventListener('contextmenu', (e) => {
+    const text = dumpSelectionTextInside(el);
+    if (!text) return;
+    e.preventDefault();
+    const spId = typeof subprojectIdGetter === 'function' ? subprojectIdGetter() : (subprojectIdGetter || null);
+    showDumpSelectionContextMenu(e.clientX, e.clientY, text, spId);
+  });
+}
+
 async function startVoiceRecording() {
   if (dumpVoiceState.recorder) return;
   console.log('[dump] startVoiceRecording');
@@ -785,7 +980,7 @@ async function startVoiceRecording() {
 
     if (blob.size === 0) {
       showToast('Recording was empty (0 bytes). Speak longer or check your mic.', 'error');
-      renderDumpZone();
+      refreshDumpHostView();
       return;
     }
     try {
@@ -796,7 +991,7 @@ async function startVoiceRecording() {
       console.log('[dump] calling saveAttachment, project:', state.project, 'bytes:', buf.byteLength);
       if (!window.api || typeof window.api.saveAttachment !== 'function') {
         showToast('saveAttachment API missing. Fully restart the app.', 'error');
-        renderDumpZone();
+        refreshDumpHostView();
         return;
       }
       const res = await window.api.saveAttachment(state.project, base64, name);
@@ -811,7 +1006,7 @@ async function startVoiceRecording() {
       console.error('[dump] stop handler error', e);
       showToast(`Stop handler error: ${e.message}`, 'error');
     }
-    renderDumpZone();
+    refreshDumpHostView();
   });
 
   dumpVoiceState.recorder = recorder;
@@ -885,124 +1080,124 @@ function stopVoiceRecording() {
   if (recorder.state !== 'inactive') recorder.stop();
 }
 
-function renderDumpZone() {
+// Color-tinted subproject dropdown used in dump cards and the capture toolbar.
+// Extracted so the subproject-view embedded capture can render the same chip.
+function dumpSubprojectSelectHTML(currentId, datasetKey, datasetValue) {
   const proj = getProject();
-  if (!Array.isArray(proj.dumps)) proj.dumps = [];
-  const pending = proj.dumps.filter(d => !d.processed);
-  const processed = proj.dumps.filter(d => d.processed).sort((a,b) => new Date(b.processedAt || 0) - new Date(a.processedAt || 0));
   const subprojects = proj.subprojects || [];
+  if (!subprojects.length) return '';
   const spById = Object.fromEntries(subprojects.map(s => [s.id, s]));
+  const sp = currentId ? spById[currentId] : null;
+  const style = sp
+    ? `background:${sp.color}22;color:${sp.color};border-color:${sp.color}44`
+    : `background:transparent;color:#94a3b8;border-color:#cbd5e1`;
+  return `<select class="todo-sp-select dump-sp-select" ${datasetKey}="${datasetValue}" title="Assign subproject" style="${style}">
+    <option value="" ${!sp?'selected':''}>No subproject</option>
+    ${subprojects.map(s => `<option value="${s.id}" ${s.id===currentId?'selected':''}>${escapeHTML(s.name)}</option>`).join('')}
+  </select>`;
+}
 
-  // Reset pending-subproject if the user switched projects and the old id is gone
-  if (state.pendingDumpSubprojectId && !spById[state.pendingDumpSubprojectId]) {
-    state.pendingDumpSubprojectId = null;
-  }
-
-  const now = new Date();
-  const todayStr = toDateString(now);
-
+function dumpCardHTML(d, processedMode) {
+  const proj = getProject();
+  const spById = Object.fromEntries((proj.subprojects || []).map(s => [s.id, s]));
   const typeIcon = (t) => t === 'voice' ? '🎙' : t === 'email' ? '✉' : t === 'sketch' ? '✏' : '🗒';
-
-  const subprojectSelectHTML = (currentId, datasetKey, datasetValue) => {
-    if (!subprojects.length) return '';
-    const sp = currentId ? spById[currentId] : null;
-    const style = sp
-      ? `background:${sp.color}22;color:${sp.color};border-color:${sp.color}44`
-      : `background:transparent;color:#94a3b8;border-color:#cbd5e1`;
-    return `<select class="todo-sp-select dump-sp-select" ${datasetKey}="${datasetValue}" title="Assign subproject" style="${style}">
-      <option value="" ${!sp?'selected':''}>No subproject</option>
-      ${subprojects.map(s => `<option value="${s.id}" ${s.id===currentId?'selected':''}>${escapeHTML(s.name)}</option>`).join('')}
-    </select>`;
-  };
-
-  const dumpCardHTML = (d, processedMode) => {
-    const suggestions = suggestDumpActions(noteContentText(d.text || '') || (d.type === 'sketch' ? 'sketch' : ''));
-    const audio = d.audio;
-    const image = d.image;
-    return `<div class="dump-card ${processedMode?'processed':''}">
-      <div class="dump-card-header">
-        <span class="dump-type">${typeIcon(d.type)}</span>
-        <span class="dump-time">${formatDateTime(d.created)}</span>
-        ${audio && audio.durationSec ? `<span class="dump-time">· ${Math.floor(audio.durationSec/60)}:${String(audio.durationSec%60).padStart(2,'0')}</span>` : ''}
-        ${image && image.width && image.height ? `<span class="dump-time">· ${image.width}×${image.height}</span>` : ''}
-        ${!processedMode ? subprojectSelectHTML(d.subprojectId, 'data-dump-sp-id', d.id) : (d.subprojectId && spById[d.subprojectId] ? `<span class="todo-sp-chip" style="background:${spById[d.subprojectId].color}22;color:${spById[d.subprojectId].color};border:1px solid ${spById[d.subprojectId].color}44;margin-left:auto">${escapeHTML(spById[d.subprojectId].name)}</span>` : '')}
-      </div>
-      ${d.text ? `<div class="dump-text dump-text-edit" contenteditable="true" data-dump-text-id="${d.id}" data-placeholder="(empty)">${noteContentInitialHTML(d.text)}</div>` : ''}
-      ${audio ? `<button class="btn btn-ghost btn-sm dump-play" data-audio-rel="${escapeHTML(audio.relPath)}" data-audio-mime="${audio.relPath.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm'}">▶ Play voice memo</button>
-        <div class="dump-audio-container" data-audio-container="${d.id}"></div>` : ''}
-      ${image ? `<div class="dump-sketch"><img class="dump-sketch-img" data-sketch-rel="${escapeHTML(image.relPath)}" data-sketch-edit-id="${d.id}" alt="sketch" title="${(image.actions && image.actions.length) ? 'Click to edit' : 'Click to view'}"></div>` : ''}
-      ${!processedMode ? `
-        <div class="dump-card-footer">
-          ${suggestions.length ? `<div class="dump-suggestions"><span class="dump-suggestions-label">Suggested:</span>${suggestions.map(s => `<span class="dump-suggestion-badge">${s}</span>`).join('')}</div>` : ''}
-          <div class="dump-actions">
-            <button class="btn btn-ghost btn-sm dump-action" data-dump-action="todo" data-dump-id="${d.id}" ${suggestions.includes('todo')?'data-suggested="1"':''}>→ Todo</button>
-            <button class="btn btn-ghost btn-sm dump-action" data-dump-action="note" data-dump-id="${d.id}" ${suggestions.includes('note')?'data-suggested="1"':''}>→ Note</button>
-            <button class="btn btn-ghost btn-sm dump-action" data-dump-action="reminder" data-dump-id="${d.id}" ${suggestions.includes('reminder')?'data-suggested="1"':''}>→ Reminder</button>
-            <button class="btn btn-ghost btn-sm dump-action" data-dump-action="archive" data-dump-id="${d.id}">✓ Archive</button>
-            <button class="btn btn-ghost btn-sm dump-action-danger" data-dump-action="delete" data-dump-id="${d.id}">✕</button>
-          </div>
-        </div>` : `
-        <div class="dump-card-footer">
-          <button class="btn btn-ghost btn-sm dump-action" data-dump-action="unarchive" data-dump-id="${d.id}">↺ Reopen</button>
+  const suggestions = suggestDumpActions(noteContentText(d.text || '') || (d.type === 'sketch' ? 'sketch' : ''));
+  const audio = d.audio;
+  const image = d.image;
+  return `<div class="dump-card ${processedMode?'processed':''}">
+    <div class="dump-card-header">
+      <span class="dump-type">${typeIcon(d.type)}</span>
+      <span class="dump-time">${formatDateTime(d.created)}</span>
+      ${audio && audio.durationSec ? `<span class="dump-time">· ${Math.floor(audio.durationSec/60)}:${String(audio.durationSec%60).padStart(2,'0')}</span>` : ''}
+      ${image && image.width && image.height ? `<span class="dump-time">· ${image.width}×${image.height}</span>` : ''}
+      ${!processedMode ? dumpSubprojectSelectHTML(d.subprojectId, 'data-dump-sp-id', d.id) : (d.subprojectId && spById[d.subprojectId] ? `<span class="todo-sp-chip" style="background:${spById[d.subprojectId].color}22;color:${spById[d.subprojectId].color};border:1px solid ${spById[d.subprojectId].color}44;margin-left:auto">${escapeHTML(spById[d.subprojectId].name)}</span>` : '')}
+    </div>
+    ${d.text ? `<div class="dump-text dump-text-edit" contenteditable="true" data-dump-text-id="${d.id}" data-placeholder="(empty)">${noteContentInitialHTML(d.text)}</div>` : ''}
+    ${audio ? `<button class="btn btn-ghost btn-sm dump-play" data-audio-rel="${escapeHTML(audio.relPath)}" data-audio-mime="${audio.relPath.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm'}">▶ Play voice memo</button>
+      <div class="dump-audio-container" data-audio-container="${d.id}"></div>` : ''}
+    ${image ? `<div class="dump-sketch"><img class="dump-sketch-img" data-sketch-rel="${escapeHTML(image.relPath)}" data-sketch-edit-id="${d.id}" alt="sketch" title="${(image.actions && image.actions.length) ? 'Click to edit' : 'Click to view'}"></div>` : ''}
+    ${!processedMode ? `
+      <div class="dump-card-footer">
+        ${suggestions.length ? `<div class="dump-suggestions"><span class="dump-suggestions-label">Suggested:</span>${suggestions.map(s => `<span class="dump-suggestion-badge">${s}</span>`).join('')}</div>` : ''}
+        <div class="dump-actions">
+          <button class="btn btn-ghost btn-sm dump-action" data-dump-action="todo" data-dump-id="${d.id}" ${suggestions.includes('todo')?'data-suggested="1"':''}>→ Todo</button>
+          <button class="btn btn-ghost btn-sm dump-action" data-dump-action="note" data-dump-id="${d.id}" ${suggestions.includes('note')?'data-suggested="1"':''}>→ Note</button>
+          <button class="btn btn-ghost btn-sm dump-action" data-dump-action="reminder" data-dump-id="${d.id}" ${suggestions.includes('reminder')?'data-suggested="1"':''}>→ Reminder</button>
+          <button class="btn btn-ghost btn-sm dump-action" data-dump-action="archive" data-dump-id="${d.id}">✓ Archive</button>
           <button class="btn btn-ghost btn-sm dump-action-danger" data-dump-action="delete" data-dump-id="${d.id}">✕</button>
-        </div>`}
-    </div>`;
+        </div>
+      </div>` : `
+      <div class="dump-card-footer">
+        <button class="btn btn-ghost btn-sm dump-action" data-dump-action="unarchive" data-dump-id="${d.id}">↺ Reopen</button>
+        <button class="btn btn-ghost btn-sm dump-action-danger" data-dump-action="delete" data-dump-id="${d.id}">✕</button>
+      </div>`}
+  </div>`;
+}
+
+// The text/voice/sketch capture toolbar. `fixedSubprojectId` locks the dump to
+// the given subproject (used by the subproject detail view); when null the
+// regular dropdown is shown so the user can choose freely.
+function dumpCaptureHTML(opts) {
+  const { fixedSubprojectId = null } = opts || {};
+  const proj = getProject();
+  const spById = Object.fromEntries((proj.subprojects || []).map(s => [s.id, s]));
+  const fixedSp = fixedSubprojectId && spById[fixedSubprojectId] ? spById[fixedSubprojectId] : null;
+  const lockBadge = fixedSp
+    ? `<span class="todo-sp-chip" style="background:${fixedSp.color}22;color:${fixedSp.color};border:1px solid ${fixedSp.color}44" title="Dumps captured here are assigned to this subproject">In: ${escapeHTML(fixedSp.name)}</span>`
+    : '';
+  const spSelect = fixedSubprojectId === null
+    ? dumpSubprojectSelectHTML(state.pendingDumpSubprojectId, 'id', 'dump-capture-sp')
+    : '';
+  const captureLabel = fixedSp
+    ? `Dump anything into <strong>${escapeHTML(fixedSp.name)}</strong> — typed, pasted email, voice`
+    : 'Dump anything — typed, pasted email, voice';
+  return `<div class="dump-capture">
+    <div class="dump-capture-label">${captureLabel}</div>
+    <div class="dump-rtf-toolbar" id="dump-rtf-toolbar">
+      <button type="button" data-rtf="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button type="button" data-rtf="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button type="button" data-rtf="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      <button type="button" data-rtf="strikeThrough" title="Strikethrough"><s>S</s></button>
+      <span class="rtf-sep"></span>
+      <button type="button" data-rtf="insertUnorderedList" title="Bulleted list">•</button>
+      <button type="button" data-rtf="insertOrderedList" title="Numbered list">1.</button>
+      <span class="rtf-sep"></span>
+      <button type="button" data-rtf="removeFormat" title="Clear formatting">⌫</button>
+    </div>
+    <div class="dump-rich" id="dump-input" contenteditable="true" data-placeholder="Type a thought, paste an email, or record a voice memo…"></div>
+    <div class="dump-capture-actions">
+      <button class="btn btn-primary" id="btn-dump-save">Save thought</button>
+      <button class="btn btn-secondary" id="btn-dump-save-email">Save as email</button>
+      <button class="btn btn-ghost" id="btn-dump-record">🎙 Record</button>
+      ${hasTouchScreen() ? `<button class="btn btn-ghost" id="btn-dump-sketch">✏ Sketch</button>` : ''}
+      ${spSelect}
+      ${lockBadge}
+      <span class="dump-voice-status" id="dump-voice-indicator"><span class="dump-voice-dot"></span><span id="dump-voice-timer">00:00</span><span class="dump-voice-level"><span id="dump-voice-level-bar"></span></span></span>
+    </div>
+  </div>`;
+}
+
+function bindDumpCaptureControls(opts) {
+  const { fixedSubprojectId = null } = opts || {};
+  const proj = getProject();
+  // Lock the pending sp at the moment a save/record/sketch starts. We mutate
+  // state.pendingDumpSubprojectId here (rather than on view render) so that an
+  // in-flight recording started in the dump-zone view doesn't get retargeted
+  // just because the user navigated to a subproject.
+  const applySpOverride = () => {
+    if (fixedSubprojectId !== null) state.pendingDumpSubprojectId = fixedSubprojectId;
   };
-
-  document.getElementById('content').innerHTML = `
-    <div class="view active" id="view-dumpzone">
-      <div class="view-header">
-        <div class="view-header-row">
-          <div class="view-title">🧠 Dump Zone</div>
-          <span style="font-size:13px;color:var(--text-muted)">Capture first, organize later · ${pending.length} pending</span>
-        </div>
-      </div>
-      <div style="flex:1;overflow-y:auto;padding:0 24px 24px">
-        <div class="dump-capture">
-          <div class="dump-capture-label">Dump anything — typed, pasted email, voice</div>
-          <div class="dump-rtf-toolbar" id="dump-rtf-toolbar">
-            <button type="button" data-rtf="bold" title="Bold (Ctrl+B)"><b>B</b></button>
-            <button type="button" data-rtf="italic" title="Italic (Ctrl+I)"><i>I</i></button>
-            <button type="button" data-rtf="underline" title="Underline (Ctrl+U)"><u>U</u></button>
-            <button type="button" data-rtf="strikeThrough" title="Strikethrough"><s>S</s></button>
-            <span class="rtf-sep"></span>
-            <button type="button" data-rtf="insertUnorderedList" title="Bulleted list">•</button>
-            <button type="button" data-rtf="insertOrderedList" title="Numbered list">1.</button>
-            <span class="rtf-sep"></span>
-            <button type="button" data-rtf="removeFormat" title="Clear formatting">⌫</button>
-          </div>
-          <div class="dump-rich" id="dump-input" contenteditable="true" data-placeholder="Type a thought, paste an email, or record a voice memo…"></div>
-          <div class="dump-capture-actions">
-            <button class="btn btn-primary" id="btn-dump-save">Save thought</button>
-            <button class="btn btn-secondary" id="btn-dump-save-email">Save as email</button>
-            <button class="btn btn-ghost" id="btn-dump-record">🎙 Record</button>
-            ${hasTouchScreen() ? `<button class="btn btn-ghost" id="btn-dump-sketch">✏ Sketch</button>` : ''}
-            ${subprojectSelectHTML(state.pendingDumpSubprojectId, 'id', 'dump-capture-sp')}
-            <span class="dump-voice-status" id="dump-voice-indicator"><span class="dump-voice-dot"></span><span id="dump-voice-timer">00:00</span><span class="dump-voice-level"><span id="dump-voice-level-bar"></span></span></span>
-          </div>
-        </div>
-
-        <div class="dump-section-title">To process <span class="dump-section-count">${pending.length}</span></div>
-        ${pending.length
-          ? `<div class="dump-list">${pending.map(d => dumpCardHTML(d, false)).join('')}</div>`
-          : '<div class="empty-state" style="padding:20px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">Nothing to process. Dump a thought above to get started.</div>'}
-
-        ${processed.length ? `
-          <details class="dump-processed-wrap" ${pending.length === 0 ? 'open' : ''}>
-            <summary class="dump-section-title dump-processed-summary">Processed <span class="dump-section-count">${processed.length}</span></summary>
-            <div class="dump-list">${processed.map(d => dumpCardHTML(d, true)).join('')}</div>
-          </details>` : ''}
-      </div>
-    </div>`;
 
   const saveThought = (type = 'text') => {
     const el = document.getElementById('dump-input');
     const html = el ? (el.innerHTML || '') : '';
     const plain = noteContentText(html);
-    if (!plain) { showToast('Type something first.', 'error'); el?.focus(); return; }
+    const hasImage = /<img\b/i.test(html);
+    if (!plain && !hasImage) { showToast('Type or paste something first.', 'error'); el?.focus(); return; }
+    applySpOverride();
     addTextDump(html, type);
     if (el) el.innerHTML = '';
-    renderDumpZone();
+    refreshDumpHostView();
     document.getElementById('dump-input')?.focus();
   };
   document.getElementById('btn-dump-save')?.addEventListener('click', () => saveThought('text'));
@@ -1013,6 +1208,11 @@ function renderDumpZone() {
     dumpInputEl.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveThought('text'); }
     });
+    // Right-click on a selection → "Create todo from selection". Respects the
+    // fixed subproject override so the todo lands in the same place a "Save
+    // thought" would.
+    attachDumpSelectionContextMenu(dumpInputEl, () =>
+      fixedSubprojectId !== null ? fixedSubprojectId : (state.pendingDumpSubprojectId || null));
   }
   document.querySelectorAll('#dump-rtf-toolbar [data-rtf]').forEach(btn => {
     btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -1025,27 +1225,52 @@ function renderDumpZone() {
   });
 
   document.getElementById('btn-dump-record')?.addEventListener('click', () => {
-    if (dumpVoiceState.recorder) stopVoiceRecording();
-    else startVoiceRecording();
+    if (dumpVoiceState.recorder) { stopVoiceRecording(); return; }
+    applySpOverride();
+    startVoiceRecording();
   });
-  document.getElementById('btn-dump-sketch')?.addEventListener('click', () => showSketchModal());
-
-  // Subproject selector on capture form (applies to next dump)
-  document.querySelector('.dump-capture-actions .dump-sp-select')?.addEventListener('change', (e) => {
-    state.pendingDumpSubprojectId = e.target.value || null;
-    // Update the select's color to reflect the new selection without a full re-render
-    const sp = state.pendingDumpSubprojectId ? proj.subprojects.find(s => s.id === state.pendingDumpSubprojectId) : null;
-    const style = sp
-      ? `background:${sp.color}22;color:${sp.color};border-color:${sp.color}44`
-      : `background:transparent;color:#94a3b8;border-color:#cbd5e1`;
-    e.target.setAttribute('style', style);
+  document.getElementById('btn-dump-sketch')?.addEventListener('click', () => {
+    applySpOverride();
+    showSketchModal();
   });
 
+  // The freeform subproject selector only exists when there's no fixed override
+  if (fixedSubprojectId === null) {
+    document.querySelector('.dump-capture-actions .dump-sp-select')?.addEventListener('change', (e) => {
+      state.pendingDumpSubprojectId = e.target.value || null;
+      const sp = state.pendingDumpSubprojectId ? proj.subprojects.find(s => s.id === state.pendingDumpSubprojectId) : null;
+      const style = sp
+        ? `background:${sp.color}22;color:${sp.color};border-color:${sp.color}44`
+        : `background:transparent;color:#94a3b8;border-color:#cbd5e1`;
+      e.target.setAttribute('style', style);
+    });
+  }
+
+  // If a recording was already in-flight before this render, restore the UI
+  // affordances (record button label, indicator, ticking timer) — the recorder
+  // itself lives in module state so it survived the re-render.
+  if (dumpVoiceState.recorder) {
+    const btn = document.getElementById('btn-dump-record');
+    const indicator = document.getElementById('dump-voice-indicator');
+    if (btn) { btn.textContent = '⏹ Stop'; btn.classList.add('recording'); }
+    if (indicator) indicator.classList.add('recording');
+    if (!dumpVoiceState.timerHandle && dumpVoiceState.startedAt) {
+      dumpVoiceState.timerHandle = setInterval(() => {
+        const el = document.getElementById('dump-voice-timer');
+        if (!el) return;
+        const secs = Math.floor((Date.now() - dumpVoiceState.startedAt) / 1000);
+        el.textContent = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+      }, 500);
+    }
+  }
+}
+
+function bindDumpCardControls() {
   // Per-dump subproject selector (updates the stored dump)
   document.querySelectorAll('.dump-card .dump-sp-select[data-dump-sp-id]').forEach(sel => {
     sel.addEventListener('click', ev => ev.stopPropagation());
     sel.addEventListener('change', () => {
-      if (setDumpSubproject(sel.dataset.dumpSpId, sel.value)) renderDumpZone();
+      if (setDumpSubproject(sel.dataset.dumpSpId, sel.value)) refreshDumpHostView();
     });
   });
 
@@ -1063,6 +1288,14 @@ function renderDumpZone() {
     // submit handler — there's no primary button to fire here.
     el.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') e.stopPropagation();
+    });
+    // Right-click on a selection → "Create todo from selection". Lazy getter
+    // so the subproject is read fresh (the per-card <select> can change it
+    // between render and right-click without a re-render).
+    attachDumpSelectionContextMenu(el, () => {
+      const dumpId = el.dataset.dumpTextId;
+      const proj = getProject();
+      return (proj?.dumps || []).find(d => d.id === dumpId)?.subprojectId || null;
     });
   });
 
@@ -1137,20 +1370,45 @@ function renderDumpZone() {
         showToast(`Audio error: ${e.message}`, 'error');
       }
     }));
+}
 
-  if (dumpVoiceState.recorder) {
-    const btn = document.getElementById('btn-dump-record');
-    const indicator = document.getElementById('dump-voice-indicator');
-    if (btn) { btn.textContent = '⏹ Stop'; btn.classList.add('recording'); }
-    if (indicator) indicator.classList.add('recording');
-    if (!dumpVoiceState.timerHandle && dumpVoiceState.startedAt) {
-      dumpVoiceState.timerHandle = setInterval(() => {
-        const el = document.getElementById('dump-voice-timer');
-        if (!el) return;
-        const secs = Math.floor((Date.now() - dumpVoiceState.startedAt) / 1000);
-        el.textContent = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
-      }, 500);
-    }
+function renderDumpZone() {
+  const proj = getProject();
+  if (!Array.isArray(proj.dumps)) proj.dumps = [];
+  const pending = proj.dumps.filter(d => !d.processed);
+  const processed = proj.dumps.filter(d => d.processed).sort((a,b) => new Date(b.processedAt || 0) - new Date(a.processedAt || 0));
+  const spById = Object.fromEntries((proj.subprojects || []).map(s => [s.id, s]));
+
+  // Reset pending-subproject if the user switched projects and the old id is gone
+  if (state.pendingDumpSubprojectId && !spById[state.pendingDumpSubprojectId]) {
+    state.pendingDumpSubprojectId = null;
   }
+
+  document.getElementById('content').innerHTML = `
+    <div class="view active" id="view-dumpzone">
+      <div class="view-header">
+        <div class="view-header-row">
+          <div class="view-title">🧠 Dump Zone</div>
+          <span style="font-size:13px;color:var(--text-muted)">Capture first, organize later · ${pending.length} pending</span>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:0 24px 24px">
+        ${dumpCaptureHTML()}
+
+        <div class="dump-section-title">To process <span class="dump-section-count">${pending.length}</span></div>
+        ${pending.length
+          ? `<div class="dump-list">${pending.map(d => dumpCardHTML(d, false)).join('')}</div>`
+          : '<div class="empty-state" style="padding:20px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">Nothing to process. Dump a thought above to get started.</div>'}
+
+        ${processed.length ? `
+          <details class="dump-processed-wrap" ${pending.length === 0 ? 'open' : ''}>
+            <summary class="dump-section-title dump-processed-summary">Processed <span class="dump-section-count">${processed.length}</span></summary>
+            <div class="dump-list">${processed.map(d => dumpCardHTML(d, true)).join('')}</div>
+          </details>` : ''}
+      </div>
+    </div>`;
+
+  bindDumpCaptureControls();
+  bindDumpCardControls();
 }
 

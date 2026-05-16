@@ -897,7 +897,7 @@ function parseQuickCapture(raw) {
 // Tokens not recognised stay in the title untouched.
 function parseTodoSlashCommands(raw) {
   let text = (raw || '').toString();
-  const out = { title: text, dueDate: null, startDate: null, priority: null, subprojectId: null, recurrence: null, tokens: [] };
+  const out = { title: text, dueDate: null, startDate: null, priority: null, subprojectId: null, recurrence: null, kind: null, tokens: [] };
   if (!text) return out;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -968,6 +968,13 @@ function parseTodoSlashCommands(raw) {
     out.tokens.push({ type: 'recurrence', label: w.toLowerCase() });
     return '';
   });
+  // /milestone: type switch — the entry will be created as a Milestone, not a Todo.
+  // Date comes from /due (or the form's due-date field); see addTodo branch.
+  text = text.replace(/\/milestone\b/gi, () => {
+    out.kind = 'milestone';
+    out.tokens.push({ type: 'kind', label: 'milestone' });
+    return '';
+  });
 
   out.title = text.replace(/\s+/g, ' ').trim();
   return out;
@@ -980,6 +987,7 @@ const SLASH_COMMANDS = [
   '/due', '/start',
   '/high', '/medium', '/low', '/hi', '/med', '/lo',
   '/daily', '/weekly', '/monthly', '/yearly',
+  '/milestone',
   '/sp:', '/sub'
 ];
 
@@ -2760,11 +2768,12 @@ function renderDashboard() {
             }).join('')}
             ${openCommitments.length > 6 ? `<div class="dash-overdue-more">+ ${openCommitments.length - 6} more</div>` : ''}
           </div>` : ''}
-          ${proj.todos.some(t => t.startDate || t.dueDate) ? `
+          ${(proj.todos.some(t => t.startDate || t.dueDate) || (Array.isArray(proj.milestones) && proj.milestones.length)) ? `
           <div class="dash-section" style="grid-column:1/-1">
             <div class="dash-section-header">
               <span class="dash-section-title">Todos Timeline${state.dashGanttExtendDays ? ` <span style="font-weight:400;color:var(--text-muted);font-size:11px">(+${state.dashGanttExtendDays} days)</span>` : ''}</span>
               <div style="display:flex;gap:6px;align-items:center">
+                <button class="btn btn-ghost btn-sm" id="btn-dash-add-milestone" title="Add a project-level milestone">◆ + Milestone</button>
                 <button class="btn btn-ghost btn-sm" id="btn-dash-gantt-extend" title="Extend timeline by 30 days">+ 30d</button>
                 ${state.dashGanttExtendDays ? `<button class="btn btn-ghost btn-sm" id="btn-dash-gantt-reset" title="Reset timeline">Reset</button>` : ''}
                 <button class="btn btn-ghost btn-sm" id="btn-dash-view-all-sps">${hasSps ? 'Subprojects' : 'All todos'}</button>
@@ -2805,6 +2814,10 @@ function renderDashboard() {
   document.getElementById('btn-dash-view-all-sps')?.addEventListener('click', () => showView(hasSps ? 'subprojects' : 'todos'));
   document.querySelectorAll('.stat-card[data-stat-view]').forEach(card =>
     card.addEventListener('click', () => showView(card.dataset.statView)));
+  document.getElementById('btn-dash-add-milestone')?.addEventListener('click', () =>
+    showMilestoneModal(null, { subprojectId: null }));
+  bindAllGanttMilestones(document);
+  requestAnimationFrame(scrollGanttToFocus);
   document.getElementById('btn-dash-gantt-extend')?.addEventListener('click', () => {
     state.dashGanttExtendDays = (state.dashGanttExtendDays || 0) + 30;
     renderDashboard();
@@ -4050,18 +4063,34 @@ function noteContentText(content) {
 }
 function noteContentInitialHTML(content) {
   if (!content) return '';
+  // Treat as already-HTML if there are tags OR entities. A contenteditable's
+  // innerHTML returns ">" as "&gt;" even when the user just typed "->" (no
+  // tags), so entity-only strings are still HTML — escaping them again would
+  // double-encode "-&gt;" into "-&amp;gt;" and render literally as "-&gt;".
   if (/<[a-z!\/][\s\S]*?>/i.test(content)) return content;
+  if (/&(?:[a-z]+|#\d+|#x[0-9a-f]+);/i.test(content)) return content;
   return escapeHTML(content).replace(/\n/g, '<br>');
 }
 
 // Strips inline styles/classes/scripts from pasted HTML so the editor stays in
 // our visual language. Used by every contenteditable (notes, dump zone, flow steps).
+// Also embeds pasted image files (Snipping Tool, copy-as-image, file copies)
+// inline as base64 data URLs so screenshots land in the note without a detour
+// through the attachments panel.
 function installRichEditorPaste(el) {
   if (!el || el.dataset.pasteHooked === '1') return;
   el.dataset.pasteHooked = '1';
   el.addEventListener('paste', (e) => {
-    const html = e.clipboardData?.getData('text/html');
-    const text = e.clipboardData?.getData('text/plain') || '';
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const imageFiles = collectClipboardImages(cd);
+    if (imageFiles.length) {
+      e.preventDefault();
+      insertImagesIntoEditor(el, imageFiles);
+      return;
+    }
+    const html = cd.getData('text/html');
+    const text = cd.getData('text/plain') || '';
     if (!html && !text) return;
     e.preventDefault();
     if (html) {
@@ -4078,6 +4107,42 @@ function installRichEditorPaste(el) {
       try { document.execCommand('insertText', false, text); } catch {}
     }
   });
+}
+
+// Pulls image files out of a ClipboardData. Snipping Tool / Win+Shift+S put a
+// bitmap in items[] with kind:'file'; copied image files from Explorer land in
+// files[]. Either path produces real File objects we can read as data URLs.
+function collectClipboardImages(cd) {
+  const out = [];
+  if (cd.items && cd.items.length) {
+    for (const item of cd.items) {
+      if (item.kind === 'file' && item.type && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) out.push(f);
+      }
+    }
+  }
+  if (!out.length && cd.files && cd.files.length) {
+    for (const f of cd.files) {
+      if (f.type && f.type.startsWith('image/')) out.push(f);
+    }
+  }
+  return out;
+}
+
+function insertImagesIntoEditor(el, files) {
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      if (!dataUrl) return;
+      el.focus();
+      const safe = dataUrl.replace(/"/g, '&quot;');
+      try { document.execCommand('insertHTML', false, `<img src="${safe}" class="rich-paste-img" alt="">`); } catch {}
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    reader.readAsDataURL(file);
+  }
 }
 
 function noteListItemHTML(n) {
@@ -4265,14 +4330,31 @@ function _smartLinkRender(suggestion, anchor) {
     menu.className = 'smart-link-popover';
     document.body.appendChild(menu);
   }
-  const icon = suggestion.kind === 'tag' ? '#' : '↗';
   const ent = suggestion.entity;
   const proj = ent ? state.data.projects?.[ent.projectKey] : null;
+  // Resolve done-state at render time (rather than baking it into the
+  // smart-link index) so suggestions reflect the current state — if the user
+  // marks a todo done after the index was built, the next render shows it.
+  let isDone = false;
+  if (ent && proj) {
+    if (ent.type === 'todo') {
+      const t = (proj.todos || []).find(x => x.id === ent.refId);
+      isDone = !!(t && t.done);
+    } else if (ent.type === 'reminder') {
+      const r = (proj.reminders || []).find(x => x.id === ent.refId);
+      isDone = !!(r && (r.doneAt || r.fired));
+    }
+  }
+  let icon = suggestion.kind === 'tag' ? '#' : '↗';
+  if (isDone && ent && ent.type === 'todo')     icon = '☑';
+  if (isDone && ent && ent.type === 'reminder') icon = '🔕';
   const projName = proj ? (proj.name || '') : '';
   const projColor = proj ? (proj.color || '#16a34a') : 'var(--accent)';
-  const subtitle = suggestion.kind === 'tag' ? 'Tag' : (projName || 'Workspace');
+  let subtitle = suggestion.kind === 'tag' ? 'Tag' : (projName || 'Workspace');
+  if (isDone) subtitle = `${subtitle} · Done`;
+  const doneCls = isDone ? ' smart-link-row-is-done' : '';
   menu.innerHTML = `
-    <div class="smart-link-row">
+    <div class="smart-link-row${doneCls}">
       <span class="smart-link-icon">${icon}</span>
       <div class="smart-link-main">
         <div class="smart-link-title">${escapeHTML(suggestion.full)}</div>
@@ -4743,7 +4825,12 @@ function renderMentionMenu() {
     return;
   }
   menu.innerHTML = mentionState.results.map((r, i) => {
-    const icon = pinIconFor(r.type);
+    // Swap the icon when done so the row is visually distinct at-a-glance
+    // — the strikethrough/dimmed label below alone is too easy to miss when
+    // scanning a long list of candidates. ☑/🔕 echo the open ✓/🔔.
+    let icon = pinIconFor(r.type);
+    if (r.done && r.type === 'todo')     icon = '☑';
+    if (r.done && r.type === 'reminder') icon = '🔕';
     const active = i === mentionState.activeIdx ? ' active' : '';
     const doneCls = r.done ? ' mention-row-is-done' : '';
     const doneBadge = r.done ? `<span class="mention-row-done-badge">✓ done</span>` : '';
@@ -6064,8 +6151,9 @@ function subprojectDetailHTML(spId) {
   const spNotes = getSubprojectNotes(spId).sort((a,b) => new Date(b.updated) - new Date(a.updated));
   const spSparkNodes = getSubprojectSparkNodes(spId);
   const spDumps = getSubprojectDumps(spId).sort((a,b) => new Date(b.created) - new Date(a.created));
+  const spDumpsPending = spDumps.filter(d => !d.processed);
+  const spDumpsProcessed = spDumps.filter(d => d.processed).sort((a,b) => new Date(b.processedAt || 0) - new Date(a.processedAt || 0));
   const openCount = spTodos.filter(t=>!t.done).length;
-  const dumpTypeIcon = (t) => t === 'voice' ? '🎙' : t === 'email' ? '✉' : t === 'sketch' ? '✏' : '🗒';
 
   return `<div class="sp-detail">
     <div class="sp-detail-header">
@@ -6082,7 +6170,10 @@ function subprojectDetailHTML(spId) {
         </div>` : ''}
     </div>
 
-    <div class="sp-section-title">Timeline</div>
+    <div class="sp-section-title" style="display:flex;align-items:center;gap:8px">
+      <span>Timeline</span>
+      <button class="btn btn-ghost btn-sm" id="btn-sp-add-milestone" title="Add a milestone to this subproject">◆ + Milestone</button>
+    </div>
     ${ganttHTML(spId)}
 
     <div class="sp-section-title" style="margin-top:20px">
@@ -6119,13 +6210,17 @@ function subprojectDetailHTML(spId) {
     <div class="sp-notes-list" id="sp-notes-list">
       ${spNotes.length ? spNotes.map(n => {
         const linkedTodosOfNote = (n.linkedTodos||[]).map(tid => proj.todos.find(t=>t.id===tid)).filter(Boolean);
+        const hasContent = !!noteContentText(n.content);
+        const expanded = state.expandedSpNotes && state.expandedSpNotes.has(n.id);
         return `<div class="sp-note-card">
           <div class="sp-note-header">
+            <button class="sp-note-expand ${hasContent?'':'disabled'} ${expanded?'expanded':''}" data-sp-note-toggle="${n.id}" title="${hasContent ? (expanded?'Collapse':'Expand') : 'No content'}" ${hasContent?'':'disabled'}>${expanded?'▾':'▸'}</button>
             ${priorityBadge(n.priority)}
             <span class="sp-note-title" data-id="${n.id}">${escapeHTML(n.title)}</span>
             <span style="font-size:11px;color:var(--text-muted)">${formatDate(n.updated)}</span>
             <button class="btn btn-ghost btn-icon sp-unlink-note" data-id="${n.id}" title="Unlink">✕</button>
           </div>
+          ${expanded && hasContent ? `<div class="sp-note-body">${noteContentInitialHTML(n.content)}</div>` : ''}
           ${linkedTodosOfNote.length ? `<div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--text-muted);margin-right:2px">Links to:</span>
             ${linkedTodosOfNote.map(t=>`<span style="font-size:11px;background:var(--content-bg);padding:1px 7px;border-radius:4px;border:1px solid var(--border)">${escapeHTML(t.title)}</span>`).join('')}
@@ -6155,24 +6250,18 @@ function subprojectDetailHTML(spId) {
 
     <div class="sp-section-title" style="margin-top:20px">
       Dumps
-      <span style="font-weight:400;color:var(--text-muted)">${spDumps.length}${spDumps.length ? ` · ${spDumps.filter(d=>!d.processed).length} pending` : ''}</span>
+      <span style="font-weight:400;color:var(--text-muted)">${spDumps.length}${spDumps.length ? ` · ${spDumpsPending.length} pending` : ''}</span>
     </div>
-    <div class="sp-dumps-list">
-      ${spDumps.length ? spDumps.map(d => {
-        const plain = d.text ? noteContentText(d.text) : '';
-        const preview = plain ? (plain.length > 140 ? plain.slice(0, 138) + '…' : plain) : (d.type === 'voice' ? '🎙 Voice memo' : d.type === 'sketch' ? '✏ Sketch' : '(empty)');
-        return `<div class="sp-dump-card ${d.processed?'processed':''}" data-sp-dump-id="${d.id}" title="Open in Dump Zone">
-          <div class="sp-dump-head">
-            <span class="sp-dump-type">${dumpTypeIcon(d.type)}</span>
-            <span class="sp-dump-time">${formatDateTime(d.created)}</span>
-            ${d.processed ? `<span class="sp-dump-tag">archived</span>` : `<span class="sp-dump-tag sp-dump-tag-pending">pending</span>`}
-            <button class="btn btn-ghost btn-icon sp-dump-unlink" data-id="${d.id}" title="Remove subproject assignment">✕</button>
-          </div>
-          <div class="sp-dump-text">${escapeHTML(preview)}</div>
-        </div>`;
-      }).join('')
-      : `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">No dumps assigned to this subproject yet. Use the subproject dropdown in the Dump Zone.</div>`}
-    </div>
+    ${dumpCaptureHTML({ fixedSubprojectId: spId })}
+    <div class="dump-section-title" style="margin-top:14px">To process <span class="dump-section-count">${spDumpsPending.length}</span></div>
+    ${spDumpsPending.length
+      ? `<div class="dump-list">${spDumpsPending.map(d => dumpCardHTML(d, false)).join('')}</div>`
+      : `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">No pending dumps for this subproject. Capture one above.</div>`}
+    ${spDumpsProcessed.length ? `
+      <details class="dump-processed-wrap" ${spDumpsPending.length === 0 ? 'open' : ''}>
+        <summary class="dump-section-title dump-processed-summary">Processed <span class="dump-section-count">${spDumpsProcessed.length}</span></summary>
+        <div class="dump-list">${spDumpsProcessed.map(d => dumpCardHTML(d, true)).join('')}</div>
+      </details>` : ''}
 
     <div class="sp-section-title" style="margin-top:20px">Attachments <span style="font-weight:400;color:var(--text-muted)">(incl. linked todos & notes)</span></div>
     ${attachmentPanelHTML(sp, 'subproject', sp.id, 'Attachments', subprojectMergedAttachments(sp))}
@@ -6273,6 +6362,35 @@ function setupSubprojectEvents() {
   document.querySelectorAll('.sp-note-title').forEach(el =>
     el.addEventListener('click', () => { state.editingNote = el.dataset.id; showView('notes'); }));
 
+  // Toggle inline note body (DOM-only, no re-render → preserves scroll)
+  document.querySelectorAll('[data-sp-note-toggle]').forEach(btn =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-sp-note-toggle');
+      if (!state.expandedSpNotes) state.expandedSpNotes = new Set();
+      const card = btn.closest('.sp-note-card');
+      const note = getProject().notes.find(n => n.id === id);
+      if (!note || !card) return;
+      const existing = card.querySelector('.sp-note-body');
+      if (existing) {
+        existing.remove();
+        state.expandedSpNotes.delete(id);
+        btn.classList.remove('expanded');
+        btn.textContent = '▸';
+        btn.title = 'Expand';
+      } else {
+        const body = document.createElement('div');
+        body.className = 'sp-note-body';
+        body.innerHTML = noteContentInitialHTML(note.content);
+        const header = card.querySelector('.sp-note-header');
+        header.insertAdjacentElement('afterend', body);
+        state.expandedSpNotes.add(id);
+        btn.classList.add('expanded');
+        btn.textContent = '▾';
+        btn.title = 'Collapse';
+      }
+    }));
+
   // Unlink note from subproject
   document.querySelectorAll('.sp-unlink-note').forEach(b =>
     b.addEventListener('click', () => unlinkNoteFromSubproject(b.dataset.id)));
@@ -6292,24 +6410,24 @@ function setupSubprojectEvents() {
   document.getElementById('btn-link-note')?.addEventListener('click', showLinkNotePanel);
   document.getElementById('btn-new-sp-note')?.addEventListener('click', showNewSubprojectNotePanel);
 
-  // Dump cards: click to jump to Dump Zone, ✕ to remove the subproject link
-  document.querySelectorAll('.sp-dump-card').forEach(card =>
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
-      showView('dumpzone');
-    }));
-  document.querySelectorAll('.sp-dump-unlink').forEach(btn =>
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setDumpSubproject(btn.dataset.id, null);
-      renderSubprojects();
-    }));
+  // Dump capture + cards — same affordances as the Dump Zone tab. The capture
+  // panel is locked to the active subproject so newly created dumps land here
+  // without an extra dropdown step.
+  if (state.activeSubproject) {
+    bindDumpCaptureControls({ fixedSubprojectId: state.activeSubproject });
+    bindDumpCardControls();
+  }
 
   // Attachments panel
   bindAttachmentPanel(document.getElementById('sp-right-panel'), renderSubprojects);
 
-  // Scroll gantt to today after render
-  requestAnimationFrame(scrollGanttToToday);
+  // Milestone affordances: toolbar button + right-click + click-to-edit on markers
+  document.getElementById('btn-sp-add-milestone')?.addEventListener('click', () =>
+    showMilestoneModal(null, { subprojectId: state.activeSubproject }));
+  bindAllGanttMilestones(document);
+
+  // Scroll gantt to its focus day (today, or oldest overdue open todo).
+  requestAnimationFrame(scrollGanttToFocus);
 }
 
 function saveSubproject() {
@@ -6466,12 +6584,435 @@ function showLinkNotePanel() {
   document.getElementById('btn-cancel-link').onclick = () => { panel.classList.add('hidden'); panel.innerHTML = ''; };
 }
 
+// ===== MILESTONES =====
+// Per-project list of fixed-date markers rendered on the Gantt. Decoupled
+// from todos by design — milestones are points in time, not actionable items.
+// Entry points: toolbar `+ Milestone` button, right-click on Gantt timeline,
+// `/milestone` slash command in the new-todo input (uses /due as the date).
+
+var MILESTONE_COLORS = ['#a855f7', '#06b6d4', '#f59e0b', '#ec4899', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'];
+
+function ensureMilestonesArray(proj) {
+  if (!proj) return null;
+  if (!Array.isArray(proj.milestones)) proj.milestones = [];
+  return proj.milestones;
+}
+
+function getProjectMilestones() {
+  const proj = getProject();
+  return ensureMilestonesArray(proj) || [];
+}
+
+// Milestones visible in a given scope:
+// - Subproject view (spId set): project-level milestones (subprojectId == null)
+//   PLUS milestones attached to this subproject.
+// - Overview / dashboard (spId == null): every milestone in the project,
+//   project-level and subproject-attached.
+function getMilestonesForScope(spId) {
+  const all = getProjectMilestones();
+  if (!spId) return all;
+  return all.filter(m => !m.subprojectId || m.subprojectId === spId);
+}
+
+function addMilestone({ title, date, subprojectId = null, color = null, note = '' }) {
+  const t = (title || '').trim();
+  const d = (date || '').trim();
+  if (!t || !d) return null;
+  const proj = getProject();
+  const list = ensureMilestonesArray(proj);
+  const m = {
+    id: generateId('ms'),
+    title: t,
+    date: d,
+    subprojectId: subprojectId || null,
+    color: color || MILESTONE_COLORS[list.length % MILESTONE_COLORS.length],
+    note: note || '',
+    created: new Date().toISOString()
+  };
+  list.push(m);
+  saveData();
+  rerenderAfterMilestoneChange();
+  showToast(`Milestone "${t}" set for ${formatDate(d)}`, 'success');
+  return m;
+}
+
+function updateMilestone(id, patch) {
+  const list = ensureMilestonesArray(getProject());
+  if (!list) return false;
+  const m = list.find(x => x.id === id);
+  if (!m) return false;
+  if (typeof patch.title === 'string') m.title = patch.title.trim();
+  if (typeof patch.date === 'string' && patch.date) m.date = patch.date;
+  if ('subprojectId' in patch) m.subprojectId = patch.subprojectId || null;
+  if (typeof patch.color === 'string') m.color = patch.color;
+  if (typeof patch.note === 'string') m.note = patch.note;
+  saveData();
+  rerenderAfterMilestoneChange();
+  return true;
+}
+
+function deleteMilestone(id) {
+  const list = ensureMilestonesArray(getProject());
+  if (!list) return false;
+  const i = list.findIndex(x => x.id === id);
+  if (i === -1) return false;
+  const [removed] = list.splice(i, 1);
+  saveData();
+  rerenderAfterMilestoneChange();
+  showToast(`Milestone "${removed.title}" deleted`, 'info');
+  return true;
+}
+
+// Re-render whichever view the user is on. The Gantt appears in: dashboard,
+// subprojects (active sp view), and overview. Each has its own render fn;
+// fall back to the global render() if none match.
+function rerenderAfterMilestoneChange() {
+  if (state.view === 'dashboard' && typeof renderDashboard === 'function') return renderDashboard();
+  if (state.view === 'subprojects' && state.activeSubproject && typeof renderSubprojects === 'function') return renderSubprojects();
+  if (state.view === 'overview' && typeof renderOverview === 'function') return renderOverview();
+  if (typeof render === 'function') render();
+}
+
+// Modal for create + edit. `existing` is null for create, milestone object for edit.
+// `defaults` lets the caller pre-fill (e.g. date from a right-clicked Gantt cell).
+function showMilestoneModal(existing, defaults) {
+  const proj = getProject();
+  const sps = proj.subprojects || [];
+  const isEdit = !!existing;
+  const m = existing || {};
+  const initial = {
+    title: m.title || '',
+    date: m.date || (defaults && defaults.date) || toDateString(new Date()),
+    subprojectId: m.subprojectId || (defaults && defaults.subprojectId) || '',
+    color: m.color || (defaults && defaults.color) || MILESTONE_COLORS[0],
+    note: m.note || ''
+  };
+
+  const overlay = document.getElementById('modal-overlay');
+  overlay.innerHTML = `
+    <div class="modal milestone-modal">
+      <h3>${isEdit ? 'Edit milestone' : 'New milestone'}</h3>
+      <div class="form-group">
+        <label class="form-label" for="ms-title">Title</label>
+        <input type="text" class="form-input" id="ms-title" value="${escapeHTML(initial.title)}" placeholder="e.g. Launch v1">
+      </div>
+      <div class="form-group ms-row-2">
+        <div style="flex:1">
+          <label class="form-label" for="ms-date">Date</label>
+          <input type="date" class="form-input" id="ms-date" value="${escapeHTML(initial.date)}">
+        </div>
+        <div style="flex:1">
+          <label class="form-label" for="ms-color">Color</label>
+          <div class="ms-color-row">
+            <input type="color" class="form-input ms-color-input" id="ms-color" value="${escapeHTML(initial.color)}">
+            <div class="ms-color-swatches">
+              ${MILESTONE_COLORS.map(c => `<button type="button" class="ms-color-swatch" data-color="${c}" style="background:${c}" title="${c}"></button>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ms-sp">Subproject (optional — leave blank for project-level)</label>
+        <select class="form-select" id="ms-sp">
+          <option value="">— Project-level —</option>
+          ${sps.map(sp => `<option value="${sp.id}" ${initial.subprojectId === sp.id ? 'selected' : ''}>${escapeHTML(sp.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ms-note">Note (optional)</label>
+        <input type="text" class="form-input" id="ms-note" value="${escapeHTML(initial.note)}" placeholder="One-line context…">
+      </div>
+      <div class="modal-buttons">
+        ${isEdit ? `<button class="btn btn-danger" id="ms-delete" style="margin-right:auto">Delete</button>` : ''}
+        <button class="btn btn-secondary" id="ms-cancel">Cancel</button>
+        <button class="btn btn-primary" id="ms-save">${isEdit ? 'Save' : 'Add'}</button>
+      </div>
+    </div>`;
+  overlay.classList.remove('hidden');
+
+  const titleEl = document.getElementById('ms-title');
+  const dateEl  = document.getElementById('ms-date');
+  const spEl    = document.getElementById('ms-sp');
+  const colorEl = document.getElementById('ms-color');
+  const noteEl  = document.getElementById('ms-note');
+  titleEl.focus();
+  titleEl.select();
+
+  overlay.querySelectorAll('.ms-color-swatch').forEach(btn => {
+    btn.addEventListener('click', () => { colorEl.value = btn.dataset.color; });
+  });
+
+  const close = () => {
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+    overlay.onclick = null;
+  };
+  const commit = () => {
+    const title = titleEl.value.trim();
+    const date  = dateEl.value;
+    if (!title) { showToast('Milestone needs a title.', 'error'); titleEl.focus(); return; }
+    if (!date)  { showToast('Milestone needs a date.', 'error'); dateEl.focus(); return; }
+    const patch = {
+      title, date,
+      subprojectId: spEl.value || null,
+      color: colorEl.value,
+      note: noteEl.value.trim()
+    };
+    if (isEdit) updateMilestone(existing.id, patch);
+    else addMilestone(patch);
+    close();
+  };
+
+  document.getElementById('ms-save').onclick = commit;
+  document.getElementById('ms-cancel').onclick = close;
+  if (isEdit) {
+    document.getElementById('ms-delete').onclick = () => {
+      close();
+      showConfirmModal({
+        title: 'Delete milestone',
+        body: `Delete milestone "${escapeHTML(existing.title)}"? This cannot be undone via the milestone modal (use ⌘Z if needed).`,
+        confirmLabel: 'Delete',
+        danger: true,
+        onConfirm: () => deleteMilestone(existing.id)
+      });
+    };
+  }
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  // Enter in title/date/note submits; date input swallows Enter on some browsers, but title is the focused default.
+  [titleEl, noteEl].forEach(el => el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  }));
+}
+
+// Right-click menu on a Gantt container. Mirrors the brainmap context-menu
+// pattern in src/07-spark-map.js: a DOM div appended to body, dismissed by
+// outside-click / Escape / blur. When the click lands on an existing milestone
+// glyph (data-milestone-id), shows Edit/Delete; otherwise shows "Add milestone
+// here" with date prefilled from the clicked column.
+function hideGanttContextMenu() {
+  const m = document.getElementById('gantt-context-menu');
+  if (m) m.remove();
+  document.removeEventListener('mousedown', ganttContextMenuOutsideHandler, true);
+  document.removeEventListener('keydown', ganttContextMenuKeyHandler, true);
+  window.removeEventListener('blur', hideGanttContextMenu);
+}
+function ganttContextMenuOutsideHandler(e) {
+  const m = document.getElementById('gantt-context-menu');
+  if (m && !m.contains(e.target)) hideGanttContextMenu();
+}
+function ganttContextMenuKeyHandler(e) {
+  if (e.key === 'Escape') { e.preventDefault(); hideGanttContextMenu(); }
+}
+
+function showGanttContextMenu(clientX, clientY, payload) {
+  hideGanttContextMenu();
+  const onExisting = !!(payload && payload.milestoneId);
+  const menu = document.createElement('div');
+  menu.id = 'gantt-context-menu';
+  menu.className = 'bm-context-menu';
+  menu.innerHTML = onExisting
+    ? `
+      <button class="bm-ctx-item" data-action="edit">
+        <span class="bm-ctx-icon">✎</span><span>Edit milestone</span>
+      </button>
+      <div class="bm-ctx-divider"></div>
+      <button class="bm-ctx-item bm-ctx-danger" data-action="delete">
+        <span class="bm-ctx-icon">✕</span><span>Delete milestone</span>
+      </button>`
+    : `
+      <button class="bm-ctx-item" data-action="add">
+        <span class="bm-ctx-icon">◆</span><span>Add milestone here${payload && payload.date ? ` (${formatDate(payload.date)})` : ''}</span>
+      </button>`;
+  document.body.appendChild(menu);
+  const rect = menu.getBoundingClientRect();
+  const x = Math.min(clientX, window.innerWidth - rect.width - 8);
+  const y = Math.min(clientY, window.innerHeight - rect.height - 8);
+  menu.style.left = `${Math.max(4, x)}px`;
+  menu.style.top  = `${Math.max(4, y)}px`;
+
+  menu.addEventListener('click', (e) => {
+    const btn = e.target.closest('.bm-ctx-item');
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset.action;
+    hideGanttContextMenu();
+    if (action === 'add') {
+      showMilestoneModal(null, { date: payload && payload.date, subprojectId: payload && payload.subprojectId });
+    } else if (action === 'edit') {
+      const ms = getProjectMilestones().find(x => x.id === payload.milestoneId);
+      if (ms) showMilestoneModal(ms);
+    } else if (action === 'delete') {
+      const ms = getProjectMilestones().find(x => x.id === payload.milestoneId);
+      if (!ms) return;
+      showConfirmModal({
+        title: 'Delete milestone',
+        body: `Delete milestone "${escapeHTML(ms.title)}"?`,
+        confirmLabel: 'Delete',
+        danger: true,
+        onConfirm: () => deleteMilestone(ms.id)
+      });
+    }
+  });
+
+  setTimeout(() => {
+    document.addEventListener('mousedown', ganttContextMenuOutsideHandler, true);
+    document.addEventListener('keydown', ganttContextMenuKeyHandler, true);
+    window.addEventListener('blur', hideGanttContextMenu);
+  }, 0);
+}
+
+// Renders a Variant-D milestone marker (thin vertical line + side label).
+// `labelWidth` is the fallback for the CSS var --gantt-label-w (the user can
+// drag-resize the label column, so the rendered position must use the live
+// CSS var to stay aligned with the day grid — same trick the today-line uses).
+// `pinSide` ('right'|'left') flips the label so it doesn't run off the right edge.
+function milestoneMarkerHTML(ms, labelWidth, colW, idx, pinSide) {
+  const offset = idx * colW + colW / 2;
+  const leftCss = `calc(var(--gantt-label-w, ${labelWidth}px) + ${offset}px)`;
+  const sideClass = pinSide === 'left' ? 'gantt-ms-label-left' : '';
+  const tooltip = `${ms.title} — ${formatDate(ms.date)}${ms.note ? ' · ' + ms.note : ''}`;
+  return `
+    <div class="gantt-ms-vline" data-milestone-id="${ms.id}" style="left:${leftCss};background:${ms.color}" title="${escapeHTML(tooltip)}"></div>
+    <div class="gantt-ms-side-label ${sideClass}" data-milestone-id="${ms.id}" style="left:${leftCss};color:${ms.color};border-color:${ms.color}" title="${escapeHTML(tooltip)}">
+      <span class="gantt-ms-diamond" style="background:${ms.color}"></span>${escapeHTML(ms.title)}
+    </div>`;
+}
+
+// Wires the right-click context menu on the Gantt container and the click
+// handler on existing milestone markers. Reads layout + scope from the
+// container's dataset so a single helper covers dashboard, subproject view,
+// and any future Gantt instance. Re-callable safely — listeners are
+// attached idempotently using a dataset flag.
+function bindGanttMilestones(containerEl) {
+  if (!containerEl) return;
+  const COL_W = parseInt(containerEl.dataset.ganttColW, 10) || 28;
+  const LABEL_W = parseInt(containerEl.dataset.ganttLabelW, 10) || 180;
+  const W_START = containerEl.dataset.ganttWStart;
+  const totalDays = parseInt(containerEl.dataset.ganttTotalDays, 10) || 0;
+  const scopedSpId = containerEl.dataset.ganttSpId || null;
+
+  if (containerEl.dataset.msBound === '1') return;
+  containerEl.dataset.msBound = '1';
+
+  containerEl.addEventListener('contextmenu', (e) => {
+    const inner = containerEl.querySelector('.gantt-inner');
+    if (!inner) return;
+    const target = e.target.closest('[data-milestone-id]');
+    if (target) {
+      e.preventDefault();
+      showGanttContextMenu(e.clientX, e.clientY, { milestoneId: target.dataset.milestoneId });
+      return;
+    }
+    const innerRect = inner.getBoundingClientRect();
+    const x = e.clientX - innerRect.left + (containerEl.scrollLeft || 0);
+    if (x < LABEL_W) return; // label column — let native menu through
+    const dayIdx = Math.floor((x - LABEL_W) / COL_W);
+    if (dayIdx < 0 || dayIdx >= totalDays) return;
+    if (!W_START) return;
+    const start = new Date(W_START); start.setHours(0,0,0,0);
+    start.setDate(start.getDate() + dayIdx);
+    e.preventDefault();
+    showGanttContextMenu(e.clientX, e.clientY, { date: toDateString(start), subprojectId: scopedSpId || null });
+  });
+
+  // Click on an existing milestone glyph opens edit.
+  containerEl.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-milestone-id]');
+    if (!target) return;
+    e.stopPropagation();
+    const ms = getProjectMilestones().find(x => x.id === target.dataset.milestoneId);
+    if (ms) showMilestoneModal(ms);
+  });
+}
+
+// Binds milestone interactivity on every Gantt container under `root`.
+// Containers tagged with data-ms-gantt opt in; those without (e.g. the
+// cross-project overview gantts) stay read-only. Also wires the overview-bar
+// "Next milestone" pill (rendered as a sibling above the container).
+function bindAllGanttMilestones(root) {
+  root = root || document;
+  root.querySelectorAll('[data-ms-gantt="1"]').forEach(el => bindGanttMilestones(el));
+  root.querySelectorAll('.gantt-ov-bar [data-ov-milestone-id]').forEach(el => {
+    if (el.dataset.ovBound === '1') return;
+    el.dataset.ovBound = '1';
+    el.addEventListener('click', () => {
+      const ms = getProjectMilestones().find(x => x.id === el.dataset.ovMilestoneId);
+      if (ms) showMilestoneModal(ms);
+    });
+  });
+}
+
+// Renders the one-line overview pills sitting at the top of a Gantt chart.
+// Counts are computed against todos in scope (already filtered to !done by the
+// caller's `scopedOpenDated` — open + has a date). Picks the next milestone
+// (date >= today) for the highlighted "Next" pill. Returns '' if everything
+// is zero (nothing to summarize).
+function ganttOverviewLineHTML(scopedOpenDated, scopedMilestones, wStart, wEnd) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toDateString(today);
+  let overdue = 0, todayCount = 0, upcoming = 0;
+  for (const t of scopedOpenDated) {
+    const ds = t.dueDate || t.startDate;
+    if (!ds) continue;
+    const d = new Date(ds); d.setHours(0, 0, 0, 0);
+    if (d < today) overdue++;
+    else if (ds === todayStr) todayCount++;
+    else upcoming++;
+  }
+  // Pick the next milestone: earliest with date >= today. If a milestone is
+  // exactly today, prefer it over future ones.
+  let nextMs = null;
+  for (const m of scopedMilestones) {
+    if (!m || !m.date) continue;
+    if (m.date < todayStr) continue;
+    if (!nextMs || m.date < nextMs.date) nextMs = m;
+  }
+  const nextLabel = nextMs ? milestoneRelativeLabel(nextMs.date, today) : null;
+
+  // Date range — short format like "16 May → 1 Sep".
+  const fmt = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const range = (wStart && wEnd) ? `${fmt(wStart)} → ${fmt(wEnd)}` : '';
+
+  const parts = [];
+  if (overdue)     parts.push(`<span class="gantt-ov-pill gantt-ov-overdue" title="${overdue} open todo${overdue===1?'':'s'} past their due date">⚠ ${overdue} overdue</span>`);
+  if (todayCount)  parts.push(`<span class="gantt-ov-pill gantt-ov-today" title="${todayCount} open todo${todayCount===1?'':'s'} due today">◷ ${todayCount} today</span>`);
+  if (upcoming)    parts.push(`<span class="gantt-ov-pill gantt-ov-open" title="${upcoming} open todo${upcoming===1?'':'s'} in the future">${upcoming} upcoming</span>`);
+  if (nextMs) {
+    if (parts.length) parts.push('<span class="gantt-ov-sep">·</span>');
+    parts.push(`<span class="gantt-ov-pill gantt-ov-milestone" data-ov-milestone-id="${nextMs.id}" title="${escapeHTML(nextMs.title)} — ${formatDate(nextMs.date)} · click to edit">
+      <span class="gantt-ov-diamond" style="background:${nextMs.color}"></span>
+      Next: ${escapeHTML(nextMs.title)} · ${escapeHTML(nextLabel)}
+    </span>`);
+  }
+  if (!parts.length && !range) return '';
+  // If we have nothing but a range, still render so the bar is consistent.
+  if (!parts.length) parts.push('<span class="gantt-ov-empty">All clear — nothing due, nothing overdue.</span>');
+
+  return `<div class="gantt-ov-bar">
+    ${parts.join('')}
+    ${range ? `<span class="gantt-ov-range">${range}</span>` : ''}
+  </div>`;
+}
+
+// "today" | "tomorrow" | "in 5d" | "Xd ago" — short relative label for a YYYY-MM-DD
+// date measured from `today` (a local-midnight Date).
+function milestoneRelativeLabel(dateStr, today) {
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  const days = Math.round((d - today) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return 'yesterday';
+  if (days > 0) return `in ${days}d`;
+  return `${-days}d ago`;
+}
+
 // ===== GANTT =====
 function ganttHTML(spId) {
   const todos = getSubprojectTodos(spId).filter(t => t.startDate || t.dueDate);
-  if (!todos.length) {
+  const milestones = getMilestonesForScope(spId);
+  if (!todos.length && !milestones.length) {
     return `<div class="gantt-empty" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius)">
-      Add <strong>start</strong> and <strong>due dates</strong> to todos to see them on the timeline.
+      Add <strong>start</strong> and <strong>due dates</strong> to todos to see them on the timeline, or add a milestone via the <strong>◆ + Milestone</strong> button.
     </div>`;
   }
 
@@ -6479,9 +7020,18 @@ function ganttHTML(spId) {
   const COL_W  = 28;
   const LABEL_W = 180;
 
-  const allDates = todos.flatMap(t => [t.startDate, t.dueDate].filter(Boolean)).map(s => {
+  // Window expands to fit both todo dates and milestone dates so milestones
+  // outside the todo range still land on the visible timeline.
+  const todoDates = todos.flatMap(t => [t.startDate, t.dueDate].filter(Boolean));
+  const msDates = milestones.map(m => m.date).filter(Boolean);
+  const allDates = [...todoDates, ...msDates].map(s => {
     const d = new Date(s); d.setHours(0,0,0,0); return d;
   });
+  // Fallback when there are only milestones: anchor the window around today.
+  if (!allDates.length) {
+    const t0 = new Date(); t0.setHours(0,0,0,0);
+    allDates.push(t0);
+  }
   const wStart = new Date(Math.min(...allDates)); wStart.setDate(wStart.getDate() - 2); wStart.setHours(0,0,0,0);
   let wEnd = new Date(Math.max(...allDates)); wEnd.setDate(wEnd.getDate() + 3); wEnd.setHours(0,0,0,0);
   const minEnd = new Date(); minEnd.setHours(0,0,0,0); minEnd.setDate(minEnd.getDate() + 60);
@@ -6497,7 +7047,26 @@ function ganttHTML(spId) {
 
   const sorted = [...todos].sort((a,b) => new Date(a.startDate||a.dueDate) - new Date(b.startDate||b.dueDate));
 
-  return `<div class="gantt-container" id="gantt-container">
+  // Pre-compute milestone indices + label-side flip (flip to left when too
+  // close to the right edge, so the floating label doesn't run off-screen).
+  const FLIP_THRESHOLD_DAYS = 8;
+  const milestoneMarkers = milestones
+    .map(m => {
+      const d = new Date(m.date); d.setHours(0,0,0,0);
+      const idx = Math.round((d - wStart) / DAY_MS);
+      if (idx < 0 || idx >= totalDays) return null;
+      const pinSide = (totalDays - idx) <= FLIP_THRESHOLD_DAYS ? 'left' : 'right';
+      return { m, idx, pinSide };
+    })
+    .filter(Boolean);
+
+  const scopedOpenDated = todos.filter(t => !t.done);
+  const overviewBar = ganttOverviewLineHTML(scopedOpenDated, milestones, wStart, wEnd);
+
+  return `${overviewBar}<div class="gantt-container ${overviewBar ? 'gantt-has-overview' : ''}" id="gantt-container" data-ms-gantt="1"
+        data-gantt-col-w="${COL_W}" data-gantt-label-w="${LABEL_W}"
+        data-gantt-total-days="${totalDays}" data-gantt-w-start="${toDateString(wStart)}"
+        data-gantt-sp-id="${escapeHTML(spId || '')}">
     <div class="gantt-inner" style="width:calc(var(--gantt-label-w, ${LABEL_W}px) + ${totalDays * COL_W}px)">
       <div class="gantt-header">
         <div class="gantt-header-labels">Task<div class="gantt-label-resizer" title="Drag to resize"></div></div>
@@ -6515,6 +7084,7 @@ function ganttHTML(spId) {
       <div class="gantt-body">
         ${todayIdx >= 0 && todayIdx < totalDays
           ? `<div class="gantt-today-line" style="left:calc(var(--gantt-label-w, ${LABEL_W}px) + ${todayIdx * COL_W + COL_W/2}px)"></div>` : ''}
+        ${milestoneMarkers.map(({m, idx, pinSide}) => milestoneMarkerHTML(m, LABEL_W, COL_W, idx, pinSide)).join('')}
         ${sorted.map(t => {
           const tS = new Date(t.startDate || t.dueDate); tS.setHours(0,0,0,0);
           const tE = new Date(t.dueDate || t.startDate); tE.setHours(0,0,0,0);
@@ -6523,7 +7093,7 @@ function ganttHTML(spId) {
           const barLeft  = si * COL_W;
           const barWidth = Math.max(COL_W - 2, (ei - si + 1) * COL_W - 2);
           const linked = getNotesLinkedToTodo(t.id);
-          return `<div class="gantt-row">
+          return `<div class="gantt-row" data-todo-id="${t.id}">
             <div class="gantt-row-label">
               <span class="gantt-label-text" title="${escapeHTML(t.title)}">${escapeHTML(t.title)}</span>
               ${linked.length ? `<span class="gantt-note-badge" title="${linked.map(n=>n.title).join(', ')}">📝</span>` : ''}
@@ -6552,9 +7122,10 @@ function allSubprojectsGanttHTML(proj, projectKey, options = {}) {
   const spById = Object.fromEntries(sps.map(s => [s.id, s]));
 
   const todos = proj.todos.filter(t => !t.done && (t.startDate || t.dueDate));
-  if (!todos.length) {
+  const milestones = Array.isArray(proj.milestones) ? proj.milestones : [];
+  if (!todos.length && !milestones.length) {
     return `<div class="gantt-empty" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius)">
-      Add <strong>start</strong> and <strong>due dates</strong> to todos to see them on the timeline.
+      Add <strong>start</strong> and <strong>due dates</strong> to todos to see them on the timeline, or add a milestone via the <strong>◆ + Milestone</strong> button.
     </div>`;
   }
 
@@ -6568,9 +7139,15 @@ function allSubprojectsGanttHTML(proj, projectKey, options = {}) {
     wStart = new Date(options.windowStart); wStart.setHours(0,0,0,0);
     wEnd   = new Date(options.windowEnd);   wEnd.setHours(0,0,0,0);
   } else {
-    const allDates = todos.flatMap(t => [t.startDate, t.dueDate].filter(Boolean)).map(s => {
+    const todoDates = todos.flatMap(t => [t.startDate, t.dueDate].filter(Boolean));
+    const msDates = milestones.map(m => m.date).filter(Boolean);
+    const allDates = [...todoDates, ...msDates].map(s => {
       const d = new Date(s); d.setHours(0,0,0,0); return d;
     });
+    if (!allDates.length) {
+      const t0 = new Date(); t0.setHours(0,0,0,0);
+      allDates.push(t0);
+    }
     wStart = new Date(Math.min(...allDates)); wStart.setDate(wStart.getDate() - 2); wStart.setHours(0,0,0,0);
     wEnd = new Date(Math.max(...allDates));
     wEnd.setDate(wEnd.getDate() + 3 + (state.dashGanttExtendDays || 0));
@@ -6601,7 +7178,27 @@ function allSubprojectsGanttHTML(proj, projectKey, options = {}) {
   const containerClasses = ['gantt-container', 'dash-gantt-container'];
   if (compact) containerClasses.push('dash-gantt-compact');
 
-  return `<div class="${containerClasses.join(' ')}">
+  // Milestones rendered on the overview Gantt: all of the project's milestones
+  // (project-level + subproject-attached). Same flip logic as ganttHTML.
+  const FLIP_THRESHOLD_DAYS = 8;
+  const milestoneMarkers = milestones
+    .map(m => {
+      const d = new Date(m.date); d.setHours(0,0,0,0);
+      const idx = Math.round((d - wStart) / DAY_MS);
+      if (idx < 0 || idx >= totalDays) return null;
+      const pinSide = (totalDays - idx) <= FLIP_THRESHOLD_DAYS ? 'left' : 'right';
+      return { m, idx, pinSide };
+    })
+    .filter(Boolean);
+
+  // Overview line — `todos` is already !done and dated (see filter at top).
+  const overviewBar = ganttOverviewLineHTML(todos, milestones, wStart, wEnd);
+  if (overviewBar) containerClasses.push('gantt-has-overview');
+
+  return `${overviewBar}<div class="${containerClasses.join(' ')}" data-ms-gantt="1"
+        data-gantt-col-w="${COL_W}" data-gantt-label-w="${LABEL_W}"
+        data-gantt-total-days="${totalDays}" data-gantt-w-start="${toDateString(wStart)}"
+        data-gantt-proj-key="${escapeHTML(projectKey || '')}">
     <div class="gantt-inner" style="width:calc(var(--gantt-label-w, ${LABEL_W}px) + ${totalDays * COL_W}px)">
       <div class="gantt-header">
         <div class="gantt-header-labels">Task<div class="gantt-label-resizer" title="Drag to resize"></div></div>
@@ -6619,6 +7216,7 @@ function allSubprojectsGanttHTML(proj, projectKey, options = {}) {
       <div class="gantt-body">
         ${todayIdx >= 0 && todayIdx < totalDays
           ? `<div class="gantt-today-line" style="left:calc(var(--gantt-label-w, ${LABEL_W}px) + ${todayIdx * COL_W + COL_W/2}px)"></div>` : ''}
+        ${milestoneMarkers.map(({m, idx, pinSide}) => milestoneMarkerHTML(m, LABEL_W, COL_W, idx, pinSide)).join('')}
         ${limited.map(t => {
           const sp = t.subprojectId ? spById[t.subprojectId] : null;
           const color = sp ? sp.color : NO_SP_COLOR;
@@ -6684,13 +7282,66 @@ function allSubprojectsGanttHTML(proj, projectKey, options = {}) {
   </div>`;
 }
 
-function scrollGanttToToday() {
-  const container = document.getElementById('gantt-container');
-  const todayLine = container?.querySelector('.gantt-today-line');
-  if (container && todayLine) {
-    const left = parseInt(todayLine.style.left, 10);
-    container.scrollLeft = Math.max(0, left - container.clientWidth / 2);
-  }
+// Auto-scroll every Gantt container to its "focus" day. Rule:
+//   - If any open (not done) todo in the container's scope has a date in the
+//     past, focus the OLDEST such todo (so overdue work is in view first).
+//   - Otherwise focus today.
+// Scope comes from the container's dataset: a subproject-specific Gantt
+// filters to that subproject; a dashboard Gantt uses the whole active project.
+// Overview Gantts (different project from state.project) are skipped — they
+// belong to a non-active project and we don't have the user's context to
+// decide their focus.
+function scrollGanttToFocus() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const proj = (state && state.data) ? getProject() : null;
+  document.querySelectorAll('[data-ms-gantt="1"]').forEach(container => {
+    const wStartStr = container.dataset.ganttWStart;
+    if (!wStartStr) return;
+    const projKey = container.dataset.ganttProjKey;
+    if (projKey && projKey !== state.project) return;
+
+    const spId = container.dataset.ganttSpId || null;
+    let focus = today;
+    let focusTodoId = null;
+    if (proj && Array.isArray(proj.todos)) {
+      const scoped = spId ? proj.todos.filter(t => t.subprojectId === spId) : proj.todos;
+      let earliest = null;
+      let earliestTodo = null;
+      for (const t of scoped) {
+        if (t.done) continue;
+        const ds = t.startDate || t.dueDate;
+        if (!ds) continue;
+        const d = new Date(ds); d.setHours(0, 0, 0, 0);
+        if (d < today && (!earliest || d < earliest)) { earliest = d; earliestTodo = t; }
+      }
+      if (earliest) { focus = earliest; focusTodoId = earliestTodo.id; }
+    }
+
+    const wStart = new Date(wStartStr); wStart.setHours(0, 0, 0, 0);
+    const COL_W = parseInt(container.dataset.ganttColW, 10) || 28;
+    const totalDays = parseInt(container.dataset.ganttTotalDays, 10) || 0;
+    let idx = Math.round((focus - wStart) / 86400000);
+    if (idx < 0) idx = 0;
+    else if (idx >= totalDays) idx = Math.max(0, totalDays - 1);
+
+    // Use the live label width (the column is user-resizable via the drag handle).
+    const labelEl = container.querySelector('.gantt-header-labels');
+    const fallback = parseInt(container.dataset.ganttLabelW, 10) || 180;
+    const actualLabelW = labelEl ? labelEl.getBoundingClientRect().width : fallback;
+    const targetLeft = actualLabelW + idx * COL_W + COL_W / 2;
+    container.scrollLeft = Math.max(0, targetLeft - container.clientWidth / 2);
+
+    // Vertical scroll: if the focus is an overdue todo, center its row in view.
+    if (focusTodoId) {
+      const row = container.querySelector(`[data-todo-id="${focusTodoId}"]`);
+      if (row) {
+        const rowRect = row.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const offsetTop = rowRect.top - containerRect.top + container.scrollTop;
+        container.scrollTop = Math.max(0, offsetTop - container.clientHeight / 2 + rowRect.height / 2);
+      }
+    }
+  });
 }
 
 // ===== REMINDERS =====

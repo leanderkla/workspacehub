@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gantt Milestone Visual Options</title>
+<style>
+  :root {
+    --bg:#f5f5f7; --card-bg:#ffffff; --border:#e5e7eb; --text:#111827;
+    --muted:#6b7280; --accent:#2563eb; --accent-soft:#dbeafe; --radius:8px;
+    --milestone:#a855f7; --milestone-2:#06b6d4;
+  }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--text); margin:0; padding:32px; }
+  h1 { margin:0 0 8px; font-size:22px; }
+  h2 { margin:36px 0 12px; font-size:16px; font-weight:600; }
+  .note { color:var(--muted); font-size:13px; margin-bottom:14px; max-width:780px; }
+
+  /* --- Shared Gantt (matches app.js conventions) --- */
+  .gantt-container { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); overflow-x:auto; position:relative; }
+  .gantt-inner { min-width:max-content; position:relative; }
+  .gantt-header { display:flex; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.02); position:relative; min-height:54px; }
+  .gantt-header-labels { width:180px; padding:8px 12px; font-weight:600; font-size:12px; color:var(--muted); border-right:1px solid var(--border); flex-shrink:0; }
+  .gantt-header-days { display:flex; position:relative; }
+  .gantt-day-cell { width:28px; padding:6px 0; text-align:center; font-size:11px; color:var(--muted); border-right:1px solid rgba(0,0,0,0.04); position:relative; }
+  .gantt-day-cell.today-col { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .gantt-month-label { display:block; font-size:9px; text-transform:uppercase; color:var(--accent); font-weight:700; letter-spacing:0.5px; }
+  .gantt-body { position:relative; }
+  .gantt-row { display:flex; min-height:32px; border-bottom:1px solid rgba(0,0,0,0.04); }
+  .gantt-row-label { width:180px; padding:6px 12px; display:flex; align-items:center; gap:6px; font-size:13px; border-right:1px solid var(--border); flex-shrink:0; }
+  .dash-gantt-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .gantt-row-track { position:relative; height:32px; display:flex; }
+  .gantt-grid-cell { width:28px; border-right:1px solid rgba(0,0,0,0.03); height:100%; }
+  .gantt-grid-cell.weekend { background:rgba(0,0,0,0.018); }
+  .gantt-grid-cell.today-col { background:var(--accent-soft); }
+  .gantt-bar { position:absolute; top:6px; height:20px; border-radius:4px; padding:0 6px; display:flex; align-items:center; color:#fff; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,0.1); cursor:pointer; }
+  .gantt-bar-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gantt-today-line { position:absolute; top:0; bottom:0; width:2px; background:var(--accent); opacity:0.6; pointer-events:none; z-index:2; }
+
+  /* --- Variant A: diamond in header + vertical line across body --- */
+  .ms-header-marker { position:absolute; top:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; pointer-events:none; z-index:3; }
+  .ms-diamond { width:12px; height:12px; background:var(--milestone); transform:rotate(45deg); margin-top:4px; box-shadow:0 1px 2px rgba(0,0,0,0.25); pointer-events:auto; cursor:pointer; }
+  .ms-diamond.alt { background:var(--milestone-2); }
+  .ms-diamond:hover { filter:brightness(1.15); }
+  .ms-label { font-size:10px; color:var(--milestone); font-weight:600; margin-top:6px; white-space:nowrap; pointer-events:auto; }
+  .ms-label.alt { color:var(--milestone-2); }
+  .ms-vline { position:absolute; top:0; bottom:0; width:1px; background:var(--milestone); opacity:0.55; pointer-events:none; z-index:1; }
+  .ms-vline.alt { background:var(--milestone-2); }
+
+  /* --- Variant C: dedicated milestone row --- */
+  .ms-row { display:flex; min-height:30px; background:rgba(168,85,247,0.04); border-bottom:1px solid var(--border); }
+  .ms-row .gantt-row-label { font-weight:600; color:var(--milestone); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+  .ms-row-track { position:relative; height:30px; flex-shrink:0; }
+  .ms-row .ms-diamond { position:absolute; top:9px; transform:translateX(-50%) rotate(45deg); }
+  .ms-row .ms-row-label-inline { position:absolute; top:6px; transform:translateX(-50%); font-size:10px; font-weight:600; white-space:nowrap; pointer-events:none; }
+
+  /* --- Variant D: vertical line + side label --- */
+  .ms-side-label { position:absolute; top:-2px; transform:translateX(4px); font-size:10px; color:var(--milestone); font-weight:600; white-space:nowrap; background:rgba(255,255,255,0.9); padding:1px 4px; border-radius:3px; pointer-events:auto; z-index:3; cursor:pointer; }
+  .ms-side-label.alt { color:var(--milestone-2); }
+
+  .legend { font-size:12px; color:var(--muted); margin:4px 0 14px; }
+</style>
+</head>
+<body>
+
+<h1>Gantt milestone — four visual options</h1>
+<p class="note">Same project, same dates. Milestones: <span style="color:var(--milestone);font-weight:600">◆ Launch v1</span> on day 7, <span style="color:var(--milestone-2);font-weight:600">◆ Demo</span> on day 11. Today is day 3. Hover the diamonds for tooltips.</p>
+
+<!-- ============================================================ -->
+<h2>Option A — Diamond + vertical line</h2>
+<p class="legend">Diamond marker sits in the header above the day; thin colored line drops through all rows.</p>
+<div class="gantt-container">
+  <div class="gantt-inner" style="width:calc(180px + 14*28px)">
+    <div class="gantt-header">
+      <div class="gantt-header-labels">Task</div>
+      <div class="gantt-header-days" id="hdrA"></div>
+      <div class="ms-header-marker" style="left:calc(180px + 6*28px + 14px)">
+        <div class="ms-diamond" title="Launch v1 — 22 May"></div>
+        <div class="ms-label">Launch v1</div>
+      </div>
+      <div class="ms-header-marker" style="left:calc(180px + 10*28px + 14px)">
+        <div class="ms-diamond alt" title="Demo — 26 May"></div>
+        <div class="ms-label alt">Demo</div>
+      </div>
+    </div>
+    <div class="gantt-body" id="bodyA"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Option B — Diamond only, in header</h2>
+<p class="legend">Compact: just the diamond + label in the header row. No line cutting through bars.</p>
+<div class="gantt-container">
+  <div class="gantt-inner" style="width:calc(180px + 14*28px)">
+    <div class="gantt-header">
+      <div class="gantt-header-labels">Task</div>
+      <div class="gantt-header-days" id="hdrB"></div>
+      <div class="ms-header-marker" style="left:calc(180px + 6*28px + 14px)">
+        <div class="ms-diamond" title="Launch v1 — 22 May"></div>
+        <div class="ms-label">Launch v1</div>
+      </div>
+      <div class="ms-header-marker" style="left:calc(180px + 10*28px + 14px)">
+        <div class="ms-diamond alt" title="Demo — 26 May"></div>
+        <div class="ms-label alt">Demo</div>
+      </div>
+    </div>
+    <div class="gantt-body" id="bodyB"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Option C — Dedicated milestone row</h2>
+<p class="legend">Milestones get their own row above the todos. Diamonds + inline labels along the row.</p>
+<div class="gantt-container">
+  <div class="gantt-inner" style="width:calc(180px + 14*28px)">
+    <div class="gantt-header">
+      <div class="gantt-header-labels">Task</div>
+      <div class="gantt-header-days" id="hdrC"></div>
+    </div>
+    <div class="gantt-body" id="bodyC">
+      <div class="ms-row">
+        <div class="gantt-row-label">Milestones</div>
+        <div class="ms-row-track" style="width:calc(14*28px)">
+          <div class="ms-diamond" style="left:calc(6*28px + 14px)" title="Launch v1 — 22 May"></div>
+          <div class="ms-row-label-inline" style="left:calc(6*28px + 14px); color:var(--milestone)">Launch v1</div>
+          <div class="ms-diamond alt" style="left:calc(10*28px + 14px)" title="Demo — 26 May"></div>
+          <div class="ms-row-label-inline" style="left:calc(10*28px + 14px); color:var(--milestone-2)">Demo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Option D — Vertical line + side label</h2>
+<p class="legend">Minimal: thin colored line down the day, name floats just to the right of the line.</p>
+<div class="gantt-container">
+  <div class="gantt-inner" style="width:calc(180px + 14*28px)">
+    <div class="gantt-header">
+      <div class="gantt-header-labels">Task</div>
+      <div class="gantt-header-days" id="hdrD"></div>
+    </div>
+    <div class="gantt-body" id="bodyD"></div>
+  </div>
+</div>
+
+<script>
+  const days = 14;
+  const colW = 28;
+  const todayIdx = 3;
+
+  const todos = [
+    ['Design spec',     0, 4,  '#ef4444'],
+    ['Backend wiring',  2, 8,  '#3b82f6'],
+    ['Frontend',        5, 11, '#10b981'],
+    ['QA + launch',     9, 13, '#f59e0b'],
+  ];
+
+  function renderHeader(id) {
+    const el = document.getElementById(id);
+    let html = '';
+    for (let i = 0; i < days; i++) {
+      const isToday = i === todayIdx;
+      const showMonth = i === 0;
+      html += `<div class="gantt-day-cell ${isToday?'today-col':''}" style="width:${colW}px">
+        ${showMonth ? '<span class="gantt-month-label">May</span>' : ''}
+        ${i + 16}
+      </div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  function renderBody(id, opts) {
+    opts = opts || {};
+    const el = document.getElementById(id);
+    let html = '';
+    html += `<div class="gantt-today-line" style="left:calc(180px + ${todayIdx}*${colW}px + ${colW/2}px)"></div>`;
+    if (opts.vlines) {
+      html += `<div class="ms-vline" style="left:calc(180px + 6*${colW}px + ${colW/2}px)"></div>`;
+      html += `<div class="ms-vline alt" style="left:calc(180px + 10*${colW}px + ${colW/2}px)"></div>`;
+    }
+    if (opts.sideLabels) {
+      html += `<div class="ms-side-label" title="Launch v1 — 22 May" style="left:calc(180px + 6*${colW}px + ${colW/2}px)">◆ Launch v1</div>`;
+      html += `<div class="ms-side-label alt" title="Demo — 26 May" style="left:calc(180px + 10*${colW}px + ${colW/2}px)">◆ Demo</div>`;
+    }
+    todos.forEach(([label, sd, ed, color]) => {
+      const barLeft = sd * colW;
+      const barWidth = (ed - sd + 1) * colW - 2;
+      html += `<div class="gantt-row">
+        <div class="gantt-row-label">
+          <span class="dash-gantt-dot" style="background:${color}"></span>
+          <span>${label}</span>
+        </div>
+        <div class="gantt-row-track" style="width:${days*colW}px">
+          ${Array.from({length: days}, (_, i) => `<div class="gantt-grid-cell ${i===todayIdx?'today-col':''} ${(i%7===5||i%7===6)?'weekend':''}" style="width:${colW}px"></div>`).join('')}
+          <div class="gantt-bar" style="left:${barLeft}px;width:${barWidth}px;background:${color}">
+            <span class="gantt-bar-label">${barWidth > 55 ? label : ''}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    el.insertAdjacentHTML('beforeend', html);
+  }
+
+  ['hdrA','hdrB','hdrC','hdrD'].forEach(renderHeader);
+  renderBody('bodyA', { vlines: true });
+  renderBody('bodyB', { });
+  renderBody('bodyC', { });
+  renderBody('bodyD', { vlines: true, sideLabels: true });
+</script>
+</body>
+</html>

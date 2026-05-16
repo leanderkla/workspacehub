@@ -631,7 +631,8 @@ function createProject(name, color) {
         [rootId]: { id: rootId, parentId: null, label: trimmed, color: null, side: null, collapsed: false, note: '', order: 0, subprojectId: null }
       }
     },
-    reminders: []
+    reminders: [],
+    milestones: []
   };
   return key;
 }

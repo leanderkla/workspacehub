@@ -113,6 +113,23 @@
  */
 
 /**
+ * @typedef {Object} Milestone
+ * A fixed-date marker on the Gantt timeline. Separate from todos by design:
+ * milestones are points in time, not actionable items. Rendered as a vertical
+ * line + side label across the Gantt body. Created via the `+ Milestone`
+ * toolbar button, right-clicking the Gantt, or typing `/milestone` in the
+ * new-todo input (which converts the entry into a Milestone using `/due` for
+ * the date).
+ * @property {string} id
+ * @property {string} title
+ * @property {string} date              YYYY-MM-DD
+ * @property {string|null} subprojectId null = project-level (shows on every subproject's Gantt + the overview)
+ * @property {string} color             Hex; defaults to a milestone palette color
+ * @property {string} [note]            Optional one-liner
+ * @property {string} created           ISO timestamp
+ */
+
+/**
  * @typedef {Object} Reminder
  * @property {string} id
  * @property {string} title
@@ -205,6 +222,7 @@
  * @property {Delegation[]} delegations
  * @property {Dump[]} dumps
  * @property {Reminder[]} reminders
+ * @property {Milestone[]} milestones
  * @property {Flow[]} flows
  * @property {Attachment[]} attachments
  * @property {Brainmap} brainmap
@@ -296,6 +314,7 @@ var state = {
   editingSubproject: null, // null | 'new' | subprojectId
   subprojectTagFilter: new Set(),
   subprojectSortBy: 'default',
+  expandedSpNotes: new Set(), // note IDs whose body is expanded in the Subproject view
   commitmentFilter: { context: 'all', direction: 'all', overdue: false, showClosed: false },
   expandedCommitment: null,
   delegationFilter: { context: 'all', person: 'all', showDone: false },

@@ -676,6 +676,24 @@ function addTodo() {
   const subprojectId = slash.subprojectId || document.getElementById('todo-subproject').value || null;
   const startDate    = slash.startDate || document.getElementById('todo-start').value;
   let   dueDate      = slash.dueDate || document.getElementById('todo-due').value;
+  // /milestone branch: the entry is not a todo. Title must be present
+  // (use slash.title only — the rawTitle fallback would include the literal
+  // "/milestone" text). Date must be present (from /due or the form field),
+  // otherwise we can't place it on the timeline.
+  if (slash.kind === 'milestone') {
+    const msTitle = (slash.title || '').trim();
+    if (!msTitle) {
+      showToast('/milestone needs a title before the slash commands.', 'error');
+      return;
+    }
+    if (!dueDate) {
+      showToast('/milestone needs a date — add /due or pick a due date.', 'error');
+      return;
+    }
+    addMilestone({ title: msTitle, date: dueDate, subprojectId });
+    document.getElementById('todo-input').value = '';
+    return;
+  }
   const recurrence   = slash.recurrence
     ? JSON.parse(JSON.stringify(slash.recurrence))
     : (state.pendingTodoRecurrence ? JSON.parse(JSON.stringify(state.pendingTodoRecurrence)) : null);
@@ -740,7 +758,8 @@ function updateTodoSlashChips(rawText, host) {
                           : type === 'start' ? '▶'
                           : type === 'priority' ? '🎯'
                           : type === 'subproject' ? '📁'
-                          : type === 'recurrence' ? '🔁' : '·';
+                          : type === 'recurrence' ? '🔁'
+                          : type === 'kind' ? '◆' : '·';
   host.hidden = false;
   host.innerHTML = slash.tokens.map(tok =>
     `<span class="slash-chip slash-chip-${tok.type}">

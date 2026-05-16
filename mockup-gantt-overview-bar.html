@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gantt overview line — three options</title>
+<style>
+  :root {
+    --bg:#f5f5f7; --card-bg:#ffffff; --content-bg:#f8fafc;
+    --border:#e5e7eb; --text:#111827; --text-secondary:#4b5563;
+    --muted:#6b7280; --accent:#2563eb; --accent-soft:#dbeafe;
+    --radius:8px;
+    --danger:#dc2626; --danger-soft:#fef2f2;
+    --warning:#f59e0b; --warning-soft:#fff7ed;
+    --success:#16a34a; --success-soft:#dcfce7;
+    --milestone:#a855f7; --milestone-soft:#faf5ff;
+  }
+  body { font-family:-apple-system,"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--text); margin:0; padding:32px; }
+  h1 { margin:0 0 8px; font-size:22px; }
+  h2 { margin:36px 0 10px; font-size:14px; font-weight:600; }
+  .legend { font-size:12px; color:var(--muted); margin:0 0 12px; max-width:780px; }
+
+  /* Shared Gantt frame so each option shows in its real context */
+  .gantt-frame {
+    background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .gantt-body-stub {
+    height:60px;
+    background:repeating-linear-gradient(90deg,
+      transparent 0 27px, rgba(0,0,0,0.04) 27px 28px);
+    border-top:1px solid var(--border);
+    position:relative;
+  }
+  .gantt-body-stub::before {
+    content:""; position:absolute; top:0; bottom:0; left:31%;
+    width:2px; background:var(--accent); opacity:0.5;
+  }
+  .gantt-body-stub::after {
+    content:"Gantt body…"; position:absolute; top:50%; right:18px; transform:translateY(-50%);
+    font-size:11px; color:var(--muted); font-style:italic;
+  }
+
+  /* Diamond shared */
+  .diamond { width:9px; height:9px; transform:rotate(45deg); display:inline-block; flex-shrink:0; }
+
+  /* =====================================================
+     OPTION A — Status pills row (info-dense, glanceable)
+     ===================================================== */
+  .opt-a {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 14px; border-bottom:1px solid var(--border);
+    background:var(--content-bg);
+    font-size:12px;
+  }
+  .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 9px; border-radius:12px;
+    font-weight:600; line-height:1.4; white-space:nowrap;
+  }
+  .pill-overdue { background:var(--danger-soft); color:var(--danger); }
+  .pill-today   { background:var(--warning-soft); color:var(--warning); }
+  .pill-open    { background:var(--accent-soft); color:var(--accent); }
+  .pill-milestone { background:var(--milestone-soft); color:var(--milestone); }
+  .pill-done    { background:var(--success-soft); color:var(--success); }
+  .opt-a-sep { color:var(--border); margin:0 2px; }
+  .opt-a-meta { margin-left:auto; color:var(--muted); font-size:11px; }
+
+  /* =====================================================
+     OPTION B — Sentence summary (narrative, urgent-first)
+     ===================================================== */
+  .opt-b {
+    display:flex; align-items:center; gap:14px;
+    padding:10px 14px; border-bottom:1px solid var(--border);
+    background:var(--content-bg); font-size:13px;
+  }
+  .opt-b-next {
+    display:inline-flex; align-items:center; gap:6px;
+    font-weight:500;
+  }
+  .opt-b-next-label { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:700; }
+  .opt-b-next-title { font-weight:600; }
+  .opt-b-next-when { color:var(--accent); font-weight:600; }
+  .opt-b-alert {
+    margin-left:auto;
+    display:inline-flex; align-items:center; gap:5px;
+    color:var(--danger); font-size:12px; font-weight:600;
+  }
+  .opt-b-alert-dot { width:6px; height:6px; border-radius:50%; background:var(--danger); }
+  .opt-b-counts {
+    color:var(--muted); font-size:11px; padding-left:14px; border-left:1px solid var(--border);
+  }
+
+  /* =====================================================
+     OPTION C — Metric tiles (boxy, structured)
+     ===================================================== */
+  .opt-c {
+    display:flex; align-items:stretch; gap:0;
+    padding:0; border-bottom:1px solid var(--border);
+    background:var(--card-bg);
+  }
+  .tile {
+    flex:0 0 auto; padding:9px 16px;
+    display:flex; align-items:center; gap:8px;
+    border-right:1px solid var(--border);
+  }
+  .tile:last-child { border-right:none; }
+  .tile-num { font-size:18px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .tile-label { font-size:10px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600; color:var(--muted); }
+  .tile-overdue .tile-num { color:var(--danger); }
+  .tile-today   .tile-num { color:var(--warning); }
+  .tile-open    .tile-num { color:var(--text); }
+  .tile-milestone-next {
+    flex:1; padding:9px 14px; border-right:none;
+    display:flex; flex-direction:column; justify-content:center; gap:1px;
+    background:var(--milestone-soft);
+  }
+  .tile-milestone-next .tile-label { color:var(--milestone); }
+  .tile-milestone-next-title {
+    font-size:13px; font-weight:600; color:var(--text);
+    display:flex; align-items:center; gap:6px;
+  }
+  .tile-milestone-when { color:var(--milestone); font-size:11px; font-weight:600; margin-left:4px; }
+</style>
+</head>
+<body>
+
+<h1>Gantt overview line — three options</h1>
+<p class="legend">Each option is a single line at the top of the Gantt. Sample state: <strong>2 overdue</strong>, <strong>3 due today</strong>, <strong>7 upcoming</strong> (12 open total). Next milestone is "Demo to stakeholders" — today. Two more milestones further out.</p>
+
+<!-- =====================================================
+     OPTION A
+     ===================================================== -->
+<h2>Option A — Status pills (info-dense, glanceable)</h2>
+<p class="legend">A row of colored count chips. Each chip is a separate hit-area — clicking "2 overdue" could filter the Gantt to those. Most visible scanning; reads left-to-right by urgency.</p>
+<div class="gantt-frame">
+  <div class="opt-a">
+    <span class="pill pill-overdue">⚠ 2 overdue</span>
+    <span class="pill pill-today">◷ 3 today</span>
+    <span class="pill pill-open">7 upcoming</span>
+    <span class="opt-a-sep">·</span>
+    <span class="pill pill-milestone"><span class="diamond" style="background:#a855f7"></span> Next: Demo · today</span>
+    <span class="opt-a-meta">16 May 2026 → 1 Sep 2026</span>
+  </div>
+  <div class="gantt-body-stub"></div>
+</div>
+
+<!-- =====================================================
+     OPTION B
+     ===================================================== -->
+<h2>Option B — Sentence summary (narrative, urgent-first)</h2>
+<p class="legend">One conversational line. Leads with the next milestone (the thing you'd most want to remember), with overdues called out on the right and small counts at the end. Feels less "dashboardy", more like a status one-liner.</p>
+<div class="gantt-frame">
+  <div class="opt-b">
+    <span class="opt-b-next">
+      <span class="opt-b-next-label">Next</span>
+      <span class="diamond" style="background:#a855f7"></span>
+      <span class="opt-b-next-title">Demo to stakeholders</span>
+      <span class="opt-b-next-when">— today</span>
+    </span>
+    <span class="opt-b-counts">12 open · 3 today · 4 milestones</span>
+    <span class="opt-b-alert">
+      <span class="opt-b-alert-dot"></span>
+      2 overdue need attention
+    </span>
+  </div>
+  <div class="gantt-body-stub"></div>
+</div>
+
+<!-- =====================================================
+     OPTION C
+     ===================================================== -->
+<h2>Option C — Metric tiles (boxy, structured)</h2>
+<p class="legend">Mini stat tiles inline — big number on top, label below. The right side widens to show the next milestone as a highlighted block. More structured, almost like a stat-card row.</p>
+<div class="gantt-frame">
+  <div class="opt-c">
+    <div class="tile tile-overdue">
+      <div>
+        <div class="tile-num">2</div>
+        <div class="tile-label">Overdue</div>
+      </div>
+    </div>
+    <div class="tile tile-today">
+      <div>
+        <div class="tile-num">3</div>
+        <div class="tile-label">Today</div>
+      </div>
+    </div>
+    <div class="tile tile-open">
+      <div>
+        <div class="tile-num">12</div>
+        <div class="tile-label">Open</div>
+      </div>
+    </div>
+    <div class="tile tile-milestone-next">
+      <div class="tile-label">Next milestone</div>
+      <div class="tile-milestone-next-title">
+        <span class="diamond" style="background:#a855f7"></span>
+        Demo to stakeholders
+        <span class="tile-milestone-when">today</span>
+      </div>
+    </div>
+  </div>
+  <div class="gantt-body-stub"></div>
+</div>
+
+</body>
+</html>
