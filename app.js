@@ -2161,9 +2161,44 @@ function switchProject(key) {
 const __viewHistory = [];
 let __viewHistoryIdx = -1;
 let __viewHistorySkip = false;
+let __draftGuardSkip = false;
 const VIEW_HISTORY_MAX = 50;
 
 function showView(name) {
+  // Draft guard: warn before leaving a view with unsaved input. The draft
+  // itself is persisted to localStorage by the per-form binder, so picking
+  // either modal option preserves the user's typing — the prompt exists
+  // purely to make that preservation visible. `__draftGuardSkip` lets the
+  // confirm callback re-enter without re-prompting.
+  if (!__draftGuardSkip && state.view !== name) {
+    const labels = (typeof draftCache !== 'undefined') ? draftCache.getActiveLabels() : [];
+    if (labels.length > 0) {
+      const phrase = labels.join(' and ');
+      const targetLabel = (DEFAULT_NAV_ITEMS.find(i => i.id === name) || {}).label || name;
+      const fromLabel   = (DEFAULT_NAV_ITEMS.find(i => i.id === state.view) || {}).label || state.view;
+      const switchWithSkip = () => {
+        __draftGuardSkip = true;
+        try { showView(name); }
+        finally { __draftGuardSkip = false; }
+      };
+      showConfirmModal({
+        title: 'Unsaved changes',
+        body: `You have ${phrase} in <b>${escapeHTML(fromLabel)}</b> that hasn't been saved. Switch to <b>${escapeHTML(targetLabel)}</b>?`,
+        confirmLabel: 'Switch (keep draft)',
+        danger: false,
+        onConfirm: switchWithSkip,
+        tertiary: {
+          label: 'Discard draft & switch',
+          danger: true,
+          onClick: () => {
+            draftCache.getActiveScopes().forEach(s => draftCache.clear(s));
+            switchWithSkip();
+          }
+        }
+      });
+      return;
+    }
+  }
   if (state.view === 'brainmap' && name !== 'brainmap') { saveBrainmap(); teardownBrainmap(); }
   if (state.view === 'molecular' && name !== 'molecular') { teardownMolecular(); }
   if (state.view !== name) delete __scrollMemory[`${state.project}::${name}`];
@@ -2395,23 +2430,34 @@ function setNoteArchived(id, archived) {
   return true;
 }
 // Reusable confirm modal for destructive actions. onConfirm runs only if the user clicks OK.
-function showConfirmModal({ title, body, confirmLabel = 'Delete', danger = true, onConfirm }) {
+// Optional `tertiary: { label, onClick, danger? }` adds a third button between
+// Cancel and the primary action — used by the unsaved-draft prompt to offer
+// "Discard draft & switch" alongside "Switch (keep draft)".
+function showConfirmModal({ title, body, confirmLabel = 'Delete', danger = true, onConfirm, tertiary }) {
   const overlay = document.getElementById('modal-overlay');
   if (!overlay) { onConfirm?.(); return; }
   const close = () => { overlay.classList.add('hidden'); overlay.innerHTML = ''; overlay.onclick = null; };
   const dangerStyle = danger ? 'background:#dc2626;color:white;border-color:#dc2626' : '';
+  const tertiaryStyle = tertiary && tertiary.danger ? 'background:#dc2626;color:white;border-color:#dc2626' : '';
+  const tertiaryHTML = tertiary
+    ? `<button class="btn ${tertiary.danger ? '' : 'btn-secondary'}" id="confirm-tertiary" style="${tertiaryStyle}">${escapeHTML(tertiary.label)}</button>`
+    : '';
   overlay.innerHTML = `
     <div class="modal new-project-modal">
       <h3>${escapeHTML(title)}</h3>
       <p style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin:8px 0 14px">${body || ''}</p>
       <div class="modal-buttons">
         <button class="btn btn-secondary" id="confirm-cancel">Cancel</button>
+        ${tertiaryHTML}
         <button class="btn" id="confirm-ok" style="${dangerStyle}">${escapeHTML(confirmLabel)}</button>
       </div>
     </div>`;
   overlay.classList.remove('hidden');
   document.getElementById('confirm-cancel').onclick = close;
   document.getElementById('confirm-ok').onclick = () => { close(); onConfirm?.(); };
+  if (tertiary) {
+    document.getElementById('confirm-tertiary').onclick = () => { close(); tertiary.onClick?.(); };
+  }
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
 }
 
@@ -5065,6 +5111,26 @@ if (typeof window !== 'undefined') {
 
 function setupNoteEditorEvents() {
   ensureListPanelResizer();
+  // Draft cache: bind the editor's user-editable fields so unsaved title /
+  // content / priority / tags survive a tab switch. Subproject auto-saves
+  // already (handler below), but it's included in the snapshot for symmetry —
+  // restoring its value is a no-op when state.data already matches.
+  const editorEl = document.getElementById('note-editor');
+  if (editorEl && state.editingNote) {
+    const noteScope = `note::${state.project}::${state.editingNote}`;
+    draftCache.bind(
+      editorEl,
+      noteScope,
+      [
+        'note-title',
+        { id: 'note-content', type: 'html' },
+        'note-priority',
+        'note-subproject',
+        'note-tags'
+      ],
+      { requiredFields: ['note-title', 'note-content'] }
+    );
+  }
   document.getElementById('btn-save-note')?.addEventListener('click', saveNote);
   document.getElementById('btn-archive-note')?.addEventListener('click', () => {
     if (!state.editingNote || state.editingNote === 'new') return;
@@ -5158,11 +5224,13 @@ function saveNote() {
   if (state.editingNote === 'new') {
     const note = { id: generateId('note'), title, content, priority, tags, subprojectId, linkedTodos, created: now, updated: now };
     proj.notes.unshift(note);
+    draftCache.clear(`note::${state.project}::new`);
     state.editingNote = note.id;
     showToast('Note created.', 'success');
   } else {
     const note = proj.notes.find(n => n.id === state.editingNote);
     if (note) Object.assign(note, { title, content, priority, tags, subprojectId, linkedTodos, updated: now });
+    draftCache.clear(`note::${state.project}::${state.editingNote}`);
     showToast('Note saved.', 'success');
   }
   saveData();
@@ -5175,6 +5243,7 @@ function deleteNote() {
   const deletedId = state.editingNote;
   proj.notes = proj.notes.filter(n => n.id !== deletedId);
   cleanupNodeLinksOnEntityDelete(state.project, 'note', deletedId);
+  draftCache.clear(`note::${state.project}::${deletedId}`);
   state.editingNote = null;
   saveData();
   showToast('Note deleted.', 'info');
@@ -5244,7 +5313,7 @@ function bulkActionBarHTML(visibleTodos) {
         <option value="__none__">— No subproject</option>
         ${sps.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join('')}
       </select>` : ''}
-      <button class="btn btn-secondary btn-sm" data-bulk="due">📅 Set due…</button>
+      <button class="btn btn-secondary btn-sm" data-bulk="due">📅 Set dates…</button>
       <button class="btn btn-secondary btn-sm" data-bulk="snooze">⏰ +1 day</button>
       <button class="btn btn-secondary btn-sm" data-bulk="archive">📦 ${state.todoFilter === 'archived' ? 'Restore' : 'Archive'}</button>
       <button class="btn btn-secondary btn-sm" data-bulk="delete" style="color:#dc2626">✕ Delete</button>
@@ -5324,39 +5393,62 @@ function bulkActionSnooze() {
 function bulkActionSetDue() {
   const todos = bulkSelectedTodoObjects();
   if (!todos.length) return;
+  // Pre-fill from the first selected todo that has values, so users can tweak
+  // an existing timeline rather than re-type it from scratch.
+  const seedStart = todos.find(t => t.startDate)?.startDate || '';
+  const seedDue   = todos.find(t => t.dueDate)?.dueDate   || '';
   const overlay = document.getElementById('modal-overlay');
   const close = () => { overlay.classList.add('hidden'); overlay.innerHTML = ''; overlay.onclick = null; };
   overlay.innerHTML = `
     <div class="modal dates-modal">
-      <h3>Set due date for ${todos.length} todo${todos.length === 1 ? '' : 's'}</h3>
-      <div class="form-group" style="margin-bottom:14px">
-        <label class="form-label">Due date</label>
-        <input type="date" id="bulk-due-input" class="form-input">
+      <h3>Set timeline for ${todos.length} todo${todos.length === 1 ? '' : 's'}</h3>
+      <p style="font-size:12px; color:var(--text-secondary); margin:-4px 0 12px">Leave a field empty to keep each todo's existing value for it.</p>
+      <div class="form-group" style="display:flex; gap:12px; margin-bottom:14px">
+        <label style="flex:1">
+          <div class="form-label">Start</div>
+          <input type="date" id="bulk-start-input" class="form-input" value="${seedStart}">
+        </label>
+        <label style="flex:1">
+          <div class="form-label">Due</div>
+          <input type="date" id="bulk-due-input" class="form-input" value="${seedDue}">
+        </label>
       </div>
       <div class="modal-buttons">
         <button class="btn btn-secondary" id="bulk-due-cancel">Cancel</button>
-        <button class="btn" id="bulk-due-clear" style="margin-right:auto">Clear due dates</button>
+        <button class="btn" id="bulk-due-clear" style="margin-right:auto">Clear dates</button>
         <button class="btn btn-primary" id="bulk-due-ok">Apply</button>
       </div>
     </div>`;
   overlay.classList.remove('hidden');
-  const inp = document.getElementById('bulk-due-input');
-  inp.focus();
+  const startInp = document.getElementById('bulk-start-input');
+  const dueInp   = document.getElementById('bulk-due-input');
+  (seedDue ? dueInp : startInp).focus();
   document.getElementById('bulk-due-cancel').onclick = close;
   document.getElementById('bulk-due-clear').onclick = () => {
     todos.forEach(t => { t.dueDate = null; t.startDate = null; });
     saveData();
     close();
-    showToast(`Cleared due date on ${todos.length} todo${todos.length === 1 ? '' : 's'}.`, 'success');
+    showToast(`Cleared dates on ${todos.length} todo${todos.length === 1 ? '' : 's'}.`, 'success');
     renderApp();
   };
   document.getElementById('bulk-due-ok').onclick = () => {
-    const v = inp.value;
-    if (!v) { inp.focus(); return; }
-    todos.forEach(t => { t.dueDate = v; });
+    const s = startInp.value;
+    const d = dueInp.value;
+    if (!s && !d) { startInp.focus(); return; }
+    // Reject inverted ranges before mutating, so users get a clear error
+    // instead of silently saving an end-before-start timeline.
+    if (s && d && s > d) {
+      showToast('Start date must be on or before the due date.', 'error');
+      return;
+    }
+    todos.forEach(t => {
+      if (s) t.startDate = s;
+      if (d) t.dueDate   = d;
+    });
     saveData();
     close();
-    showToast(`Due date set on ${todos.length} todo${todos.length === 1 ? '' : 's'}.`, 'success');
+    const what = s && d ? 'Timeline' : (d ? 'Due date' : 'Start date');
+    showToast(`${what} set on ${todos.length} todo${todos.length === 1 ? '' : 's'}.`, 'success');
     renderApp();
   };
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
@@ -5491,6 +5583,26 @@ function renderTodos() {
             <button class="btn btn-primary" id="btn-add-todo">Add</button>
           </div>
           <div class="todo-slash-chips" id="todo-slash-chips" hidden></div>
+          ${(() => {
+            // "Same as previous" — one-click re-apply of the last created
+            // todo's timeline. Hidden when there's no prior timeline; the
+            // input handlers below also re-hide it once the user starts
+            // typing a date manually.
+            const prev = state.lastTodoTimelineByProject?.[state.project];
+            if (!prev || (!prev.startDate && !prev.dueDate)) return '';
+            const label = prev.startDate && prev.dueDate
+              ? `${formatDate(prev.startDate)} → ${formatDate(prev.dueDate)}`
+              : (prev.dueDate ? `Due ${formatDate(prev.dueDate)}` : `Start ${formatDate(prev.startDate)}`);
+            return `<div class="todo-reuse-chips" id="todo-reuse-chips">
+              <button type="button" class="reuse-chip" id="btn-reuse-timeline"
+                      data-start="${escapeHTML(prev.startDate)}" data-due="${escapeHTML(prev.dueDate)}"
+                      title="Apply the timeline from the todo you just added">
+                <span class="reuse-chip-ic">↺</span>
+                <span class="reuse-chip-lbl">Same as previous:</span>
+                <span class="reuse-chip-val">${escapeHTML(label)}</span>
+              </button>
+            </div>`;
+          })()}
           <div class="todo-add-row2">
             <select class="form-select" id="todo-priority">
               <option value="high">🔴 High</option>
@@ -5598,6 +5710,16 @@ function renderTodos() {
 
   document.getElementById('btn-add-todo').onclick = addTodo;
   const todoInputEl = document.getElementById('todo-input');
+  // Draft cache: restore + re-bind the todo add-form. `todo-input` is the
+  // only required field — clearing it removes the whole draft so the user
+  // doesn't keep a "draft" indicator from solely twiddling the priority
+  // dropdown.
+  draftCache.bind(
+    document.querySelector('#view-todos .todo-add-form'),
+    `todos::${state.project}`,
+    ['todo-input','todo-priority','todo-subproject','todo-start','todo-due','todo-tags'],
+    { requiredFields: ['todo-input'] }
+  );
   // Slash-command UX: ghost completion + Tab-accept + live chips + real-time
   // sync of the form fields (priority/due/start/subproject) below the input.
   // Single shared helper drives both this view and the spark-map detail panel.
@@ -5615,6 +5737,30 @@ function renderTodos() {
   todoInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addTodo();
   });
+
+  // "Same as previous" chip — click fills the start/due inputs from the
+  // last-created todo and then hides itself. Once the user manually edits
+  // either date field we also dismiss the chip; the offer reappears on the
+  // next create-cycle (when addTodo() refreshes lastTodoTimelineByProject
+  // and re-renders).
+  const reuseBtn   = document.getElementById('btn-reuse-timeline');
+  const reuseChips = document.getElementById('todo-reuse-chips');
+  const startEl    = document.getElementById('todo-start');
+  const dueEl      = document.getElementById('todo-due');
+  if (reuseBtn && startEl && dueEl) {
+    reuseBtn.addEventListener('click', () => {
+      const s = reuseBtn.dataset.start || '';
+      const d = reuseBtn.dataset.due   || '';
+      if (s) { startEl.value = s; startEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (d) { dueEl.value   = d; dueEl.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (reuseChips) reuseChips.hidden = true;
+      todoInputEl.focus();
+    });
+    const dismiss = () => { if (reuseChips) reuseChips.hidden = true; };
+    startEl.addEventListener('input', dismiss);
+    dueEl.addEventListener('input', dismiss);
+  }
+
   document.getElementById('btn-todo-slash-help')?.addEventListener('click', openTodoSlashHelp);
   document.getElementById('btn-add-todo-recur')?.addEventListener('click', openPendingRecurrenceEditor);
 
@@ -7693,6 +7839,17 @@ function renderDelegations() {
       </div>
     </div>`;
 
+  // Draft cache: snapshot the delegations add-form across view switches.
+  // Bound to the form root (may not exist when filters hide the waiting
+  // column — bind() is a no-op when the root is null).
+  const delScope = `delegations::${state.project}`;
+  draftCache.bind(
+    document.querySelector('#view-delegations .del-add-form'),
+    delScope,
+    ['del-add-task','del-add-person','del-add-due','del-add-context','del-add-tags'],
+    { requiredFields: ['del-add-task','del-add-person'] }
+  );
+
   // Add form
   const submitAdd = () => {
     const task = document.getElementById('del-add-task').value;
@@ -7706,6 +7863,7 @@ function renderDelegations() {
     }
     const d = addDelegation({ task, delegated_to: person, due_date: due, context: ctx });
     if (d && tags.length) { d.tags = tags; saveData(); }
+    draftCache.clear(delScope);
     showToast('Delegation added.', 'success');
     renderDelegations();
   };
@@ -8056,6 +8214,18 @@ function renderCommitments() {
       </div>
     </div>`;
 
+  // Draft cache: snapshot the commitments add-form across view switches.
+  // Counterparty + description are the required-to-save fields; if both are
+  // empty we treat the snapshot as empty so an idle "Show closed" filter
+  // toggle doesn't synthesize a draft indicator.
+  const comScope = `commitments::${state.project}`;
+  draftCache.bind(
+    document.querySelector('#view-commitments .com-add-form'),
+    comScope,
+    ['com-counterparty','com-description','com-due-date','com-context','com-tags','com-notes'],
+    { requiredFields: ['com-counterparty','com-description'] }
+  );
+
   // Direction toggle for add form
   let selectedDirection = 'i_owe';
   document.querySelectorAll('.com-direction-btn').forEach(btn =>
@@ -8078,6 +8248,7 @@ function renderCommitments() {
     }
     const c = addCommitment({ direction: selectedDirection, counterparty, description, due_date, context, notes });
     if (c && tags.length) { c.tags = tags; saveData(); }
+    draftCache.clear(comScope);
     showToast('Commitment added.', 'success');
     renderCommitments();
   };
@@ -8223,6 +8394,15 @@ function renderReminders() {
   const soon = new Date(Date.now() + 3600000);
   document.getElementById('rem-date').value = soon.toISOString().split('T')[0];
   document.getElementById('rem-time').value = soon.toTimeString().slice(0,5);
+  // Draft cache: only snapshot text fields. Date/time keep the "+1h"
+  // default on each render — restoring them risks resurrecting a past
+  // timestamp the user has to manually re-pick anyway.
+  draftCache.bind(
+    document.querySelector('#view-reminders .reminder-add-form'),
+    `reminders::${state.project}`,
+    ['rem-title','rem-note','rem-tags'],
+    { requiredFields: ['rem-title'] }
+  );
   document.getElementById('btn-add-reminder').onclick = addReminder;
   document.getElementById('rem-title').onkeydown = (e) => { if (e.key === 'Enter') addReminder(); };
   document.getElementById('btn-rem-recurrence')?.addEventListener('click', () => {
@@ -8305,6 +8485,7 @@ function addReminder() {
     state.pendingReminderRecurrence = null;
   }
   proj.reminders.push(reminder);
+  draftCache.clear(`reminders::${state.project}`);
   saveData();
   showToast(reminder.recurrence ? `Reminder set · repeats ${describeRecurrence(reminder.recurrence)}` : 'Reminder set.', 'success');
   renderReminders();

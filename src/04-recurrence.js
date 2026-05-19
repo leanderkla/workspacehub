@@ -692,6 +692,7 @@ function addTodo() {
     }
     addMilestone({ title: msTitle, date: dueDate, subprojectId });
     document.getElementById('todo-input').value = '';
+    if (typeof draftCache !== 'undefined') draftCache.clear(`todos::${state.project}`);
     return;
   }
   const recurrence   = slash.recurrence
@@ -709,7 +710,17 @@ function addTodo() {
     created: new Date().toISOString(),
     attachments: [], steps: [], recurrence
   });
+  // Remember this todo's timeline so the "Same as previous" chip can offer
+  // it on the next add — scoped per project so values don't leak across
+  // workspaces. Only stored when at least one date was set; clearing both
+  // dates on a subsequent todo doesn't wipe the offer, since the user can
+  // still re-apply the prior pair if they want it back.
+  if (startDate || dueDate) {
+    state.lastTodoTimelineByProject = state.lastTodoTimelineByProject || {};
+    state.lastTodoTimelineByProject[state.project] = { startDate: startDate || '', dueDate: dueDate || '' };
+  }
   state.pendingTodoRecurrence = null;
+  if (typeof draftCache !== 'undefined') draftCache.clear(`todos::${state.project}`);
   saveData();
   renderTodos();
 }

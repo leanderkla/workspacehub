@@ -334,6 +334,49 @@ html[data-theme^="cp-hybrid-"] .modal select {
   color: var(--text-primary);
 }
 
+/* Glass theme: Gantt bar "pills" look faded against the gradient backdrop
+   because muted fill colors (slate-gray NO_SP_COLOR, pastel subproject
+   palette) lose perceived contrast on dark glass — even though every fill
+   is technically opaque. Boost saturation + brightness so colors actually
+   punch, and ring each bar in a strong inset outline + drop shadow so the
+   edge is crisp. */
+html[data-theme="glass"] .gantt-bar {
+  filter: saturate(1.4) brightness(1.15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="glass"] .gantt-bar:hover {
+  filter: saturate(1.55) brightness(1.25);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.6);
+}
+/* Ghost bars (future recurrences) are intentionally faded, but on dark glass
+   the dashed border alone reads as basically nothing. Tint the background
+   and brighten the dashes so the recurrence preview is actually visible. */
+html[data-theme="glass"] .gantt-bar-ghost {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  opacity: 0.92;
+  filter: none; /* don't double-apply saturate on ghost bars */
+}
+
+/* The sticky task column uses var(--card-bg) for its background — but in
+   glass that resolves to a 6 %-alpha tint. So when a bar starts to the left
+   of the visible window and extends rightward, the bar bleeds THROUGH the
+   sticky label text. Force solid backgrounds for the column in glass so
+   the bars are actually masked by the labels. Same goes for the overview
+   bar above the Gantt, which uses var(--content-bg) (= transparent in glass). */
+html[data-theme="glass"] .gantt-row-label,
+html[data-theme="glass"] .gantt-header-labels,
+html[data-theme="glass"] .dash-gantt-row:hover .gantt-row-label,
+html[data-theme="glass"] .gantt-ov-bar {
+  background: var(--popover-bg, rgba(20, 18, 38, 0.92));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
 html, body {
   height: 100%;
   overflow: hidden;
@@ -1496,8 +1539,14 @@ body.todos-has-selection .todo-bulk-select { opacity: 1; }
   flex: 1;
 }
 .form-select-sm {
-  height: 28px;
-  padding: 0 8px;
+  /* Native <select> on Chromium ignores `line-height` for the displayed
+     option text and centres it inside the box using its own metrics. The
+     previous `height: 28px` combined with the base .form-select padding
+     (9 px vertical) collapsed the inner area below the font's needed
+     space, so glyphs were clipped to the bottom edge. Sizing by padding
+     alone lets the widget pick its natural height around the 12 px font. */
+  height: auto;
+  padding: 4px 24px 4px 8px;
   font-size: 12px;
 }
 
@@ -8243,6 +8292,9 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
   margin: 6px 0 0;
   padding: 4px 0;
 }
+/* `display: flex` above beats the user-agent [hidden] rule, so the strip
+   leaves a ~10 px invisible band above the next row even when empty. */
+.todo-slash-chips[hidden] { display: none; }
 .slash-chip {
   display: inline-flex;
   align-items: center;
@@ -8259,6 +8311,40 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
 .slash-chip-priority { background: rgba(220, 38, 38, 0.08); color: #b91c1c; border-color: rgba(220, 38, 38, 0.2); }
 .slash-chip-recurrence { background: rgba(124, 58, 237, 0.08); color: #6d28d9; border-color: rgba(124, 58, 237, 0.2); }
 .slash-chip-subproject { background: rgba(20, 184, 166, 0.08); color: #0f766e; border-color: rgba(20, 184, 166, 0.2); }
+
+/* "Same as previous" reuse chip — sits between row1 (input) and row2
+   (date/priority fields) on the todo add-form. One click re-applies the
+   timeline from the just-created todo so bulk-entry doesn't require
+   re-picking the same dates 10 times. */
+.todo-reuse-chips {
+  display: flex;
+  gap: 6px;
+  /* No margin — the parent .todo-add-form provides `gap: 8px` between
+     children, which is the spacing we want above and below the chip. */
+}
+.reuse-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px dashed var(--accent-faint);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+}
+.reuse-chip:hover {
+  background: var(--accent-faint);
+  border-style: solid;
+}
+.reuse-chip:active { transform: translateY(1px); }
+.reuse-chip-ic { font-size: 13px; line-height: 1; }
+.reuse-chip-lbl { opacity: 0.8; }
+.reuse-chip-val { font-variant-numeric: tabular-nums; }
+
 .slash-help-modal {
   width: 560px;
   max-width: 95vw;
