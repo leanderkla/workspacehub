@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Magdalen Candlelit â€” dark academia draft 03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #e8b04a;   /* beeswax */
+  --accent-light:     #2d2008;
+  --accent-dark:      #f5d28a;
+  --sidebar-bg:       #0e0a06;
+  --sidebar-hover:    #181107;
+  --content-bg:       #0e0a06;
+  --card-bg:          #16100a;
+  --card-bg-elev:     #1e1610;
+  --text-primary:     #f0d8a8;
+  --text-secondary:   #a88a5e;
+  --text-muted:       #6a553a;
+  --border:           #1f1610;
+  --border-strong:    #2d2118;
+  --serif:            'EB Garamond', Georgia, serif;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 15.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+@keyframes candle-flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  20%      { opacity: 0.93; transform: scale(0.985); }
+  45%      { opacity: 1.0;  transform: scale(1.01); }
+  68%      { opacity: 0.92; transform: scale(0.99); }
+  85%      { opacity: 0.97; transform: scale(1.005); }
+}
+@keyframes wick-glow {
+  0%, 100% { filter: brightness(1); }
+  35%      { filter: brightness(0.92); }
+  65%      { filter: brightness(1.06); }
+}
+
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* Sidebar â€” minimal, lots of air */
+.sidebar {
+  background: var(--sidebar-bg);
+  padding: 36px 0 0;
+  position: relative;
+}
+.sidebar::after {
+  /* a barely-there ambient candle glow leaking from the right edge */
+  content: '';
+  position: absolute; right: -30px; top: 30%; width: 60px; height: 40%;
+  background: radial-gradient(ellipse at center, rgba(232, 176, 74, 0.14), transparent 70%);
+  pointer-events: none;
+}
+.sb-brand { padding: 0 28px 26px; text-align: center; }
+.sb-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 28px;
+  color: var(--accent-dark);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 22px rgba(232, 176, 74, 0.30);
+  animation: wick-glow 4.2s ease-in-out infinite;
+}
+.sb-tagline {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.sb-section {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--accent);
+  padding: 22px 28px 10px;
+  opacity: 0.78;
+  letter-spacing: 0.01em;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  color: var(--text-secondary);
+  padding: 10px 28px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sb-item:hover { color: var(--text-primary); }
+.sb-item.active {
+  color: var(--accent-dark);
+  font-style: italic;
+  font-weight: 500;
+}
+.sb-count {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--accent);
+  opacity: 0.7;
+}
+.sb-overview {
+  margin: 16px 22px 4px;
+  padding: 12px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+.sb-overview-count {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--accent);
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  padding: 20px 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 19px;
+  color: var(--accent-dark);
+}
+.topbar-mid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--text-secondary);
+}
+.topbar-search {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  padding: 8px 4px;
+  width: 280px;
+}
+.topbar-search:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 56px 80px 64px; }
+
+/* View header â€” prose time */
+.view-head {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.view-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 48px;
+  color: var(--accent-dark);
+  letter-spacing: 0.005em;
+  text-shadow: 0 0 30px rgba(232, 176, 74, 0.22);
+  margin-bottom: 14px;
+}
+.view-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+.view-sub .ornament { color: var(--accent); margin: 0 14px; opacity: 0.7; }
+
+/* Stats â€” quiet, no borders */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  margin-bottom: 56px;
+  padding: 0 20px;
+}
+.stat { text-align: center; }
+.stat-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 42px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent-dark); }
+.stat-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+
+/* Chips â€” bare, just italic words */
+.chip-row {
+  display: flex; gap: 28px;
+  justify-content: center;
+  margin-bottom: 40px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+}
+.chip { color: var(--text-muted); cursor: pointer; }
+.chip:hover { color: var(--text-secondary); }
+.chip.active { color: var(--accent-dark); }
+.chip.active::after { content: ' Â·'; color: var(--accent); }
+
+/* Search â€” single hairline */
+.search-wrap {
+  margin-bottom: 48px;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0 4px;
+  display: flex; align-items: center;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 12px 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-icon { color: var(--accent); font-size: 16px; margin-right: 14px; }
+
+/* Rows â€” no borders, lots of vertical air, candle marker on active */
+.row {
+  padding: 24px 16px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 24px;
+  align-items: baseline;
+  cursor: pointer;
+  position: relative;
+  border-bottom: 1px solid transparent;
+}
+.row + .row { border-top: 1px solid var(--border); }
+.row:hover .row-title { color: var(--accent-dark); }
+
+.row.active {
+  position: relative;
+}
+.row.active::before {
+  /* candle flicker lamp pool, large and warm, animated */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 130% at 50% 50%,
+    rgba(232, 176, 74, 0.18) 0%,
+    rgba(232, 176, 74, 0.08) 35%,
+    transparent 70%);
+  pointer-events: none;
+  animation: candle-flicker 1200ms ease-in-out infinite;
+}
+.row-body { min-width: 0; position: relative; z-index: 1; }
+.row-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 19px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: 0.005em;
+}
+.row.active .row-title {
+  color: var(--accent-dark);
+  font-weight: 500;
+}
+.row-meta {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  color: var(--text-muted);
+}
+
+/* Candle marker â€” a small flickering flame icon */
+.flame {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--accent);
+  width: 22px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 12px rgba(232, 176, 74, 0.6);
+}
+.flame.dim { color: var(--text-muted); opacity: 0.5; text-shadow: none; }
+.flame.dim.note { color: var(--text-secondary); opacity: 0.65; }
+.row.active .flame { animation: wick-glow 1200ms ease-in-out infinite; }
+
+.row-date {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 130px;
+  position: relative;
+  z-index: 1;
+}
+.row.active .row-date { color: var(--text-secondary); }
+.row-date .priority {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* CTA */
+.cta-row { margin-top: 56px; display: flex; gap: 24px; justify-content: center; }
+.btn {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 500;
+  padding: 12px 32px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--accent-dark);
+  cursor: pointer;
+  letter-spacing: 0.005em;
+}
+.btn:hover { border-color: var(--accent); background: rgba(232, 176, 74, 0.06); }
+.btn-primary {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 24px rgba(232, 176, 74, 0.15);
+}
+
+/* Inkwell-style loader bubble â€” purely decorative for the preview */
+.inkwell {
+  position: absolute;
+  bottom: 24px;
+  right: 36px;
+  width: 32px; height: 32px;
+  border: 1px solid var(--accent);
+  border-radius: 99px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.55;
+  animation: wick-glow 2.8s ease-in-out infinite;
+}
+.inkwell::before {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  background: var(--text-primary);
+  border-radius: 99px;
+  top: 6px;
+  opacity: 0.7;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name"><i>Magdalen</i></div>
+      <div class="sb-tagline">a single candle, an hour past midnight</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label"><i>Overview</i></span>
+      <span class="sb-overview-count">fourteen</span>
+    </div>
+
+    <div class="sb-section"><i>projects</i></div>
+    <div class="sb-item active"><span><i>My Workspace</i></span></div>
+    <div class="sb-item"><span>My Side Project</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section"><i>workspace</i></div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">thirteen</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main" style="position: relative;">
+    <div class="topbar">
+      <div class="topbar-name"><i>My Workspace</i></div>
+      <div class="topbar-mid"><i>Wednesday evening Â· half past two</i></div>
+      <input class="topbar-search" placeholder="search â€¦">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title"><i>Pull</i></div>
+        <div class="view-sub">
+          <i>the sixth of May</i>
+          <span class="ornament">âœ¦</span>
+          <i>fourteen things ask after you</i>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label"><i>open</i></div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label"><i>overdue</i></div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label"><i>commitments</i></div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label"><i>notes</i></div></div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip active"><i>all</i></span>
+        <span class="chip"><i>overdue</i></span>
+        <span class="chip"><i>today</i></span>
+        <span class="chip"><i>upcoming</i></span>
+        <span class="chip"><i>waiting</i></span>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-icon">âŒ•</span>
+        <input placeholder="filter by title, tag, or counterparty â€¦">
+      </div>
+
+      <div class="row active">
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due at two Â· twelve minutes</div>
+        </div>
+        <div class="flame">âœ¦</div>
+        <div class="row-date">a quarter past two<span class="priority">high</span></div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">a sketch, last touched on Monday</div>
+        </div>
+        <div class="flame dim">Â·</div>
+        <div class="row-date">the tenth</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">a note Â· updated yesterday Â· eight mentions</div>
+        </div>
+        <div class="flame dim note">Â¶</div>
+        <div class="row-date">yesterday</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">a reminder Â· half past nine, Tuesday Â· weekly</div>
+        </div>
+        <div class="flame dim">Â·</div>
+        <div class="row-date">Tuesday</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday Â· My Workspace</div>
+        </div>
+        <div class="flame dim">Â·</div>
+        <div class="row-date">when convenient</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary"><i>+ New entry</i></button>
+        <button class="btn"><i>Capture</i></button>
+      </div>
+
+    </div>
+    <div class="inkwell" title="Inkwell loader"></div>
+  </main>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inkwell &amp; Quarto â€” dark academia draft 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #7a1f2b;   /* oxblood, fill-only */
+  --accent-dark:      #a8404e;
+  --sidebar-bg:       #0c0c0d;
+  --sidebar-hover:    #15151a;
+  --content-bg:       #0c0c0d;
+  --card-bg:          #131318;
+  --card-bg-elev:     #1a1a20;
+  --text-primary:     #e8e2d4;
+  --text-secondary:   #8e887b;
+  --text-muted:       #5a564d;
+  --border:           #1b1b21;
+  --border-strong:    #25252e;
+  --serif:            'Source Serif Pro', Georgia, serif;
+  --mono:             'IBM Plex Mono', monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 13.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+
+/* Sidebar â€” pure type, hairlines only */
+.sidebar {
+  background: var(--sidebar-bg);
+  padding: 26px 0 0;
+  border-right: 1px solid var(--border);
+}
+.sb-brand { padding: 0 22px 22px; border-bottom: 1px solid var(--border); }
+.sb-name {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.sb-tagline {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 0.06em;
+}
+.sb-overview {
+  margin: 14px 0 4px;
+  padding: 12px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.sb-section {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 18px 22px 6px;
+  font-weight: 600;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  padding: 5px 22px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sb-item:hover { color: var(--text-primary); }
+.sb-item.active {
+  color: var(--text-primary);
+  padding-left: 30px;   /* indent shift â€” the focus signal */
+}
+.sb-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  padding: 14px 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.topbar-mid {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.topbar-search {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13.5px;
+  padding: 6px 4px;
+  width: 280px;
+}
+.topbar-search:focus { outline: none; border-bottom-color: var(--text-primary); }
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 40px 56px 56px; max-width: 1100px; }
+
+/* View header â€” pilcrow + hairline */
+.view-head {
+  margin-bottom: 36px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.view-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.view-title .pilcrow {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-right: 10px;
+}
+.view-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* Stats â€” numbers in a row, no boxes */
+.stats {
+  display: flex;
+  gap: 56px;
+  margin-bottom: 36px;
+  padding: 0 4px;
+}
+.stat {  }
+.stat-num {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: 0.005em;
+}
+.stat-num.alert { color: var(--accent-dark); }
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+/* Chips â€” bare type */
+.chip-row {
+  display: flex; gap: 24px;
+  margin-bottom: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.chip { color: var(--text-muted); cursor: pointer; padding: 4px 0; }
+.chip:hover { color: var(--text-secondary); }
+.chip.active {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 30px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 10px 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14.5px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-icon { color: var(--text-secondary); font-size: 12px; margin-right: 10px; }
+
+/* Rows â€” pure type, indent shift signals active. No glow ever. */
+.row {
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 1fr 50px 150px 30px;
+  gap: 16px;
+  align-items: baseline;
+  cursor: pointer;
+  position: relative;
+}
+.row:hover .row-title { color: var(--accent-dark); }
+.row.active {
+  padding-left: 28px;             /* indent shift */
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  margin: -1px 0;
+}
+.row.overdue {
+  /* the *only* place oxblood appears as a visible mark */
+  border-left: 2px solid var(--accent);
+  padding-left: 14px;
+}
+.row.active.overdue { padding-left: 26px; }
+
+.row-body { min-width: 0; }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  letter-spacing: 0.005em;
+}
+.row-meta {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.row-meta .ident {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Lowercase priority abbreviations, no fill */
+.prio {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+}
+.prio.hi { color: var(--accent-dark); }
+.prio.md { color: var(--text-secondary); }
+.row-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: right;
+}
+.row-date .dewey { display: block; color: var(--text-secondary); font-size: 10px; margin-top: 3px; opacity: 0.85; }
+
+/* Marginalia â€” italic right-edge annotation on active rows with notes */
+.marg {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: right;
+  position: absolute;
+  right: 16px;
+  bottom: -2px;
+}
+.row:not(.active) .marg { display: none; }
+
+/* CTA â€” quiet */
+.cta-row { margin-top: 36px; display: flex; gap: 18px; }
+.btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 10px 22px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.btn-primary {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+.btn-primary:hover { background: var(--text-primary); color: var(--sidebar-bg); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name">Inkwell</div>
+      <div class="sb-tagline">quarto Â· 26.05</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label">Overview</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span>My Workspace</span></div>
+    <div class="sb-item"><span>My Side Project</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">My Workspace</div>
+      <div class="topbar-mid">06.05.2026 Â· 14:23</div>
+      <input class="topbar-search" placeholder="search â€¦">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title"><span class="pilcrow">Â¶</span>Opus i Â· Pull</div>
+        <div class="view-sub">06.05 Â· 14:23 Â· 14 items</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commit</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip active">All</span>
+        <span class="chip">Overdue</span>
+        <span class="chip">Today</span>
+        <span class="chip">Upcoming</span>
+        <span class="chip">Waiting</span>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-icon">âŒ•</span>
+        <input placeholder="filter rows by title, tag, or counterparty â€¦">
+      </div>
+
+      <div class="row active overdue">
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 Â· 12m remaining<span class="ident">t-26.05-3f2</span></div>
+        </div>
+        <div class="prio hi">hi</div>
+        <div class="row-date">06 may<span class="dewey">821.914 / W873s</span></div>
+        <div></div>
+        <div class="marg">Lukas prefers PDF, not the share link</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch Â· last touched Monday<span class="ident">t-26.05-9b1</span></div>
+        </div>
+        <div class="prio md">md</div>
+        <div class="row-date">10 may<span class="dewey">658.812 / S474o</span></div>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note Â· updated yesterday Â· 8 mentions<span class="ident">n-26.05-2c4</span></div>
+        </div>
+        <div class="prio">â€”</div>
+        <div class="row-date">05 may<span class="dewey">333.793 / T182f</span></div>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder Â· 09:30 Tuesday Â· weekly<span class="ident">r-26.05-1a7</span></div>
+        </div>
+        <div class="prio">â€”</div>
+        <div class="row-date">12 may<span class="dewey">658.456 / S783a</span></div>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday Â· My Workspace<span class="ident">t-26.05-7a4</span></div>
+        </div>
+        <div class="prio">lo</div>
+        <div class="row-date">â€”<span class="dewey">658.811 / A584g</span></div>
+        <div></div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New entry</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

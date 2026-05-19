@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Professor's Study (Autumn) â€” dark academia draft 05</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Roboto+Slab:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #a0522d;   /* burnt sienna */
+  --accent-light:     #2c1408;
+  --accent-dark:      #c97548;
+  --moss:             #6c7c45;
+  --oxblood:          #6a1f25;
+  --sidebar-bg:       #1b140e;
+  --sidebar-hover:    #27190e;
+  --content-bg:       #1b140e;
+  --card-bg:          #251a10;
+  --card-bg-elev:     #2f2114;
+  --text-primary:     #ecdcb6;
+  --text-secondary:   #b2966a;
+  --text-muted:       #75614a;
+  --border:           #2a1e13;
+  --border-strong:    #3c2c1d;
+  --serif:            'Source Serif Pro', Georgia, serif;
+  --slab:             'Roboto Slab', Georgia, serif;
+  --mono:             'IBM Plex Mono', monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 14.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; position: relative; }
+
+/* Sidebar â€” leather spine ribbed background */
+.sidebar {
+  position: relative;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      var(--sidebar-bg) 0,
+      var(--sidebar-bg) 22px,
+      #211a13 22px,
+      #211a13 24px,
+      var(--sidebar-bg) 24px,
+      var(--sidebar-bg) 46px,
+      #170f08 46px,
+      #170f08 48px
+    );
+  border-right: 1px solid var(--border-strong);
+  padding: 24px 0 0;
+}
+.sidebar::before {
+  /* horizontal raised band â€” like a binding label on a book spine */
+  content: '';
+  position: absolute;
+  left: 18px; right: 18px;
+  top: 80px;
+  height: 30px;
+  background: linear-gradient(180deg, #2c1f12 0%, #1f1509 50%, #2c1f12 100%);
+  border-top: 1px solid rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(0,0,0,0.4);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 43, 0.06);
+  z-index: 0;
+}
+.sb-brand {
+  padding: 12px 28px 12px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.sb-name {
+  font-family: var(--slab);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--accent-dark);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sb-tagline {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.sb-overview {
+  margin: 26px 16px 6px;
+  padding: 13px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-radius: 5px;
+  background: rgba(160, 82, 45, 0.08);
+  border: 1px solid var(--border);
+  position: relative; z-index: 1;
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11.5px;
+  background: var(--accent);
+  color: #1b140e;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.sb-section {
+  font-family: var(--slab);
+  font-size: 10px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 18px 24px 8px;
+  font-weight: 700;
+  opacity: 0.85;
+  position: relative; z-index: 1;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  padding: 8px 24px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+.sb-item:hover { color: var(--text-primary); background: rgba(160, 82, 45, 0.06); }
+.sb-item.active {
+  color: var(--accent-dark);
+  background: rgba(160, 82, 45, 0.10);
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(160, 82, 45, 0.4);
+}
+.sb-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  background: rgba(160, 82, 45, 0.14);
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--sidebar-bg);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-strong);
+}
+.topbar-name {
+  font-family: var(--slab);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--accent-dark);
+  letter-spacing: 0.04em;
+}
+.topbar-mid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.topbar-search {
+  background: rgba(160, 82, 45, 0.04);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  padding: 8px 14px;
+  width: 290px;
+}
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(160, 82, 45, 0.16);
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 36px 48px 48px; }
+
+/* View header â€” heavy leather rule */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  position: relative;
+  border-bottom: 4px solid var(--border-strong);
+}
+.view-head::after {
+  /* a second, lighter rule below â€” like a leather binding double-stitch */
+  content: '';
+  position: absolute;
+  bottom: -8px; left: 0; right: 0;
+  height: 1px;
+  background: var(--border);
+}
+.view-title {
+  font-family: var(--slab);
+  font-weight: 700;
+  font-size: 40px;
+  color: var(--accent-dark);
+  letter-spacing: -0.01em;
+}
+.view-title small {
+  display: block;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+.view-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.7;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 30px;
+  margin-top: 14px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(160, 82, 45, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.stat-num {
+  font-family: var(--slab);
+  font-weight: 600;
+  font-size: 32px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--oxblood); filter: brightness(1.4); }
+.stat-label {
+  font-family: var(--slab);
+  font-size: 10px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.chip {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  padding: 7px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent-dark); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1b140e;
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 26px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  display: flex; align-items: center;
+  padding: 0 16px;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 13px 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-icon { color: var(--accent-dark); font-size: 14px; margin-right: 12px; }
+
+/* Rows */
+.row {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 22px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 26px 1fr auto 110px;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.row:hover { background: var(--card-bg-elev); border-color: var(--border-strong); }
+
+.row.active {
+  background: var(--card-bg-elev);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(160, 82, 45, 0.20),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.row.active::after {
+  /* sienna lamp pool */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 130% at 50% 0%,
+    rgba(201, 117, 72, 0.13) 0%,
+    rgba(160, 82, 45, 0.04) 40%,
+    transparent 75%);
+  pointer-events: none;
+  border-radius: 6px;
+}
+.row.overdue { border-left: 3px solid var(--oxblood); padding-left: 19px; }
+.row.done {  filter: saturate(0.6); opacity: 0.85; }
+
+/* Wax seal status dots â€” slab variant, chunkier */
+.seal {
+  width: 22px; height: 22px;
+  border-radius: 99px;
+  position: relative;
+}
+.seal::after {
+  content: '';
+  position: absolute; inset: 5px;
+  border-radius: 99px;
+  border: 1px solid rgba(0,0,0,0.45);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.18);
+}
+.seal.high { background: radial-gradient(circle at 35% 30%, #d4a25c 0%, var(--accent) 60%, var(--accent-light) 100%); }
+.seal.med  { background: radial-gradient(circle at 35% 30%, #c8a060 0%, #94765a 60%, #3c2a17 100%); }
+.seal.low  { background: transparent; border: 1px solid var(--border-strong); }
+.seal.low::after { display: none; }
+.seal.note { background: radial-gradient(circle at 35% 30%, var(--moss) 0%, #4a5832 60%, #232c19 100%); }
+.seal.rem  { background: radial-gradient(circle at 35% 30%, #b2966a 0%, #75614a 60%, #2a1e13 100%); }
+
+.row-body { min-width: 0; position: relative; z-index: 1; }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16.5px;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  letter-spacing: -0.005em;
+}
+.row.active .row-title { color: var(--accent-dark); font-weight: 600; }
+.row-meta {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.row-meta i {
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+.row.active .row-meta { color: var(--text-secondary); }
+.row-meta .ident {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: 10px;
+  letter-spacing: 0.04em;
+}
+.badge {
+  font-family: var(--slab);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.badge.high {
+  background: var(--oxblood);
+  border-color: var(--oxblood);
+  color: #ecdcb6;
+}
+.badge.done {
+  background: var(--moss);
+  border-color: var(--moss);
+  color: #ecdcb6;
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-align: right;
+  position: relative;
+  z-index: 1;
+}
+.row-date .echo {
+  display: block;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--accent);
+  letter-spacing: 0;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+/* CTA */
+.cta-row { margin-top: 28px; display: flex; gap: 12px; }
+.btn {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 11px 26px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-dark);
+  cursor: pointer;
+  border-radius: 5px;
+}
+.btn:hover { background: rgba(160, 82, 45, 0.08); }
+.btn-primary {
+  background: linear-gradient(180deg, #c97548 0%, var(--accent) 50%, #6b3919 100%);
+  color: #1b140e;
+  font-style: normal;
+  font-weight: 700;
+  border: 1px solid #6b3919;
+  box-shadow:
+    inset 0 1px 0 rgba(232, 175, 130, 0.4),
+    0 4px 12px rgba(160, 82, 45, 0.25);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name">Professor</div>
+      <div class="sb-tagline">late October, fire just lit</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label"><i>Overview</i></span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span>My Workspace</span></div>
+    <div class="sb-item"><span>My Side Project</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">My Workspace</div>
+      <div class="topbar-mid"><i>Friday afternoon Â· 14:23</i></div>
+      <input class="topbar-search" placeholder="search â€¦">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">
+          Pull
+          <small>the work at hand, sorted by what asks loudest</small>
+        </div>
+        <div class="view-sub">
+          06 May 2026<br>
+          <i>fourteen things ask after you</i>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-icon">âŒ•</span>
+        <input placeholder="filter rows by title, tag, or counterparty â€¦">
+      </div>
+
+      <div class="row active overdue">
+        <div class="seal high"></div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 Â· 12m left<span class="ident">t-26.05-3f2</span></div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="row-date">06 MAY<span class="echo">â€” quarter past two</span></div>
+      </div>
+
+      <div class="row">
+        <div class="seal med"></div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch Â· drafted Mon<span class="ident">t-26.05-9b1</span></div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="row-date">10 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="seal note"></div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note Â· updated yesterday Â· 8 mentions<span class="ident">n-26.05-2c4</span></div>
+        </div>
+        <div class="badge">Note</div>
+        <div class="row-date">05 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="seal rem"></div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder Â· 09:30 Tuesday Â· weekly<span class="ident">r-26.05-1a7</span></div>
+        </div>
+        <div class="badge">Rem</div>
+        <div class="row-date">12 MAY</div>
+      </div>
+
+      <div class="row done">
+        <div class="seal low"></div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday Â· My Workspace<span class="ident">t-26.05-7a4</span></div>
+        </div>
+        <div class="badge done">Done</div>
+        <div class="row-date">â€”</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New entry</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

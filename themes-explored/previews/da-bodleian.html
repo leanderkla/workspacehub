@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bodleian Reading Room â€” dark academia draft 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #b8862b;   /* patinated brass */
+  --accent-light:     #3a2a0e;
+  --accent-dark:      #e0b75e;
+  --accent-soft:      rgba(184, 134, 43, 0.10);
+  --oxblood:          #7a1f2b;
+  --sidebar-bg:       #14100a;
+  --sidebar-hover:    #1f1810;
+  --content-bg:       #1a110b;
+  --card-bg:          #221710;
+  --card-bg-elev:     #2a1d14;
+  --text-primary:     #ede0c2;
+  --text-secondary:   #b39772;
+  --text-muted:       #74614a;
+  --border:           #2a1e15;
+  --border-strong:    #3a2c1f;
+  --serif:            'EB Garamond', 'Garamond', Georgia, serif;
+  --sans:             'Inter', system-ui, sans-serif;
+  --mono:             'IBM Plex Mono', monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; position: relative; }
+
+/* Sidebar â€” leather spine ribbed background */
+.sidebar {
+  background:
+    linear-gradient(180deg, var(--sidebar-bg) 0%, #100c07 100%);
+  position: relative;
+  border-right: 1px solid var(--border-strong);
+  padding: 26px 0 0;
+}
+.sidebar::after {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent 0%, var(--accent) 30%, var(--accent) 70%, transparent 100%);
+  opacity: 0.22;
+}
+.sb-brand {
+  text-align: center;
+  padding: 0 22px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--accent-dark);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 18px rgba(184, 134, 43, 0.22);
+}
+.sb-tagline {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.sb-overview {
+  margin: 16px 14px 4px;
+  padding: 13px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(184, 134, 43, 0.04);
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16.5px;
+  color: var(--text-primary);
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  background: var(--accent);
+  color: var(--sidebar-bg);
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+.sb-section {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 18px 22px 8px;
+  font-weight: 600;
+  opacity: 0.78;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--text-secondary);
+  padding: 8px 22px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+}
+.sb-item:hover { color: var(--text-primary); background: var(--sidebar-hover); }
+.sb-item.active {
+  color: var(--accent-dark);
+  background: var(--sidebar-hover);
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(184, 134, 43, 0.55);
+}
+.sb-count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(184, 134, 43, 0.12);
+  padding: 1px 8px;
+  border-radius: 99px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--sidebar-bg);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--accent-dark);
+  letter-spacing: 0.01em;
+}
+.topbar-mid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  display: flex; gap: 12px; align-items: center;
+}
+.topbar-mid .dot {
+  width: 7px; height: 7px;
+  background: var(--accent);
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(184, 134, 43, 0.55);
+}
+.topbar-search {
+  background: rgba(184, 134, 43, 0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  padding: 8px 14px;
+  width: 300px;
+}
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(184, 134, 43, 0.18);
+}
+.topbar-search::placeholder { color: var(--text-muted); }
+
+.content { flex: 1; overflow: auto; padding: 36px 48px 48px; }
+
+/* View header â€” Latin title + Roman numeral date */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 18px;
+  position: relative;
+}
+.view-head::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0;
+  width: 120px; height: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(184, 134, 43, 0.4);
+}
+.view-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 42px;
+  letter-spacing: 0.005em;
+  color: var(--accent-dark);
+  text-shadow: 0 0 24px rgba(184, 134, 43, 0.18);
+}
+.view-title .latin {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  opacity: 0.7;
+  font-weight: 600;
+}
+.view-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.6;
+}
+.view-sub .roman { font-style: normal; color: var(--accent-dark); letter-spacing: 0.04em; }
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px 20px;
+  box-shadow:
+    inset 0 0 0 1px rgba(184, 134, 43, 0.06),
+    inset 0 1px 0 rgba(184, 134, 43, 0.08);
+}
+.stat-num {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 34px;
+  letter-spacing: -0.005em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--oxblood); }
+.stat-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 9px;
+  font-weight: 500;
+}
+
+/* Chips */
+.chip-row { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.chip {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  padding: 7px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent-dark); }
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--sidebar-bg);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 26px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  display: flex; align-items: center;
+  padding: 0 16px;
+  box-shadow: inset 0 1px 0 rgba(184, 134, 43, 0.05);
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 14px 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15.5px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); }
+.search-wrap-icon { color: var(--accent); font-size: 15px; margin-right: 12px; }
+
+/* Rows â€” leather card, wax seals, ribbon, lamp pool */
+.row {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 22px 16px 24px;
+  margin-bottom: 9px;
+  display: grid;
+  grid-template-columns: 26px 1fr auto 96px;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  /* tooled leather rim â€” outer hairline + inset gold-rim */
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    inset 0 0 0 2px rgba(184, 134, 43, 0.04);
+}
+.row:hover { background: var(--card-bg-elev); border-color: var(--border-strong); }
+
+/* Active row â€” lamp pool radial + silk ribbon hanging from top */
+.row.active {
+  background: var(--card-bg-elev);
+  border-color: var(--border-strong);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    inset 0 0 0 2px rgba(184, 134, 43, 0.10),
+    0 14px 36px rgba(0, 0, 0, 0.45);
+}
+.row.active::before {
+  /* the silk ribbon â€” extends above the row */
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: -8px;
+  width: 4px;
+  height: calc(100% + 18px);
+  background: linear-gradient(180deg, #4a1218 0%, var(--oxblood) 8%, #5a1620 90%, transparent 100%);
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  z-index: 2;
+  box-shadow: 1px 0 0 rgba(0,0,0,0.4);
+}
+.row.active::after {
+  /* the brass lamp pool */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 120% at 50% -20%,
+    rgba(224, 183, 94, 0.16) 0%,
+    rgba(184, 134, 43, 0.06) 35%,
+    transparent 70%);
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+/* Wax seal status dots */
+.seal {
+  width: 22px; height: 22px;
+  border-radius: 99px;
+  position: relative;
+  margin-left: 4px;
+}
+.seal::after {
+  /* embossed inner ring */
+  content: '';
+  position: absolute; inset: 4px;
+  border-radius: 99px;
+  border: 1px solid rgba(0,0,0,0.35);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.15);
+}
+.seal.high { background: radial-gradient(circle at 35% 30%, #c63a48 0%, var(--oxblood) 55%, #4a1218 100%); }
+.seal.med  { background: radial-gradient(circle at 35% 30%, #d4a04e 0%, var(--accent) 55%, var(--accent-light) 100%); }
+.seal.low  { background: transparent; border: 1px solid var(--border-strong); }
+.seal.low::after { display: none; }
+.seal.note { background: radial-gradient(circle at 35% 30%, #b6a98a 0%, #786a4a 55%, #2a2418 100%); }
+.seal.rem  { background: radial-gradient(circle at 35% 30%, #b39772 0%, #74614a 55%, #2a1e15 100%); }
+
+.row-body { min-width: 0; position: relative; z-index: 1; }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+  margin-bottom: 3px;
+}
+.row.active .row-title { color: var(--accent-dark); font-weight: 600; }
+.row-meta {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.row.active .row-meta { color: var(--text-secondary); }
+.row-meta .ident {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 10px;
+  letter-spacing: 0.02em;
+}
+
+.badge {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.badge.high {
+  background: var(--oxblood);
+  border-color: var(--oxblood);
+  color: #f4e2c8;
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-align: right;
+  position: relative;
+  z-index: 1;
+}
+.row-date .dewey { display: block; color: var(--accent); font-size: 10px; margin-top: 4px; opacity: 0.85; }
+
+/* Marginalia â€” italic note in margin on active row */
+.row.active .marginalia {
+  display: block;
+}
+.marginalia {
+  display: none;
+  position: absolute;
+  right: 26px;
+  bottom: -10px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--content-bg);
+  padding: 0 8px;
+  opacity: 0.75;
+}
+.marginalia::before { content: 'â€œ'; color: var(--accent); margin-right: 2px; }
+.marginalia::after { content: 'â€'; color: var(--accent); margin-left: 2px; }
+
+/* CTA â€” gold leaf primary */
+.cta-row { margin-top: 28px; display: flex; gap: 12px; }
+.btn {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15.5px;
+  font-weight: 500;
+  padding: 11px 26px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.btn:hover { background: rgba(184, 134, 43, 0.08); }
+.btn-primary {
+  /* gold leaf â€” vertical brass gradient with hairline rim */
+  background: linear-gradient(180deg, #d4a647 0%, var(--accent) 50%, #8a651d 100%);
+  color: #1a110b;
+  font-style: normal;
+  font-weight: 600;
+  border: 1px solid #8a651d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 222, 150, 0.4),
+    0 4px 16px rgba(184, 134, 43, 0.25);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name"><i>Bodleian</i></div>
+      <div class="sb-tagline">opvs Â· lectio Â· notÃ¦</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label"><i>Overview</i></span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span>My Workspace</span></div>
+    <div class="sb-item"><span>My Side Project</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name"><i>My Workspace</i></div>
+      <div class="topbar-mid"><span class="dot"></span> <i>Wednesday Â· the sixth of May Â· half past two</i></div>
+      <input class="topbar-search" placeholder="search the catalogue â€¦">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">
+          <span class="latin">opvs Â· the work at hand</span>
+          Pull
+        </div>
+        <div class="view-sub">
+          <span class="roman">VI Â· V Â· MMXXVI</span><br>
+          <i>fourteen things ask after you</i>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-icon">âŒ•</span>
+        <input placeholder="filter the rows by title, tag, or counterparty â€¦">
+      </div>
+
+      <div class="row active">
+        <div class="seal high"></div>
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 Â· 12m remaining<span class="ident">t-26.05-3f2</span></div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="row-date">06 MAY<span class="dewey">821.914 / W873s</span></div>
+        <div class="marginalia">Lukas prefers PDF, not the share link</div>
+      </div>
+
+      <div class="row">
+        <div class="seal med"></div>
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch Â· last touched Monday<span class="ident">t-26.05-9b1</span></div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="row-date">10 MAY<span class="dewey">658.812 / S474o</span></div>
+      </div>
+
+      <div class="row">
+        <div class="seal note"></div>
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note Â· updated yesterday Â· 8 mentions<span class="ident">n-26.05-2c4</span></div>
+        </div>
+        <div class="badge">Note</div>
+        <div class="row-date">05 MAY<span class="dewey">333.793 / T182f</span></div>
+      </div>
+
+      <div class="row">
+        <div class="seal rem"></div>
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder Â· 09:30 Tuesday Â· weekly<span class="ident">r-26.05-1a7</span></div>
+        </div>
+        <div class="badge">Rem</div>
+        <div class="row-date">12 MAY<span class="dewey">658.456 / S783a</span></div>
+      </div>
+
+      <div class="row">
+        <div class="seal low"></div>
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday Â· My Workspace<span class="ident">t-26.05-7a4</span></div>
+        </div>
+        <div class="badge">Low</div>
+        <div class="row-date">â€”<span class="dewey">658.811 / A584g</span></div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New entry</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

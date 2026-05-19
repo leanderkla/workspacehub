@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trinity Quadrangle (Dusk) â€” dark academia draft 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent:           #9a7b2e;   /* tarnished brass */
+  --accent-light:     #2a2010;
+  --accent-dark:      #c8a64d;
+  --accent-soft:      rgba(154, 123, 46, 0.10);
+  --moss:             #4b5d3a;
+  --sidebar-bg:       #131a16;
+  --sidebar-hover:    #1c2620;
+  --content-bg:       #161c18;
+  --card-bg:          #1d251f;
+  --card-bg-elev:     #243029;
+  --text-primary:     #e6e4d6;
+  --text-secondary:   #9ea399;
+  --text-muted:       #5e6760;
+  --border:           #232c25;
+  --border-strong:    #2e3830;
+  --serif:            'Source Serif Pro', Georgia, serif;
+  --sans:             'Inter', system-ui, sans-serif;
+  --mono:             'IBM Plex Mono', monospace;
+}
+html, body {
+  height: 100%;
+  background: var(--content-bg);
+  color: var(--text-primary);
+  font-family: var(--serif);
+  font-size: 14.5px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.app { display: grid; grid-template-columns: 230px 1fr; height: 100vh; position: relative; }
+
+/* Sidebar â€” colder, more architectural */
+.sidebar {
+  background: var(--sidebar-bg);
+  position: relative;
+  border-right: 1px solid var(--border-strong);
+  padding: 26px 0 0;
+}
+.sb-brand {
+  text-align: left;
+  padding: 0 24px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-name {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--accent-dark);
+  letter-spacing: 0.02em;
+}
+.sb-name::after {
+  content: '';
+  display: block;
+  width: 28px; height: 1px;
+  background: var(--accent);
+  margin-top: 4px;
+}
+.sb-tagline {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.30em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-weight: 500;
+}
+.sb-overview {
+  margin: 16px 14px 4px;
+  padding: 13px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.sb-overview-label {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 15.5px;
+  color: var(--text-primary);
+}
+.sb-overview-count {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  background: var(--accent);
+  color: var(--sidebar-bg);
+  padding: 2px 9px;
+}
+.sb-section {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 20px 24px 8px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.sb-item {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  padding: 8px 24px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+}
+.sb-item:hover { color: var(--text-primary); background: var(--sidebar-hover); }
+.sb-item.active {
+  color: var(--accent-dark);
+  background: var(--sidebar-hover);
+  font-weight: 500;
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+}
+.sb-count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(154, 123, 46, 0.14);
+  padding: 1px 8px;
+}
+
+/* Main */
+.main { display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--sidebar-bg);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-strong);
+}
+.topbar-name {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--accent-dark);
+  letter-spacing: 0.02em;
+}
+.topbar-mid {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+}
+.topbar-search {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-family: var(--serif);
+  font-size: 14px;
+  padding: 8px 14px;
+  width: 290px;
+}
+.topbar-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(154, 123, 46, 0.16);
+}
+.topbar-search::placeholder { color: var(--text-muted); font-style: italic; }
+
+.content { flex: 1; overflow: auto; padding: 36px 48px 48px; }
+
+/* View header â€” double-rule chapter break */
+.view-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 30px;
+  padding-bottom: 18px;
+  border-bottom: 3px double var(--border-strong);
+  position: relative;
+}
+.view-title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 36px;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+.view-title .latin {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.view-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  letter-spacing: 0.06em;
+  line-height: 1.7;
+}
+
+/* Stats â€” minimal, hairline-only */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 30px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stat {
+  padding: 18px 22px;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 32px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.stat-num.alert { color: var(--accent-dark); }
+.stat-label {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 9px;
+  font-weight: 600;
+}
+
+/* Chips â€” flat, sharp */
+.chip-row { display: flex; gap: 0; margin-bottom: 24px; }
+.chip {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 7px 18px;
+  border: 1px solid var(--border-strong);
+  border-right: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.chip:last-child { border-right: 1px solid var(--border-strong); }
+.chip:hover { color: var(--accent-dark); border-color: var(--accent); }
+.chip.active {
+  background: var(--accent);
+  color: var(--sidebar-bg);
+  font-weight: 700;
+}
+
+/* Search */
+.search-wrap {
+  margin-bottom: 26px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  display: flex; align-items: center;
+  padding: 0 16px;
+}
+.search-wrap input {
+  flex: 1; border: none; outline: none;
+  padding: 13px 0;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  background: transparent;
+  color: var(--text-primary);
+}
+.search-wrap input::placeholder { color: var(--text-muted); font-style: italic; }
+.search-wrap-icon { color: var(--accent); font-size: 14px; margin-right: 12px; }
+
+/* Rows â€” flat, brass tab on active */
+.row {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 16px 22px 16px 24px;
+  margin-bottom: 1px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 18px;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+.row:hover { border-color: var(--border-strong); background: var(--card-bg-elev); }
+
+.row.active {
+  background: var(--card-bg-elev);
+  border-color: var(--accent-dark);
+}
+.row.active::before {
+  /* hanging brass ribbon */
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: -6px;
+  width: 3px;
+  height: calc(100% + 12px);
+  background: linear-gradient(180deg, transparent 0%, var(--accent) 6%, var(--accent-dark) 50%, var(--accent) 94%, transparent 100%);
+  z-index: 2;
+}
+
+.row-body { min-width: 0; }
+.row-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--text-primary);
+  letter-spacing: 0.005em;
+  margin-bottom: 3px;
+}
+.row.active .row-title { color: var(--accent-dark); font-weight: 600; }
+.row-meta {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.row-meta .ident {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+/* Small-caps text chips for priority */
+.badge {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.badge.high {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+.row-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 70px;
+}
+
+/* CTA â€” gold leaf */
+.cta-row { margin-top: 28px; display: flex; gap: 12px; }
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-dark);
+  cursor: pointer;
+}
+.btn:hover { background: rgba(154, 123, 46, 0.08); }
+.btn-primary {
+  background: linear-gradient(180deg, #c8a64d 0%, var(--accent) 50%, #6a5320 100%);
+  color: var(--sidebar-bg);
+  border: 1px solid #6a5320;
+  box-shadow:
+    inset 0 1px 0 rgba(232, 198, 112, 0.4),
+    0 3px 10px rgba(0, 0, 0, 0.4);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name">Trinity</div>
+      <div class="sb-tagline">collegium Â· vesper</div>
+    </div>
+
+    <div class="sb-overview">
+      <span class="sb-overview-label">Overview</span>
+      <span class="sb-overview-count">14</span>
+    </div>
+
+    <div class="sb-section">Projects</div>
+    <div class="sb-item active"><span>My Workspace</span></div>
+    <div class="sb-item"><span>My Side Project</span></div>
+    <div class="sb-item"><span>WorkspaceHub</span></div>
+
+    <div class="sb-section">Workspace</div>
+    <div class="sb-item"><span>Dashboard</span></div>
+    <div class="sb-item"><span>Dump zone</span></div>
+    <div class="sb-item"><span>Notes</span></div>
+    <div class="sb-item"><span>Todos</span><span class="sb-count">13</span></div>
+    <div class="sb-item"><span>Reminders</span></div>
+    <div class="sb-item"><span>Spark map</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-name">My Workspace</div>
+      <div class="topbar-mid">VI Â· V Â· MMXXVI Â· 14:23</div>
+      <input class="topbar-search" placeholder="search â€¦">
+    </div>
+
+    <div class="content">
+
+      <div class="view-head">
+        <div class="view-title">
+          <span class="latin">opvs i Â· vesperÃ¦</span>
+          Pull
+        </div>
+        <div class="view-sub">
+          06 / 05 / 2026<br>
+          14:23 Â· 14 items
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-num">37</div><div class="stat-label">Open</div></div>
+        <div class="stat"><div class="stat-num alert">14</div><div class="stat-label">Overdue</div></div>
+        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Commitments</div></div>
+        <div class="stat"><div class="stat-num">25</div><div class="stat-label">Notes</div></div>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip active">All</div>
+        <div class="chip">Overdue</div>
+        <div class="chip">Today</div>
+        <div class="chip">Upcoming</div>
+        <div class="chip">Waiting</div>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-wrap-icon">âŒ•</span>
+        <input placeholder="filter rows by title, tag, or counterparty â€¦">
+      </div>
+
+      <div class="row active">
+        <div class="row-body">
+          <div class="row-title">Call Lukas re: Q4 proposal</div>
+          <div class="row-meta">due 14:00 Â· 12m remaining<span class="ident">t-26.05-3f2</span></div>
+        </div>
+        <div class="badge high">High</div>
+        <div class="row-date">06 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Send onboarding doc</div>
+          <div class="row-meta">sketch Â· last touched Monday<span class="ident">t-26.05-9b1</span></div>
+        </div>
+        <div class="badge">Med</div>
+        <div class="row-date">10 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Tariff comparison findings</div>
+          <div class="row-meta">note Â· updated yesterday Â· 8 mentions<span class="ident">n-26.05-2c4</span></div>
+        </div>
+        <div class="badge">Note</div>
+        <div class="row-date">05 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Standup with Anna</div>
+          <div class="row-meta">reminder Â· 09:30 Tuesday Â· weekly<span class="ident">r-26.05-1a7</span></div>
+        </div>
+        <div class="badge">Rem</div>
+        <div class="row-date">12 MAY</div>
+      </div>
+
+      <div class="row">
+        <div class="row-body">
+          <div class="row-title">Schick Angebot to Lukas</div>
+          <div class="row-meta">drafted yesterday Â· My Workspace<span class="ident">t-26.05-7a4</span></div>
+        </div>
+        <div class="badge">Low</div>
+        <div class="row-date">â€”</div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary">+ New entry</button>
+        <button class="btn">Capture</button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>
