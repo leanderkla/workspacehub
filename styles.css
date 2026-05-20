@@ -6923,21 +6923,188 @@ textarea.com-edit-field { min-height: 50px; resize: vertical; }
 .sp-note-expand:hover:not(.disabled) { background: var(--accent-soft); color: var(--text-primary); }
 .sp-note-expand.disabled { opacity: 0.3; cursor: default; }
 
-.sp-note-body {
-  margin-top: 8px;
+/* Compact rich-text editor used inline on expanded subproject notes and in
+   the "+ New Note" panel. Mirrors .note-rich but with tighter sizing so it
+   fits inside a card. The matching toolbar override sits flush above. */
+.sp-note-edit-block { margin-top: 8px; }
+.sp-note-rtf-toolbar {
+  padding: 3px 5px;
+  margin-bottom: -1px;
+}
+.sp-note-rtf-toolbar button {
+  min-width: 24px;
+  height: 22px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+.sp-note-rtf-toolbar .rtf-sep { height: 14px; margin: 0 3px; }
+.note-rich.sp-note-rich {
+  min-height: 60px;
+  max-height: 320px;
   padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--content-bg);
+}
+.note-rich.sp-note-rich:focus { background: var(--card-bg); }
+.sp-new-note-editor { display: flex; flex-direction: column; }
+
+/* "Local folders" section — N independently-collapsible Explorer-like
+   panels per subproject. Each panel is a card with a header (collapse
+   toggle + folder name + actions) and a body (breadcrumb + listing +
+   drop zone). The dropzone wraps both the listing and the drop hint so
+   the entire area is a valid drop target. */
+.sp-folders-list { display: flex; flex-direction: column; gap: 4px; }
+.sp-folders-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
   background: var(--content-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  word-wrap: break-word;
-  overflow-wrap: break-word;
 }
-.sp-note-body p { margin: 0 0 6px 0; }
-.sp-note-body p:last-child { margin-bottom: 0; }
-.sp-note-body ul, .sp-note-body ol { margin: 4px 0; padding-left: 20px; }
+.sp-folders-row-path {
+  flex: 1;
+  font-family: var(--font-mono, Consolas, monospace);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-folders-row-remove { opacity: 0.6; }
+.sp-folders-row-remove:hover { opacity: 1; }
+
+.sp-localfolders-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.sp-localfolder {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.sp-localfolder-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--content-bg);
+  border-bottom: 1px solid var(--border);
+}
+.sp-localfolder:has(.sp-localfolder-body[hidden]) .sp-localfolder-header { border-bottom: 0; }
+.sp-lf-collapse {
+  background: transparent;
+  border: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sp-lf-collapse:hover { background: var(--accent-soft); color: var(--text-primary); }
+.sp-lf-rootname { font-weight: 600; font-size: 13px; flex-shrink: 0; }
+.sp-lf-rootpath {
+  font-family: var(--font-mono, Consolas, monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.sp-lf-spacer { flex-shrink: 0; }
+.sp-lf-unlink { color: var(--text-muted); }
+.sp-lf-unlink:hover { color: #dc2626; }
+.sp-localfolder-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+/* The `display: flex` above wins over the UA stylesheet's `[hidden]` rule
+   at equal specificity (author beats UA), so explicitly re-hide. Without
+   this the collapse toggle silently does nothing visible. */
+.sp-localfolder-body[hidden] { display: none; }
+.sp-localfolder-path {
+  font-family: var(--font-mono, Consolas, monospace);
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  background: var(--content-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  row-gap: 2px;
+}
+.sp-lf-crumb {
+  background: transparent;
+  border: 0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.sp-lf-crumb:hover { background: var(--accent-soft); }
+.sp-lf-crumb-current { color: var(--text-primary); cursor: default; padding: 2px 6px; }
+.sp-lf-crumb-sep { color: var(--text-muted); padding: 0 1px; }
+.sp-localfolder-drop {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  padding: 6px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.sp-localfolder-drop.sp-localfolder-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.sp-localfolder-list { display: flex; flex-direction: column; gap: 2px; }
+.sp-localfolder-drop-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 6px 2px;
+  text-align: center;
+}
+.sp-localfolder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.sp-localfolder-row:hover { background: var(--accent-soft); }
+.sp-lf-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+/* OS-native icon swapped in after async fetch; sits inside .sp-lf-icon so
+   the emoji fallback gets replaced entirely (no double-render). */
+.sp-lf-icon-img { width: 16px; height: 16px; display: block; image-rendering: -webkit-optimize-contrast; }
+.sp-lf-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-lf-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.sp-lf-delete { opacity: 0; transition: opacity 120ms ease; }
+.sp-localfolder-row:hover .sp-lf-delete { opacity: 1; }
 
 .sp-spark-list { display: flex; flex-direction: column; gap: 8px; }
 

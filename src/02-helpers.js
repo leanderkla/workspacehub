@@ -192,4 +192,19 @@ function priorityBadgeEditable(todoId, p) {
   </select>`;
 }
 
+// Same compact dot picker as `priorityBadgeEditable`, but for notes.
+// Reuses the todo-priority-dot styling so the visual language stays
+// consistent across views; a distinct class on the <select> lets us
+// wire the change handler to setNotePriority instead.
+function notePriorityBadgeEditable(noteId, p) {
+  const cur = ['high','medium','low'].includes(p) ? p : 'low';
+  const cls = { high:'badge-high', medium:'badge-medium', low:'badge-low' }[cur];
+  const lbl = { high: 'High', medium: 'Medium', low: 'Low' }[cur];
+  return `<select class="todo-priority-dot ${cls} note-priority-select" data-id="${noteId}" title="Priority: ${lbl} — click to change" aria-label="Priority: ${lbl}">
+    <option value="high" ${cur==='high'?'selected':''}>🔴 High</option>
+    <option value="medium" ${cur==='medium'?'selected':''}>🟡 Medium</option>
+    <option value="low" ${cur==='low'?'selected':''}>🟢 Low</option>
+  </select>`;
+}
+
 function getProject() { return state.data.projects[state.project]; }

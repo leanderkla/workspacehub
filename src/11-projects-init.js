@@ -12,11 +12,10 @@
 // highest-risk single piece of the modularization (per master plan risk
 // register), so we leave it untouched.
 //
-// var conversion (5 top-level declarations):
-// - BACKUP_PROMPT_INTERVAL_MS, BACKUP_PROMPT_MIN_GAP_MS — interval/floor
-//   constants for the backup-prompt timer
-// - backupPromptTimerHandle, lastBackupPromptShownAt — let → var,
-//   cross-call timer state
+// var conversion (4 top-level declarations):
+// - BACKUP_PROMPT_INTERVAL_MS, BACKUP_PROMPT_POLL_MS — interval + poll
+//   cadence for the backup-prompt timer
+// - backupPromptTimerHandle — let → var, cross-call timer handle
 // - SIDEBAR_COMPACT_THRESHOLD — width threshold for sidebar compact mode
 //
 // Cross-module call sites (verified):
@@ -30,9 +29,11 @@
 //   stay global; the calls work either direction.
 // ===== DEVELOPER / BACKUP PROMPT =====
 var BACKUP_PROMPT_INTERVAL_MS = 15 * 60 * 1000;
-var BACKUP_PROMPT_MIN_GAP_MS = 14 * 60 * 1000; // hard floor under the interval
+// Poll the gate every 2 minutes. The actual prompt is gated on the newest
+// backup zip's disk mtime + a persisted snooze key, so this just controls
+// how quickly we *notice* that 15 min has elapsed.
+var BACKUP_PROMPT_POLL_MS = 2 * 60 * 1000;
 var backupPromptTimerHandle = null;
-var lastBackupPromptShownAt = 0;
 
 function isDeveloperMode() { return localStorage.getItem('developerMode') === 'true'; }
 function isAskForBackups() { return localStorage.getItem('askForBackups') === 'true'; }
@@ -317,10 +318,7 @@ function setAskForBackups(on) {
 
 function startBackupPromptTimer() {
   stopBackupPromptTimer();
-  // Reset the gap window so the *first* prompt after enabling is allowed
-  // exactly one full interval from now, not blocked by a stale timestamp.
-  lastBackupPromptShownAt = Date.now();
-  backupPromptTimerHandle = setInterval(showBackupPrompt, BACKUP_PROMPT_INTERVAL_MS);
+  backupPromptTimerHandle = setInterval(maybeShowBackupPrompt, BACKUP_PROMPT_POLL_MS);
 }
 
 function stopBackupPromptTimer() {
@@ -330,21 +328,32 @@ function stopBackupPromptTimer() {
   }
 }
 
-function showBackupPrompt() {
-  // Hard floor: never show two prompts within the minimum gap, regardless of
-  // how many timers/retries somehow ended up scheduled.
+async function maybeShowBackupPrompt() {
   const now = Date.now();
-  if (now - lastBackupPromptShownAt < BACKUP_PROMPT_MIN_GAP_MS) return;
+
+  // Gate 1: persisted snooze (survives app restarts). Skip button writes
+  // this so a "no thanks" sticks for one full interval even if the user
+  // restarts the app five minutes later.
+  const snoozeUntil = parseInt(localStorage.getItem('backupPromptSnoozedUntil') || '0', 10);
+  if (Number.isFinite(snoozeUntil) && now < snoozeUntil) return;
+
+  // Gate 2: actual disk mtime of the newest backup zip. This is the source
+  // of truth — if a backup was made <15 min ago (in this session or any
+  // previous one), there's nothing to prompt about.
+  try {
+    const r = window.api && typeof window.api.getLastBackupMtime === 'function'
+      ? await window.api.getLastBackupMtime()
+      : null;
+    if (r && r.ok && r.mtime && (now - r.mtime) < BACKUP_PROMPT_INTERVAL_MS) return;
+  } catch {}
 
   const overlay = document.getElementById('modal-overlay');
   if (!overlay) return;
   // If another modal is already open, skip this firing entirely. The next
-  // setInterval tick (15 min later) will try again. No chained setTimeout.
+  // poll tick will try again.
   if (!overlay.classList.contains('hidden') && overlay.innerHTML.trim().length > 0) {
     return;
   }
-
-  lastBackupPromptShownAt = now;
   overlay.innerHTML = `
     <div class="modal backup-prompt-modal">
       <h3>💾 Create a backup?</h3>
@@ -367,13 +376,19 @@ function showBackupPrompt() {
     overlay.innerHTML = '';
     overlay.onclick = null;
   };
+  const snooze = () => {
+    // Persist so Skip survives app restarts and we don't re-prompt for a
+    // full interval. The disk-mtime gate handles the "user actually took a
+    // backup" case separately.
+    localStorage.setItem('backupPromptSnoozedUntil', String(Date.now() + BACKUP_PROMPT_INTERVAL_MS));
+  };
 
-  document.getElementById('backup-prompt-skip').onclick = close;
+  document.getElementById('backup-prompt-skip').onclick = () => { snooze(); close(); };
   document.getElementById('backup-prompt-go').onclick = async () => {
     close();
     await runBackupNow();
   };
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  overlay.onclick = (e) => { if (e.target === overlay) { snooze(); close(); } };
 }
 
 async function runBackupNow() {

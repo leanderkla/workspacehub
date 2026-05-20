@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'data') | Out-Null
 
 # Copy source (exclude node_modules and the tmp/backups themselves)
 Get-ChildItem -Path $srcRoot -Force | Where-Object {
-    $_.Name -notin @('node_modules')
+    $_.Name -notin @('node_modules', 'dist')
 } | ForEach-Object {
     Copy-Item -Path $_.FullName -Destination (Join-Path $stage 'source') -Recurse -Force
 }

@@ -23,5 +23,15 @@ contextBridge.exposeInMainWorld('api', {
   deleteAttachment: (relPath) => ipcRenderer.invoke('attachment-delete', relPath),
   openProjectFolder: (projectKey) => ipcRenderer.invoke('attachment-open-folder', projectKey),
   readAttachmentDataUrl: (relPath) => ipcRenderer.invoke('attachment-read-datauri', relPath),
-  createBackup: () => ipcRenderer.invoke('create-backup')
+  // Subproject "local folder" — embedded Explorer view, files live only on
+  // disk (no in-app duplication). See main.js helpers.
+  pickLocalFolder: () => ipcRenderer.invoke('localfolder-pick'),
+  listLocalFolder: (dir) => ipcRenderer.invoke('localfolder-list', dir),
+  openLocalPath: (target) => ipcRenderer.invoke('localfolder-open', target),
+  showLocalEntryInFolder: (target) => ipcRenderer.invoke('localfolder-show', target),
+  writeBytesToLocalFolder: (dir, name, base64) => ipcRenderer.invoke('localfolder-write-bytes', { dir, name, base64 }),
+  deleteLocalEntry: (dir, name) => ipcRenderer.invoke('localfolder-delete-entry', { dir, name }),
+  getLocalFileIcon: (absPath) => ipcRenderer.invoke('localfolder-icon', absPath),
+  createBackup: () => ipcRenderer.invoke('create-backup'),
+  getLastBackupMtime: () => ipcRenderer.invoke('get-last-backup-mtime')
 });

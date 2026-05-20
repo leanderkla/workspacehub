@@ -725,7 +725,10 @@ function setupGlobalDropGuard() {
   // Prevent the browser from navigating away when files are dropped outside a drop zone.
   window.addEventListener('dragover', (e) => { e.preventDefault(); }, false);
   window.addEventListener('drop', (e) => {
-    if (!e.target.closest?.('.att-dropzone')) e.preventDefault();
+    // Allow drops on every in-app drop zone — currently the attachment panel
+    // and the subproject "Local folder" Explorer view. Anything else falls
+    // through to preventDefault so Chromium doesn't navigate to the file.
+    if (!e.target.closest?.('.att-dropzone, .sp-localfolder-drop')) e.preventDefault();
   }, false);
 }
 

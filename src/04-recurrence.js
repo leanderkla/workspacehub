@@ -638,6 +638,16 @@ function setTodoPriority(id, priority) {
   return true;
 }
 
+function setNotePriority(id, priority) {
+  if (!['high','medium','low'].includes(priority)) return false;
+  const n = getProject().notes.find(x => x.id === id);
+  if (!n || n.priority === priority) return false;
+  n.priority = priority;
+  n.updated = new Date().toISOString();
+  saveData();
+  return true;
+}
+
 function updateTodoTitle(id, newTitle) {
   const t = getProject().todos.find(x => x.id === id);
   if (!t) return false;

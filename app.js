@@ -5072,6 +5072,7 @@ const _mentionTargetSelectors = [
   '.dump-text-edit',                                       // dump card inline editor (contenteditable)
   '.flow-node-text',                                       // flow node text (contenteditable)
   '#todo-input',                                           // todo add form input
+  '#sp-todo-input',                                        // subproject view todo add form input
   '#rem-title', '#rem-note',                               // reminder add form
   '#com-counterparty', '#com-description', '#com-notes',   // commitment add form
   '.com-edit-field[data-com-field="counterparty"]',        // commitment expanded
@@ -5081,7 +5082,9 @@ const _mentionTargetSelectors = [
   '.del-edit-task',                                        // delegation expanded
   '.del-edit-field[data-del-field="task"]',
   '.del-edit-field[data-del-field="delegated_to"]',
-  '.del-edit-field[data-del-field="notes"]'
+  '.del-edit-field[data-del-field="notes"]',
+  '.sp-note-rich',                                         // subproject note inline rich editor
+  '#sp-new-note-content-rich'                              // subproject "+ New Note" rich editor
 ].join(', ');
 
 if (typeof document !== 'undefined') {
@@ -6270,6 +6273,16 @@ function subprojectFormHTML() {
         </div>`;
       })()}
     </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Linked local folders (optional)</label>
+      <div id="sp-folders-list" class="sp-folders-list">
+        ${(sp?.localFolders || []).map(p => spFolderEditRowHTML(p)).join('')}
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-sp-folder-add-link" style="margin-top:6px">+ Browse and add…</button>
+      <div class="form-hint" style="font-size:11px;color:var(--text-muted);margin-top:4px">
+        Each linked folder gets its own panel in the subproject detail view. Files dropped into a panel land directly on disk — the app never duplicates them.
+      </div>
+    </div>
     <div class="form-group" style="margin-bottom:24px">
       <label class="form-label">Color</label>
       <div class="sp-color-swatches">
@@ -6288,20 +6301,493 @@ function subprojectFormHTML() {
   </div>`;
 }
 
+// One editable row in the subproject form's "Linked local folders" list.
+// The path is stored on a `data-path` attribute (not in a form value) so
+// the save handler can collect them in DOM order via querySelectorAll.
+function spFolderEditRowHTML(absPath) {
+  return `<div class="sp-folders-row" data-path="${escapeHTML(absPath)}">
+    <span class="sp-folders-row-path" title="${escapeHTML(absPath)}">${escapeHTML(absPath)}</span>
+    <button type="button" class="btn btn-ghost btn-icon sp-folders-row-remove" title="Remove">✕</button>
+  </div>`;
+}
+
+// ===== Subproject "Local folders" — async listing + row events =====
+// A subproject can link N folders; each renders as its own panel, scoped by
+// data-sp-root. Users drill into subfolders inside a panel via plain clicks;
+// right-click reveals "Open in Windows Explorer". Current visited path per
+// linked root is held in state.spLocalFolderPaths[rootPath] (and collapse
+// state in state.spLocalFolderCollapsed[rootPath]) so navigation and
+// collapsed sections survive re-renders.
+
+// Returns the absolute path currently being displayed inside the panel for
+// `rootPath`. Defaults to the root and silently resets if the persisted
+// value points outside it (folder moved/deleted in Explorer while we were
+// drilled in).
+function spCurrentFolderPath(rootPath) {
+  if (!rootPath) return null;
+  const saved = state.spLocalFolderPaths?.[rootPath];
+  if (!saved || saved === rootPath) return rootPath;
+  // Cheap prefix check — both values come from path resolutions on the same
+  // OS, so case-insensitive Windows quirks don't matter here.
+  if (saved.startsWith(rootPath + '\\') || saved.startsWith(rootPath + '/')) return saved;
+  if (state.spLocalFolderPaths) delete state.spLocalFolderPaths[rootPath];
+  return rootPath;
+}
+
+function spSetCurrentFolderPath(rootPath, absPath) {
+  if (!rootPath) return;
+  if (!state.spLocalFolderPaths) state.spLocalFolderPaths = {};
+  if (!absPath || absPath === rootPath) {
+    delete state.spLocalFolderPaths[rootPath];
+  } else {
+    state.spLocalFolderPaths[rootPath] = absPath;
+  }
+}
+
+// Builds breadcrumb segments from the linked root down to the current path.
+// Each segment is rendered as a button so the user can jump back to any
+// ancestor without using ".." or the OS file dialog.
+function spLocalFolderBreadcrumbHTML(root, current) {
+  const rootName = root.split(/[\\/]/).filter(Boolean).pop() || root;
+  if (current === root) {
+    return `<span class="sp-lf-crumb sp-lf-crumb-current" title="${escapeHTML(root)}">${escapeHTML(rootName)}</span>`;
+  }
+  const sepCharRoot = root.includes('\\') ? '\\' : '/';
+  // The path under the root, e.g. "sub1\\sub2"
+  let rel = current.slice(root.length);
+  if (rel.startsWith('\\') || rel.startsWith('/')) rel = rel.slice(1);
+  const segments = rel.split(/[\\/]/).filter(Boolean);
+  let cum = root;
+  const crumbs = [`<button type="button" class="sp-lf-crumb" data-sp-lf-nav="${escapeHTML(root)}" title="${escapeHTML(root)}">${escapeHTML(rootName)}</button>`];
+  for (let i = 0; i < segments.length; i++) {
+    cum = cum + sepCharRoot + segments[i];
+    const isLast = i === segments.length - 1;
+    if (isLast) {
+      crumbs.push(`<span class="sp-lf-crumb sp-lf-crumb-current" title="${escapeHTML(cum)}">${escapeHTML(segments[i])}</span>`);
+    } else {
+      crumbs.push(`<button type="button" class="sp-lf-crumb" data-sp-lf-nav="${escapeHTML(cum)}" title="${escapeHTML(cum)}">${escapeHTML(segments[i])}</button>`);
+    }
+  }
+  return crumbs.join('<span class="sp-lf-crumb-sep">/</span>');
+}
+
+// Called after each panel renders (and from Refresh / after drop / after
+// delete / after navigation). Refreshes the breadcrumb + listing for one
+// panel, identified by its root path. Re-binds per-row handlers each call
+// since the row HTML is wiped.
+async function loadSpLocalFolderListing(rootPath) {
+  if (!rootPath) {
+    // Convenience: refresh every visible panel.
+    document.querySelectorAll('.sp-localfolder[data-sp-root]').forEach(p =>
+      loadSpLocalFolderListing(p.dataset.spRoot));
+    return;
+  }
+  const panel = document.querySelector(`.sp-localfolder[data-sp-root="${cssEscapeAttr(rootPath)}"]`);
+  if (!panel) return;
+  const listEl = panel.querySelector('.sp-localfolder-list');
+  const dropEl = panel.querySelector('.sp-localfolder-drop');
+  const pathEl = panel.querySelector('.sp-localfolder-path');
+  if (!listEl || !dropEl) return;
+  const current = spCurrentFolderPath(rootPath);
+  dropEl.dataset.spFolder = current;
+  if (pathEl) {
+    pathEl.innerHTML = spLocalFolderBreadcrumbHTML(rootPath, current);
+    pathEl.querySelectorAll('[data-sp-lf-nav]').forEach(b =>
+      b.addEventListener('click', () => {
+        spSetCurrentFolderPath(rootPath, b.dataset.spLfNav);
+        loadSpLocalFolderListing(rootPath);
+      }));
+  }
+  if (!window.api?.listLocalFolder) {
+    listEl.innerHTML = '<div class="empty-state" style="padding:14px">Folder API not available.</div>';
+    return;
+  }
+  let res;
+  try { res = await window.api.listLocalFolder(current); }
+  catch (e) {
+    listEl.innerHTML = `<div class="empty-state" style="padding:14px">Could not read folder: ${escapeHTML(e.message || String(e))}</div>`;
+    return;
+  }
+  if (!res?.ok) {
+    // If the current subfolder vanished, step back to root and reload before
+    // giving up.
+    if (current !== rootPath) {
+      spSetCurrentFolderPath(rootPath, rootPath);
+      loadSpLocalFolderListing(rootPath);
+      return;
+    }
+    listEl.innerHTML = `<div class="empty-state" style="padding:14px">Could not read folder: ${escapeHTML(res?.error || 'unknown error')}</div>`;
+    return;
+  }
+  const entries = res.entries || [];
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="empty-state" style="padding:14px">Empty folder. Drop files here or use "+ Add".</div>';
+    return;
+  }
+  listEl.innerHTML = entries.map(e => {
+    const icon = e.isDirectory ? '📁' : iconForLocalFile(e.name);
+    const sizeLabel = e.isFile ? formatBytes(e.size) : '';
+    const dateLabel = formatLocalFolderDate(e.mtime);
+    return `<div class="sp-localfolder-row" data-name="${escapeHTML(e.name)}" data-full="${escapeHTML(e.fullPath)}" data-is-dir="${e.isDirectory ? '1' : '0'}" title="${escapeHTML(e.fullPath)}${e.isDirectory ? ' — click to open · right-click for more' : ' — click to open with default app · right-click for more'}">
+      <span class="sp-lf-icon" data-icon-path="${escapeHTML(e.fullPath)}" data-icon-dir="${e.isDirectory ? '1' : '0'}">${icon}</span>
+      <span class="sp-lf-name">${escapeHTML(e.name)}</span>
+      <span class="sp-lf-meta">${sizeLabel}${sizeLabel && dateLabel ? ' · ' : ''}${dateLabel}</span>
+      ${e.isDirectory ? '' : `<button class="btn btn-ghost btn-icon sp-lf-delete" title="Delete from disk">✕</button>`}
+    </div>`;
+  }).join('');
+  bindSpLocalFolderRowEvents(panel, rootPath);
+  decorateSpLocalFolderIcons();
+}
+
+function bindSpLocalFolderRowEvents(panel, rootPath) {
+  const dropEl = panel.querySelector('.sp-localfolder-drop');
+  const current = dropEl?.dataset.spFolder;
+  if (!current) return;
+  panel.querySelectorAll('.sp-localfolder-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.sp-lf-delete')) return;
+      const full = row.dataset.full;
+      const isDir = row.dataset.isDir === '1';
+      if (!full) return;
+      if (isDir) {
+        spSetCurrentFolderPath(rootPath, full);
+        loadSpLocalFolderListing(rootPath);
+      } else if (window.api?.openLocalPath) {
+        window.api.openLocalPath(full);
+      }
+    });
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showSpLocalFolderContextMenu(e.clientX, e.clientY, row, rootPath);
+    });
+  });
+  panel.querySelectorAll('.sp-lf-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = btn.closest('.sp-localfolder-row');
+      const name = row?.dataset.name;
+      if (!name) return;
+      showConfirmModal({
+        title: `Delete "${name}" from disk?`,
+        body: 'This removes the file from the linked folder. The file goes to the recycle bin only if your OS does that by default — otherwise it is gone.',
+        confirmLabel: 'Delete',
+        danger: true,
+        onConfirm: async () => {
+          const res = await window.api.deleteLocalEntry(current, name);
+          if (!res?.ok) { showToast(`Delete failed: ${res?.error || 'unknown'}`, 'error'); return; }
+          showToast(`Deleted ${name}`, 'success');
+          loadSpLocalFolderListing(rootPath);
+        }
+      });
+    });
+  });
+}
+
+// CSS.escape isn't available in the older Electron 28 renderer in all
+// build configs and we only need attribute-selector escaping. Backslashes
+// and quotes are the only sins that matter for `[data-x="..."]`.
+function cssEscapeAttr(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// Right-click context menu for a local-folder row. Reuses the `.bm-context-menu`
+// styling already on the glass-theme allowlist, and the same outside-click /
+// blur dismissal pattern as the dump selection menu. `rootPath` scopes any
+// delete-triggered refresh to the right panel.
+function showSpLocalFolderContextMenu(clientX, clientY, row, rootPath) {
+  hideSpLocalFolderContextMenu();
+  const full = row.dataset.full;
+  const isDir = row.dataset.isDir === '1';
+  const name = row.dataset.name;
+  const menu = document.createElement('div');
+  menu.id = 'sp-localfolder-context-menu';
+  menu.className = 'bm-context-menu';
+  menu.innerHTML = `
+    ${isDir ? `<button class="bm-ctx-item" data-action="open-in-explorer"><span class="bm-ctx-icon">📂</span><span>Open in Windows Explorer</span></button>` : ''}
+    ${!isDir ? `<button class="bm-ctx-item" data-action="open-file"><span class="bm-ctx-icon">↗</span><span>Open with default app</span></button>` : ''}
+    <button class="bm-ctx-item" data-action="reveal"><span class="bm-ctx-icon">⤴</span><span>Show in Windows Explorer</span></button>
+    <button class="bm-ctx-item" data-action="copy-path"><span class="bm-ctx-icon">📋</span><span>Copy full path</span></button>
+    ${!isDir ? `<button class="bm-ctx-item bm-ctx-danger" data-action="delete"><span class="bm-ctx-icon">✕</span><span>Delete from disk…</span></button>` : ''}`;
+  document.body.appendChild(menu);
+  const rect = menu.getBoundingClientRect();
+  const x = Math.min(clientX, window.innerWidth - rect.width - 8);
+  const y = Math.min(clientY, window.innerHeight - rect.height - 8);
+  menu.style.left = `${Math.max(4, x)}px`;
+  menu.style.top  = `${Math.max(4, y)}px`;
+
+  menu.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.bm-ctx-item');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    hideSpLocalFolderContextMenu();
+    if (action === 'open-in-explorer' || action === 'open-file') {
+      if (full && window.api?.openLocalPath) window.api.openLocalPath(full);
+    } else if (action === 'reveal') {
+      if (full && window.api?.showLocalEntryInFolder) window.api.showLocalEntryInFolder(full);
+    } else if (action === 'copy-path') {
+      try { await navigator.clipboard.writeText(full); showToast('Path copied.', 'success'); }
+      catch { showToast('Could not copy path.', 'error'); }
+    } else if (action === 'delete') {
+      const panel = document.querySelector(`.sp-localfolder[data-sp-root="${cssEscapeAttr(rootPath)}"]`);
+      const current = panel?.querySelector('.sp-localfolder-drop')?.dataset.spFolder;
+      if (!current) return;
+      showConfirmModal({
+        title: `Delete "${name}" from disk?`,
+        body: 'This removes the file from the linked folder. The file goes to the recycle bin only if your OS does that by default — otherwise it is gone.',
+        confirmLabel: 'Delete',
+        danger: true,
+        onConfirm: async () => {
+          const res = await window.api.deleteLocalEntry(current, name);
+          if (!res?.ok) { showToast(`Delete failed: ${res?.error || 'unknown'}`, 'error'); return; }
+          showToast(`Deleted ${name}`, 'success');
+          loadSpLocalFolderListing(rootPath);
+        }
+      });
+    }
+  });
+
+  setTimeout(() => {
+    document.addEventListener('mousedown', spLocalFolderCtxOutsideHandler, true);
+    document.addEventListener('keydown',   spLocalFolderCtxKeyHandler,     true);
+    window.addEventListener('blur',        hideSpLocalFolderContextMenu);
+  }, 0);
+}
+function hideSpLocalFolderContextMenu() {
+  const menu = document.getElementById('sp-localfolder-context-menu');
+  if (menu) menu.remove();
+  document.removeEventListener('mousedown', spLocalFolderCtxOutsideHandler, true);
+  document.removeEventListener('keydown',   spLocalFolderCtxKeyHandler,     true);
+  window.removeEventListener('blur',        hideSpLocalFolderContextMenu);
+}
+function spLocalFolderCtxOutsideHandler(e) {
+  const menu = document.getElementById('sp-localfolder-context-menu');
+  if (menu && !menu.contains(e.target)) hideSpLocalFolderContextMenu();
+}
+function spLocalFolderCtxKeyHandler(e) {
+  if (e.key === 'Escape') hideSpLocalFolderContextMenu();
+}
+
+// "+ Link a folder…" header button: opens the OS directory picker and
+// appends the chosen folder to this subproject's `localFolders` array.
+// Duplicates are silently ignored so the user can't end up with two
+// identical panels via repeated clicks.
+async function spFolderAddLink() {
+  if (!window.api?.pickLocalFolder) return;
+  const res = await window.api.pickLocalFolder();
+  if (!res?.ok || !res.path) return;
+  const sp = (getProject().subprojects || []).find(s => s.id === state.activeSubproject);
+  if (!sp) return;
+  if (!Array.isArray(sp.localFolders)) sp.localFolders = [];
+  if (sp.localFolders.includes(res.path)) { showToast('That folder is already linked.', 'info'); return; }
+  sp.localFolders.push(res.path);
+  saveData();
+  renderSubprojects();
+}
+
+function iconForLocalFile(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['png','jpg','jpeg','gif','webp','bmp','svg','ico'].includes(ext)) return '🖼';
+  if (['mp3','wav','ogg','m4a','webm','flac'].includes(ext)) return '🎵';
+  if (['mp4','mov','mkv','avi','webm'].includes(ext)) return '🎬';
+  if (['pdf'].includes(ext)) return '📕';
+  if (['doc','docx','odt','rtf'].includes(ext)) return '📄';
+  if (['xls','xlsx','csv','ods'].includes(ext)) return '📊';
+  if (['ppt','pptx','odp'].includes(ext)) return '📈';
+  if (['zip','rar','7z','tar','gz'].includes(ext)) return '🗜';
+  if (['js','ts','py','rb','go','rs','c','cpp','cs','java','html','css','json','md','txt','log','xml','yml','yaml'].includes(ext)) return '📝';
+  return '📄';
+}
+
+// Cache for OS-native file icons. Most files share an icon per extension, so
+// the extension is the key. Executables and shortcuts get a per-path entry
+// since their icons are typically embedded and unique (.exe → app icon,
+// .lnk → target's icon). `null` means "tried and failed" so we don't keep
+// asking; "__pending__" suppresses duplicate concurrent requests for the
+// same key while the first IPC roundtrip is in flight.
+const __spLocalIconCache = new Map();
+const __spLocalIconPending = new Map();  // key → Promise<dataUrl|null>
+
+function _spLocalIconCacheKey(fullPath, isDirectory) {
+  if (isDirectory) return '__folder__';
+  const name = fullPath.split(/[\\/]/).pop() || '';
+  const dot = name.lastIndexOf('.');
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+  // Per-path for icon-embedding formats; per-extension for everything else.
+  if (['exe', 'lnk', 'ico', 'dll', 'msi'].includes(ext)) return `path::${fullPath}`;
+  return ext ? `ext::${ext}` : `path::${fullPath}`;
+}
+
+// Lazily fetches the OS-native icon for each visible row and swaps it into
+// place. Emoji rendered server-side stays as the fallback if the API isn't
+// available, the call fails, or the file disappeared. Concurrency is
+// limited implicitly by the cache (one in-flight request per key).
+async function decorateSpLocalFolderIcons() {
+  if (!window.api?.getLocalFileIcon) return;
+  const spans = document.querySelectorAll('.sp-lf-icon[data-icon-path]');
+  for (const span of spans) {
+    const fullPath = span.dataset.iconPath;
+    const isDir = span.dataset.iconDir === '1';
+    // Electron's app.getFileIcon doesn't actually return the Windows folder
+    // icon for directories — it falls back to the generic "unknown file"
+    // glyph, which looks worse than our 📁 emoji. Keep the emoji for folders.
+    if (isDir) continue;
+    const key = _spLocalIconCacheKey(fullPath, isDir);
+    const cached = __spLocalIconCache.get(key);
+    if (cached === null) continue;                  // previously failed
+    if (typeof cached === 'string') {
+      _applySpLocalIcon(span, cached);
+      continue;
+    }
+    let promise = __spLocalIconPending.get(key);
+    if (!promise) {
+      promise = window.api.getLocalFileIcon(fullPath)
+        .then(res => {
+          const url = res?.dataUrl || null;
+          __spLocalIconCache.set(key, url);
+          return url;
+        })
+        .catch(() => { __spLocalIconCache.set(key, null); return null; })
+        .finally(() => __spLocalIconPending.delete(key));
+      __spLocalIconPending.set(key, promise);
+    }
+    promise.then(url => {
+      if (!url) return;
+      // The DOM may have re-rendered while we awaited — only swap if the
+      // span is still in the document.
+      if (span.isConnected) _applySpLocalIcon(span, url);
+    });
+  }
+}
+
+function _applySpLocalIcon(span, dataUrl) {
+  span.innerHTML = `<img src="${dataUrl}" class="sp-lf-icon-img" alt="">`;
+}
+
+function formatLocalFolderDate(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString();
+}
+
+function formatBytes(n) {
+  if (!n && n !== 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+// Reads an array of File objects, base64-encodes each, and writes them
+// into the linked folder via the localfolder-write-bytes IPC. Used by
+// both the drop handler and the picker-based "+ Add files" path.
+async function spLocalFolderAddFiles(folder, files) {
+  if (!folder || !files || !files.length || !window.api?.writeBytesToLocalFolder) return 0;
+  let added = 0;
+  let failed = 0;
+  for (const file of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const base64 = arrayBufferToBase64(buf);
+      const res = await window.api.writeBytesToLocalFolder(folder, file.name, base64);
+      if (res?.ok) added++; else failed++;
+    } catch (e) {
+      console.error('spLocalFolderAddFiles:', e);
+      failed++;
+    }
+  }
+  if (added) showToast(`Added ${added} file${added === 1 ? '' : 's'} to ${folder}`, 'success');
+  if (failed) showToast(`${failed} file${failed === 1 ? '' : 's'} failed`, 'error');
+  return added;
+}
+
+// Buttons reused by every subproject-scoped rich editor (inline note body +
+// "+ New Note" panel). Keeps the surface identical to the main note editor.
+function spRichToolbarButtonsHTML() {
+  return `
+    <button type="button" data-rtf="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button type="button" data-rtf="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button type="button" data-rtf="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button type="button" data-rtf="strikeThrough" title="Strikethrough"><s>S</s></button>
+    <span class="rtf-sep"></span>
+    <button type="button" data-rtf="formatBlock-h2" title="Heading">H</button>
+    <button type="button" data-rtf="insertUnorderedList" title="Bulleted list">•</button>
+    <button type="button" data-rtf="insertOrderedList" title="Numbered list">1.</button>
+    <span class="rtf-sep"></span>
+    <button type="button" data-rtf="removeFormat" title="Clear formatting">⌫</button>`;
+}
+
+// Markup for an inline rich editor on an existing subproject note. The wrap
+// element doubles as the toggle target so the expand/collapse code can find
+// and remove it without touching the surrounding card chrome.
+function spNoteEditorBlockHTML(noteId, contentHTML) {
+  return `<div class="sp-note-edit-block" data-sp-note-edit-block="${noteId}">
+    <div class="note-rtf-toolbar sp-note-rtf-toolbar">${spRichToolbarButtonsHTML()}</div>
+    <div class="note-rich sp-note-rich" contenteditable="true"
+         data-sp-note-edit="${noteId}" data-placeholder="Add notes…">${contentHTML}</div>
+  </div>`;
+}
+
+// Wires the toolbar buttons, paste sanitiser, autosave-on-input, and mention
+// decoration for a single subproject note editor block. Safe to call once per
+// block — the paste hook self-guards against double-binding.
+function wireSpNoteEditor(wrap) {
+  if (!wrap) return;
+  const editor = wrap.querySelector('[data-sp-note-edit]');
+  if (!editor) return;
+  const noteId = editor.getAttribute('data-sp-note-edit');
+  wrap.querySelectorAll('.sp-note-rtf-toolbar [data-rtf]').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      editor.focus();
+      const cmd = btn.dataset.rtf;
+      try {
+        if (cmd === 'formatBlock-h2') document.execCommand('formatBlock', false, 'h2');
+        else document.execCommand(cmd, false, null);
+      } catch {}
+    });
+  });
+  installRichEditorPaste(editor);
+  editor.addEventListener('input', () =>
+    updateSubprojectNoteContent(noteId, editor.innerHTML || ''));
+  // Swallow Ctrl+Enter so it doesn't reach unrelated global submit handlers.
+  editor.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') e.stopPropagation();
+  });
+  decorateMentions(editor);
+}
+
+function updateSubprojectNoteContent(noteId, html) {
+  const proj = getProject();
+  const note = (proj.notes || []).find(n => n.id === noteId);
+  if (!note) return;
+  const next = (html || '').trim();
+  if (note.content === next) return;
+  note.content = next;
+  note.updated = new Date().toISOString();
+  saveData();
+}
+
 function subprojectDetailHTML(spId) {
   const proj = getProject();
   const sp = (proj.subprojects||[]).find(s => s.id === spId);
   if (!sp) return `<div class="editor-empty-state"><div class="editor-empty-text">Subproject not found.</div></div>`;
 
-  const spTodos = sortTodosByStatus(getSubprojectTodos(spId));
+  const spTodos = sortTodosByStatus(getSubprojectTodos(spId), { sortBy: 'due' });
   const spNotes = getSubprojectNotes(spId).sort((a,b) => new Date(b.updated) - new Date(a.updated));
   const spSparkNodes = getSubprojectSparkNodes(spId);
   const spDumps = getSubprojectDumps(spId).sort((a,b) => new Date(b.created) - new Date(a.created));
   const spDumpsPending = spDumps.filter(d => !d.processed);
   const spDumpsProcessed = spDumps.filter(d => d.processed).sort((a,b) => new Date(b.processedAt || 0) - new Date(a.processedAt || 0));
   const openCount = spTodos.filter(t=>!t.done).length;
+  const doneCount = spTodos.length - openCount;
+  const todoFilter = ['all', 'active', 'done'].includes(state.subprojectTodoFilter) ? state.subprojectTodoFilter : 'all';
+  const visibleSpTodos = todoFilter === 'active' ? spTodos.filter(t => !t.done)
+                      : todoFilter === 'done'   ? spTodos.filter(t =>  t.done)
+                      : spTodos;
 
-  return `<div class="sp-detail">
+  return `<div class="sp-detail" data-scroll-root>
     <div class="sp-detail-header">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="sp-color-circle" style="background:${sp.color};width:16px;height:16px;border-radius:50%;display:inline-block;flex-shrink:0"></span>
@@ -6326,8 +6812,16 @@ function subprojectDetailHTML(spId) {
       Todos
       <span style="font-weight:400;color:var(--text-muted)">${openCount} open / ${spTodos.length} total</span>
     </div>
+    <div class="todo-filters sp-todo-filters" style="margin-bottom:10px">
+      <button class="filter-btn ${todoFilter==='all'?'active':''}"    data-sp-todo-filter="all">All<span style="opacity:0.7;margin-left:4px">${spTodos.length}</span></button>
+      <button class="filter-btn ${todoFilter==='active'?'active':''}" data-sp-todo-filter="active">Active<span style="opacity:0.7;margin-left:4px">${openCount}</span></button>
+      <button class="filter-btn ${todoFilter==='done'?'active':''}"   data-sp-todo-filter="done">Done<span style="opacity:0.7;margin-left:4px">${doneCount}</span></button>
+    </div>
     <div class="sp-todo-add-row" style="margin-bottom:10px">
-      <input type="text" class="form-input" id="sp-todo-input" placeholder="Add a todo…" style="flex:1;min-width:120px">
+      <div class="todo-input-wrap" style="flex:1;min-width:120px">
+        <div class="todo-input-ghost" id="sp-todo-input-ghost" aria-hidden="true"></div>
+        <input type="text" class="form-input todo-input" id="sp-todo-input" placeholder="Add a todo… try /tomorrow /high" autocomplete="off" spellcheck="false">
+      </div>
       <select class="form-select" id="sp-todo-priority">
         <option value="high">🔴 High</option>
         <option value="medium" selected>🟡 Medium</option>
@@ -6340,10 +6834,13 @@ function subprojectDetailHTML(spId) {
       </button>
       <button class="btn btn-primary btn-sm" id="btn-sp-add-todo">Add</button>
     </div>
+    <div class="todo-slash-chips" id="sp-todo-slash-chips" hidden style="margin-bottom:10px"></div>
     <div class="todo-list sp-todo-list" id="sp-todo-list" style="margin-bottom:20px">
-      ${spTodos.length
-        ? spTodos.map(t => todoItemHTML(t)).join('')
-        : `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">No todos yet — add one above.</div>`}
+      ${visibleSpTodos.length
+        ? visibleSpTodos.map(t => todoItemHTML(t)).join('')
+        : (spTodos.length
+            ? `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">No ${todoFilter === 'done' ? 'done' : 'active'} todos.</div>`
+            : `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">No todos yet — add one above.</div>`)}
     </div>
 
     <div class="sp-section-title">
@@ -6356,17 +6853,16 @@ function subprojectDetailHTML(spId) {
     <div class="sp-notes-list" id="sp-notes-list">
       ${spNotes.length ? spNotes.map(n => {
         const linkedTodosOfNote = (n.linkedTodos||[]).map(tid => proj.todos.find(t=>t.id===tid)).filter(Boolean);
-        const hasContent = !!noteContentText(n.content);
         const expanded = state.expandedSpNotes && state.expandedSpNotes.has(n.id);
         return `<div class="sp-note-card">
           <div class="sp-note-header">
-            <button class="sp-note-expand ${hasContent?'':'disabled'} ${expanded?'expanded':''}" data-sp-note-toggle="${n.id}" title="${hasContent ? (expanded?'Collapse':'Expand') : 'No content'}" ${hasContent?'':'disabled'}>${expanded?'▾':'▸'}</button>
-            ${priorityBadge(n.priority)}
+            <button class="sp-note-expand ${expanded?'expanded':''}" data-sp-note-toggle="${n.id}" title="${expanded?'Collapse':'Edit'}">${expanded?'▾':'▸'}</button>
+            ${notePriorityBadgeEditable(n.id, n.priority)}
             <span class="sp-note-title" data-id="${n.id}">${escapeHTML(n.title)}</span>
             <span style="font-size:11px;color:var(--text-muted)">${formatDate(n.updated)}</span>
             <button class="btn btn-ghost btn-icon sp-unlink-note" data-id="${n.id}" title="Unlink">✕</button>
           </div>
-          ${expanded && hasContent ? `<div class="sp-note-body">${noteContentInitialHTML(n.content)}</div>` : ''}
+          ${expanded ? spNoteEditorBlockHTML(n.id, noteContentInitialHTML(n.content)) : ''}
           ${linkedTodosOfNote.length ? `<div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--text-muted);margin-right:2px">Links to:</span>
             ${linkedTodosOfNote.map(t=>`<span style="font-size:11px;background:var(--content-bg);padding:1px 7px;border-radius:4px;border:1px solid var(--border)">${escapeHTML(t.title)}</span>`).join('')}
@@ -6409,9 +6905,57 @@ function subprojectDetailHTML(spId) {
         <div class="dump-list">${spDumpsProcessed.map(d => dumpCardHTML(d, true)).join('')}</div>
       </details>` : ''}
 
+    ${spLocalFolderSectionHTML(sp)}
+
     <div class="sp-section-title" style="margin-top:20px">Attachments <span style="font-weight:400;color:var(--text-muted)">(incl. linked todos & notes)</span></div>
     ${attachmentPanelHTML(sp, 'subproject', sp.id, 'Attachments', subprojectMergedAttachments(sp))}
     ${backlinksPanelHTML('subproject', state.project, sp.id)}
+  </div>`;
+}
+
+// "Local folders" section — N independently-collapsible panels, one per
+// folder linked to this subproject. Each panel is its own Explorer-like
+// view (breadcrumb + listing + drop zone) scoped by `data-sp-root` so all
+// the heavy lifting can be done per-panel without globally-unique IDs.
+function spLocalFolderSectionHTML(sp) {
+  const folders = Array.isArray(sp.localFolders) ? sp.localFolders : [];
+  return `
+    <div class="sp-section-title" style="margin-top:20px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span>Local folders</span>
+      ${folders.length ? `<span style="font-weight:400;color:var(--text-muted)">${folders.length}</span>` : ''}
+      <button class="btn btn-ghost btn-sm" id="btn-sp-folder-link-now" title="Link another local folder to this subproject">+ Link a folder…</button>
+    </div>
+    ${folders.length
+      ? `<div class="sp-localfolders-stack">
+           ${folders.map(p => spLocalFolderPanelHTML(p, !!state.spLocalFolderCollapsed?.[p])).join('')}
+         </div>`
+      : `<div class="empty-state" style="padding:14px;background:var(--card-bg);border-radius:var(--radius);border:1px solid var(--border)">
+           No local folders linked yet. Use "+ Link a folder…" above to point this subproject at a folder on disk.
+         </div>`}`;
+}
+
+function spLocalFolderPanelHTML(rootPath, collapsed) {
+  const rootName = rootPath.split(/[\\/]/).filter(Boolean).pop() || rootPath;
+  return `<div class="sp-localfolder" data-sp-root="${escapeHTML(rootPath)}">
+    <div class="sp-localfolder-header">
+      <button class="sp-lf-collapse" type="button" data-sp-lf-collapse title="${collapsed ? 'Expand' : 'Collapse'}">${collapsed ? '▸' : '▾'}</button>
+      <span class="sp-lf-rootname" title="${escapeHTML(rootPath)}">${escapeHTML(rootName)}</span>
+      <span class="sp-lf-rootpath" title="${escapeHTML(rootPath)}">${escapeHTML(rootPath)}</span>
+      <div class="sp-lf-spacer"></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-sp-lf-action="open" title="Open the current folder in Windows Explorer">📂</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-sp-lf-action="add" title="Add files to the current folder">+ Add</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-sp-lf-action="refresh" title="Re-read the current folder">↻</button>
+      <button class="btn btn-ghost btn-sm sp-lf-unlink" type="button" data-sp-lf-action="unlink" title="Unlink this folder from the subproject (the folder on disk stays untouched)">✕</button>
+    </div>
+    <div class="sp-localfolder-body" ${collapsed ? 'hidden' : ''}>
+      <div class="sp-localfolder-path" title="${escapeHTML(rootPath)}">${escapeHTML(rootPath)}</div>
+      <div class="sp-localfolder-drop" data-sp-folder="${escapeHTML(rootPath)}">
+        <div class="sp-localfolder-list">
+          <div class="empty-state" style="padding:14px">Loading…</div>
+        </div>
+        <div class="sp-localfolder-drop-hint">Drop files here to add them to this folder · right-click items for more</div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -6461,6 +7005,28 @@ function setupSubprojectEvents() {
     renderSubprojects();
   });
 
+  // Linked-folders editor in the form: a Browse… button appends a new row
+  // per chosen directory; rows can be removed via their ✕ button. Save
+  // collects the rows in DOM order so the user controls panel order in the
+  // detail view by reordering at edit time (re-add) if they care.
+  document.getElementById('btn-sp-folder-add-link')?.addEventListener('click', async () => {
+    if (!window.api?.pickLocalFolder) { showToast('Folder picker not available — restart the app.', 'error'); return; }
+    const res = await window.api.pickLocalFolder();
+    if (!res?.ok || !res.path) return;
+    const list = document.getElementById('sp-folders-list');
+    if (!list) return;
+    // Silently skip duplicates so the user can't accidentally link the same
+    // folder twice (which would render two identical panels).
+    const existing = Array.from(list.querySelectorAll('.sp-folders-row')).map(r => r.dataset.path);
+    if (existing.includes(res.path)) { showToast('That folder is already linked.', 'info'); return; }
+    list.insertAdjacentHTML('beforeend', spFolderEditRowHTML(res.path));
+  });
+  document.getElementById('sp-folders-list')?.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.sp-folders-row-remove');
+    if (!removeBtn) return;
+    removeBtn.closest('.sp-folders-row')?.remove();
+  });
+
   // Tag suggestion chips toggle their tag in the sp-tags-input
   document.querySelectorAll('.tag-suggestion-chip[data-suggest-tag]').forEach(chip =>
     chip.addEventListener('click', (e) => {
@@ -6493,6 +7059,13 @@ function setupSubprojectEvents() {
   document.getElementById('btn-delete-sp')?.addEventListener('click', () =>
     deleteSubproject(state.activeSubproject));
 
+  // Todo filter pills (All / Active / Done)
+  document.querySelectorAll('.sp-todo-filters [data-sp-todo-filter]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      state.subprojectTodoFilter = btn.dataset.spTodoFilter;
+      renderSubprojects();
+    }));
+
   // Add todo to subproject
   document.getElementById('btn-sp-add-todo')?.addEventListener('click', addSubprojectTodo);
   document.getElementById('sp-todo-input')?.addEventListener('keydown', e => {
@@ -6500,6 +7073,22 @@ function setupSubprojectEvents() {
   });
   document.getElementById('btn-sp-add-todo-recur')?.addEventListener('click', () =>
     openPendingRecurrenceEditor({ inputId: 'sp-todo-input', buttonId: 'btn-sp-add-todo-recur' }));
+  // Inline slash commands: ghost completion + chips + real-time field sync,
+  // same UX as the main Todos view. /sp: still resolves, but addSubprojectTodo
+  // keeps the active subproject as the default when no /sp: token is present.
+  const spTodoInputEl = document.getElementById('sp-todo-input');
+  if (spTodoInputEl) {
+    installTodoSlashCompletion(
+      spTodoInputEl,
+      document.getElementById('sp-todo-input-ghost'),
+      document.getElementById('sp-todo-slash-chips'),
+      {
+        priority: document.getElementById('sp-todo-priority'),
+        due:      document.getElementById('sp-todo-due'),
+        start:    document.getElementById('sp-todo-start')
+      }
+    );
+  }
 
   // Full todo row features (same as the main Todos view)
   bindTodoRowEvents('.sp-todo-list', renderSubprojects, 'subprojects');
@@ -6508,7 +7097,11 @@ function setupSubprojectEvents() {
   document.querySelectorAll('.sp-note-title').forEach(el =>
     el.addEventListener('click', () => { state.editingNote = el.dataset.id; showView('notes'); }));
 
-  // Toggle inline note body (DOM-only, no re-render → preserves scroll)
+  // Wire any subproject note editors that were already expanded on render —
+  // toolbar buttons, paste sanitiser, autosave-on-input, mention decoration.
+  document.querySelectorAll('[data-sp-note-edit-block]').forEach(wireSpNoteEditor);
+
+  // Toggle inline note editor (DOM-only, no re-render → preserves scroll)
   document.querySelectorAll('[data-sp-note-toggle]').forEach(btn =>
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -6517,25 +7110,37 @@ function setupSubprojectEvents() {
       const card = btn.closest('.sp-note-card');
       const note = getProject().notes.find(n => n.id === id);
       if (!note || !card) return;
-      const existing = card.querySelector('.sp-note-body');
+      const existing = card.querySelector('[data-sp-note-edit-block]');
       if (existing) {
         existing.remove();
         state.expandedSpNotes.delete(id);
         btn.classList.remove('expanded');
         btn.textContent = '▸';
-        btn.title = 'Expand';
+        btn.title = 'Edit';
       } else {
-        const body = document.createElement('div');
-        body.className = 'sp-note-body';
-        body.innerHTML = noteContentInitialHTML(note.content);
+        const wrap = document.createElement('div');
+        wrap.innerHTML = spNoteEditorBlockHTML(id, noteContentInitialHTML(note.content));
+        const block = wrap.firstElementChild;
         const header = card.querySelector('.sp-note-header');
-        header.insertAdjacentElement('afterend', body);
+        header.insertAdjacentElement('afterend', block);
+        wireSpNoteEditor(block);
         state.expandedSpNotes.add(id);
         btn.classList.add('expanded');
         btn.textContent = '▾';
         btn.title = 'Collapse';
+        const editor = block.querySelector('[data-sp-note-edit]');
+        editor?.focus();
       }
     }));
+
+  // Note priority picker (dot in card header) — stopPropagation so clicking
+  // the select doesn't trigger any future header-level click handlers.
+  document.querySelectorAll('.sp-notes-list .note-priority-select').forEach(sel => {
+    sel.addEventListener('click', e => e.stopPropagation());
+    sel.addEventListener('change', () => {
+      if (setNotePriority(sel.dataset.id, sel.value)) renderSubprojects();
+    });
+  });
 
   // Unlink note from subproject
   document.querySelectorAll('.sp-unlink-note').forEach(b =>
@@ -6564,6 +7169,107 @@ function setupSubprojectEvents() {
     bindDumpCardControls();
   }
 
+  // Local folders section — one panel per linked folder. Each panel is
+  // independently navigable, collapsible, and drag-drop-target-able. The
+  // header has its own "+ Link a folder…" to add more.
+  document.getElementById('btn-sp-folder-link-now')?.addEventListener('click', spFolderAddLink);
+  document.querySelectorAll('.sp-localfolder[data-sp-root]').forEach(panel => {
+    const rootPath = panel.dataset.spRoot;
+    if (!rootPath) return;
+    // Collapse toggle: pure DOM op, no re-render → keeps scroll & doesn't
+    // re-trigger listing fetches for the still-visible panels.
+    panel.querySelector('[data-sp-lf-collapse]')?.addEventListener('click', () => {
+      const body = panel.querySelector('.sp-localfolder-body');
+      const btn  = panel.querySelector('[data-sp-lf-collapse]');
+      if (!body || !btn) return;
+      if (!state.spLocalFolderCollapsed) state.spLocalFolderCollapsed = {};
+      const isCollapsed = body.hidden;
+      if (isCollapsed) {
+        body.hidden = false;
+        btn.textContent = '▾';
+        btn.title = 'Collapse';
+        delete state.spLocalFolderCollapsed[rootPath];
+        loadSpLocalFolderListing(rootPath);
+      } else {
+        body.hidden = true;
+        btn.textContent = '▸';
+        btn.title = 'Expand';
+        state.spLocalFolderCollapsed[rootPath] = true;
+      }
+    });
+    // Header action buttons (Open, Add, Refresh, Unlink). Each reads the
+    // panel-scoped drop zone's `data-sp-folder` so they act on whatever
+    // subfolder the user has drilled into.
+    panel.querySelectorAll('[data-sp-lf-action]').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.spLfAction;
+        const dropEl = panel.querySelector('.sp-localfolder-drop');
+        const current = dropEl?.dataset.spFolder || rootPath;
+        if (action === 'open') {
+          if (window.api?.openLocalPath) window.api.openLocalPath(current);
+        } else if (action === 'refresh') {
+          loadSpLocalFolderListing(rootPath);
+        } else if (action === 'add') {
+          // Hidden file input is created lazily and reused. Bind onchange
+          // each time so the captured `current` reflects the latest path.
+          let picker = document.getElementById('sp-localfolder-picker');
+          if (!picker) {
+            picker = document.createElement('input');
+            picker.type = 'file';
+            picker.multiple = true;
+            picker.id = 'sp-localfolder-picker';
+            picker.style.display = 'none';
+            document.body.appendChild(picker);
+          }
+          picker.onchange = async () => {
+            const folderNow = panel.querySelector('.sp-localfolder-drop')?.dataset.spFolder || rootPath;
+            await spLocalFolderAddFiles(folderNow, Array.from(picker.files || []));
+            picker.value = '';
+            loadSpLocalFolderListing(rootPath);
+          };
+          picker.click();
+        } else if (action === 'unlink') {
+          showConfirmModal({
+            title: 'Unlink this folder?',
+            body: `Removes the link to <strong>${escapeHTML(rootPath)}</strong> from this subproject. The folder on disk is not touched.`,
+            confirmLabel: 'Unlink',
+            onConfirm: () => {
+              const sp = (getProject().subprojects || []).find(s => s.id === state.activeSubproject);
+              if (!sp) return;
+              sp.localFolders = (sp.localFolders || []).filter(p => p !== rootPath);
+              if (state.spLocalFolderPaths) delete state.spLocalFolderPaths[rootPath];
+              if (state.spLocalFolderCollapsed) delete state.spLocalFolderCollapsed[rootPath];
+              saveData();
+              renderSubprojects();
+            }
+          });
+        }
+      }));
+    // Drop zone: standard dragover→highlight, drop→write each File. Writes
+    // land in whichever subfolder is currently visible inside this panel.
+    const lfDrop = panel.querySelector('.sp-localfolder-drop');
+    if (lfDrop) {
+      lfDrop.addEventListener('dragenter', (e) => { e.preventDefault(); e.stopPropagation(); lfDrop.classList.add('sp-localfolder-active'); });
+      lfDrop.addEventListener('dragover',  (e) => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; lfDrop.classList.add('sp-localfolder-active'); });
+      lfDrop.addEventListener('dragleave', (e) => { if (!lfDrop.contains(e.relatedTarget)) lfDrop.classList.remove('sp-localfolder-active'); });
+      lfDrop.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        lfDrop.classList.remove('sp-localfolder-active');
+        const folder = lfDrop.dataset.spFolder;
+        const files = Array.from(e.dataTransfer?.files || []);
+        if (!folder || !files.length) return;
+        await spLocalFolderAddFiles(folder, files);
+        loadSpLocalFolderListing(rootPath);
+      });
+    }
+    // Kick off the initial listing fetch only when expanded; collapsed
+    // panels stay placeholder-empty until the user expands them.
+    if (!panel.querySelector('.sp-localfolder-body')?.hidden) {
+      loadSpLocalFolderListing(rootPath);
+    }
+  });
+
   // Attachments panel
   bindAttachmentPanel(document.getElementById('sp-right-panel'), renderSubprojects);
 
@@ -6583,16 +7289,18 @@ function saveSubproject() {
   const tagsRaw = document.getElementById('sp-tags-input')?.value || '';
   const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
   const color = document.querySelector('.sp-color-radio:checked')?.value || SUBPROJECT_COLORS[0];
+  const localFolders = Array.from(document.querySelectorAll('#sp-folders-list .sp-folders-row'))
+    .map(r => r.dataset.path).filter(Boolean);
   const proj = getProject();
 
   if (state.editingSubproject === 'new') {
-    const sp = { id: generateId('sp'), name, description, color, tags, attachments: [] };
+    const sp = { id: generateId('sp'), name, description, color, tags, localFolders, attachments: [] };
     proj.subprojects.push(sp);
     state.activeSubproject = sp.id;
     showToast('Subproject created.', 'success');
   } else {
     const sp = (proj.subprojects||[]).find(s => s.id === state.editingSubproject);
-    if (sp) Object.assign(sp, { name, description, color, tags });
+    if (sp) Object.assign(sp, { name, description, color, tags, localFolders });
     state.activeSubproject = state.editingSubproject;
     showToast('Subproject updated.', 'success');
   }
@@ -6618,14 +7326,37 @@ function deleteSubproject(spId) {
 }
 
 function addSubprojectTodo() {
-  const title = document.getElementById('sp-todo-input').value.trim();
+  const rawTitle = document.getElementById('sp-todo-input').value.trim();
+  if (!rawTitle) return;
+  // Inline slash commands (/tomorrow, /high, /sp:..., /weekly, /milestone, …)
+  // override the form fields, matching the main Todos view's behavior.
+  const slash = parseTodoSlashCommands(rawTitle);
+  const title = slash.title || rawTitle;
   if (!title) return;
-  const priority  = document.getElementById('sp-todo-priority').value;
-  const startDate = document.getElementById('sp-todo-start').value;
-  let   dueDate   = document.getElementById('sp-todo-due').value;
-  const recurrence = state.pendingTodoRecurrence
-    ? JSON.parse(JSON.stringify(state.pendingTodoRecurrence))
-    : null;
+  const priority     = slash.priority || document.getElementById('sp-todo-priority').value;
+  const startDate    = slash.startDate || document.getElementById('sp-todo-start').value;
+  let   dueDate      = slash.dueDate || document.getElementById('sp-todo-due').value;
+  // /sp: lets the user retag away from the currently-viewed subproject; absent
+  // that, the new todo stays in the subproject they're looking at.
+  const subprojectId = slash.subprojectId || state.activeSubproject;
+  if (slash.kind === 'milestone') {
+    const msTitle = (slash.title || '').trim();
+    if (!msTitle) {
+      showToast('/milestone needs a title before the slash commands.', 'error');
+      return;
+    }
+    if (!dueDate) {
+      showToast('/milestone needs a date — add /due or pick a due date.', 'error');
+      return;
+    }
+    addMilestone({ title: msTitle, date: dueDate, subprojectId });
+    document.getElementById('sp-todo-input').value = '';
+    renderSubprojects();
+    return;
+  }
+  const recurrence = slash.recurrence
+    ? JSON.parse(JSON.stringify(slash.recurrence))
+    : (state.pendingTodoRecurrence ? JSON.parse(JSON.stringify(state.pendingTodoRecurrence)) : null);
   if (recurrence && !dueDate) {
     const first = computeNextOccurrence(recurrence, new Date());
     if (first) dueDate = toDateString(first);
@@ -6633,7 +7364,7 @@ function addSubprojectTodo() {
   const proj = getProject();
   proj.todos.unshift({
     id: generateId('todo'), title, done: false, priority,
-    startDate, dueDate, subprojectId: state.activeSubproject, tags: [],
+    startDate, dueDate, subprojectId, tags: [],
     created: new Date().toISOString(),
     attachments: [], steps: [], recurrence
   });
@@ -6662,9 +7393,13 @@ function showNewSubprojectNotePanel() {
   if (!panel) return;
   panel.classList.remove('hidden');
   panel.innerHTML = `<div class="sp-link-panel sp-new-note-panel-inner">
-    <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">
       <input type="text" class="form-input" id="sp-new-note-title" placeholder="Note title…">
-      <textarea class="form-textarea" id="sp-new-note-content" placeholder="Content (optional)…" rows="3" style="resize:vertical;min-height:48px;font-family:var(--font)"></textarea>
+      <div class="sp-new-note-editor">
+        <div class="note-rtf-toolbar sp-note-rtf-toolbar">${spRichToolbarButtonsHTML()}</div>
+        <div class="note-rich sp-note-rich" id="sp-new-note-content-rich" contenteditable="true"
+             data-placeholder="Content (optional)…"></div>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">
       <button class="btn btn-primary btn-sm" id="btn-create-sp-note">Create</button>
@@ -6672,12 +7407,28 @@ function showNewSubprojectNotePanel() {
     </div>
   </div>`;
   const titleInput = document.getElementById('sp-new-note-title');
+  const contentEl  = document.getElementById('sp-new-note-content-rich');
   titleInput?.focus();
+
+  // Same toolbar wiring used for inline note editors, minus the autosave (the
+  // note doesn't exist yet — content is read at Create time).
+  panel.querySelectorAll('.sp-new-note-editor .sp-note-rtf-toolbar [data-rtf]').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      contentEl?.focus();
+      const cmd = btn.dataset.rtf;
+      try {
+        if (cmd === 'formatBlock-h2') document.execCommand('formatBlock', false, 'h2');
+        else document.execCommand(cmd, false, null);
+      } catch {}
+    });
+  });
+  if (contentEl) installRichEditorPaste(contentEl);
 
   const submit = () => {
     const title = titleInput.value.trim();
     if (!title) { showToast('Please enter a note title.', 'error'); titleInput.focus(); return; }
-    const content = document.getElementById('sp-new-note-content').value;
+    const content = (contentEl?.innerHTML || '').trim();
     const now = new Date().toISOString();
     const proj = getProject();
     proj.notes.unshift({
@@ -6698,7 +7449,10 @@ function showNewSubprojectNotePanel() {
   };
   document.getElementById('btn-create-sp-note').onclick = submit;
   titleInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Enter') { e.preventDefault(); contentEl?.focus(); }
+  });
+  contentEl?.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
   });
   document.getElementById('btn-cancel-sp-note').onclick = () => {
     panel.classList.add('hidden');

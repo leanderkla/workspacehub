@@ -314,6 +314,9 @@ var state = {
   editingSubproject: null, // null | 'new' | subprojectId
   subprojectTagFilter: new Set(),
   subprojectSortBy: 'default',
+  subprojectTodoFilter: 'all', // 'all' | 'active' | 'done'
+  spLocalFolderPaths: {},      // linked root absolute path → currently-visited absolute path inside it
+  spLocalFolderCollapsed: {},  // linked root absolute path → true if the panel is collapsed
   expandedSpNotes: new Set(), // note IDs whose body is expanded in the Subproject view
   commitmentFilter: { context: 'all', direction: 'all', overdue: false, showClosed: false },
   expandedCommitment: null,

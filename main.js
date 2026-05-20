@@ -56,6 +56,19 @@ function migrateData(data) {
   if (!data || !data.projects) return data;
   for (const proj of Object.values(data.projects)) {
     if (!Array.isArray(proj.subprojects)) proj.subprojects = [];
+    // Subprojects: single-folder `localFolder` field (initial version of the
+    // local-folder feature) was upgraded to a multi-folder `localFolders`
+    // array. Per-load normalization keeps existing data viable without a
+    // versioned migration; once everyone's loaded once, the old field is
+    // gone for good.
+    for (const sp of proj.subprojects) {
+      if (!Array.isArray(sp.localFolders)) {
+        sp.localFolders = (typeof sp.localFolder === 'string' && sp.localFolder.trim())
+          ? [sp.localFolder.trim()]
+          : [];
+      }
+      if ('localFolder' in sp) delete sp.localFolder;
+    }
     for (const note of (proj.notes || [])) {
       if (note.subprojectId === undefined) note.subprojectId = null;
       if (!Array.isArray(note.linkedTodos)) note.linkedTodos = [];
@@ -350,6 +363,138 @@ function openProjectFolder(projectKey) {
   } catch (e) {
     console.error('Failed to open project folder:', e);
     return e.message;
+  }
+}
+
+// ===== "Local folder" feature for subprojects =====
+// A subproject can be linked to an arbitrary folder on the user's drive
+// (set via Browse… in the edit form). The detail view embeds an
+// Explorer-like listing so the user can add/delete/open files in-place —
+// the files only live on disk, the app never duplicates them as
+// "attachments". Everything below is permissive (the user picked the
+// folder themselves), but we still normalize paths and refuse to delete
+// outside the supplied parent to prevent accidental traversal escapes.
+
+function listLocalFolder(absDir) {
+  try {
+    if (!absDir) return { ok: false, error: 'no path' };
+    const resolved = path.resolve(absDir);
+    if (!fs.existsSync(resolved)) return { ok: false, error: 'folder does not exist' };
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) return { ok: false, error: 'not a folder' };
+    const names = fs.readdirSync(resolved);
+    const entries = [];
+    for (const name of names) {
+      try {
+        const full = path.join(resolved, name);
+        const s = fs.statSync(full);
+        entries.push({
+          name,
+          fullPath: full,
+          isDirectory: s.isDirectory(),
+          isFile: s.isFile(),
+          size: s.isFile() ? s.size : 0,
+          mtime: s.mtimeMs
+        });
+      } catch {}
+    }
+    entries.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+    return { ok: true, entries, path: resolved };
+  } catch (e) {
+    console.error('listLocalFolder:', e);
+    return { ok: false, error: e.message };
+  }
+}
+
+function openLocalPath(target) {
+  try {
+    if (!target) return 'no path';
+    return shell.openPath(path.resolve(target));
+  } catch (e) {
+    console.error('openLocalPath:', e);
+    return e.message;
+  }
+}
+
+function showLocalEntryInFolder(target) {
+  try {
+    if (!target) return false;
+    shell.showItemInFolder(path.resolve(target));
+    return true;
+  } catch (e) {
+    console.error('showLocalEntryInFolder:', e);
+    return false;
+  }
+}
+
+function writeBytesToLocalFolder(absDir, name, base64) {
+  try {
+    if (!absDir || !name || !base64) return { ok: false, error: 'missing args' };
+    const resolved = path.resolve(absDir);
+    if (!fs.existsSync(resolved)) return { ok: false, error: 'folder does not exist' };
+    const dest = uniqueDestPath(resolved, name);
+    // Re-confirm the unique destination is still inside the target folder
+    // even after collision-renaming, so a pathological filename (e.g. with
+    // leading slashes that survived sanitizeFilename) can't escape.
+    if (!path.resolve(dest).startsWith(resolved + path.sep) && path.resolve(dest) !== resolved) {
+      return { ok: false, error: 'invalid destination' };
+    }
+    fs.writeFileSync(dest, Buffer.from(base64, 'base64'));
+    return { ok: true, name: path.basename(dest), fullPath: dest };
+  } catch (e) {
+    console.error('writeBytesToLocalFolder:', e);
+    return { ok: false, error: e.message };
+  }
+}
+
+// Resolves the OS-native file/folder icon for `absPath` using Electron's
+// app.getFileIcon API. The native image is returned to the renderer as a
+// data URL; the renderer caches results by extension (or by full path for
+// executables / shortcuts whose icons are often embedded and unique).
+async function getLocalFileIconDataUrl(absPath) {
+  try {
+    if (!absPath) return null;
+    const resolved = path.resolve(absPath);
+    if (!fs.existsSync(resolved)) return null;
+    // `size: 'small'` is the 16x16 list icon — matches Explorer's "small icons"
+    // view and stays crisp at the row height we render at.
+    const img = await app.getFileIcon(resolved, { size: 'small' });
+    if (!img || img.isEmpty()) return null;
+    return img.toDataURL();
+  } catch (e) {
+    console.error('getLocalFileIconDataUrl:', e);
+    return null;
+  }
+}
+
+function deleteLocalEntry(parentDir, name) {
+  try {
+    if (!parentDir || !name) return { ok: false, error: 'missing args' };
+    // Names with separators or '..' segments are rejected outright so a
+    // crafted name can't navigate to siblings.
+    if (name.includes('/') || name.includes('\\') || name === '..' || name === '.') {
+      return { ok: false, error: 'invalid name' };
+    }
+    const resolvedParent = path.resolve(parentDir);
+    const target = path.resolve(path.join(resolvedParent, name));
+    if (!target.startsWith(resolvedParent + path.sep)) {
+      return { ok: false, error: 'outside folder' };
+    }
+    if (!fs.existsSync(target)) return { ok: false, error: 'not found' };
+    const stat = fs.statSync(target);
+    if (stat.isDirectory()) {
+      // Refuse to recursively nuke a folder via this path. The user can do
+      // that themselves in Explorer if they really want to.
+      return { ok: false, error: 'cannot delete a folder from here — use Windows Explorer' };
+    }
+    fs.unlinkSync(target);
+    return { ok: true };
+  } catch (e) {
+    console.error('deleteLocalEntry:', e);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -690,6 +835,55 @@ ipcMain.handle('attachment-open', (_, relPath) => openAttachment(relPath));
 ipcMain.handle('attachment-delete', (_, relPath) => deleteAttachment(relPath));
 ipcMain.handle('attachment-open-folder', (_, projectKey) => openProjectFolder(projectKey));
 ipcMain.handle('attachment-read-datauri', (_, relPath) => readAttachmentDataUrl(relPath));
+
+// Subproject "local folder" feature — see src/main.js helpers above.
+ipcMain.handle('localfolder-pick', async () => {
+  try {
+    if (!mainWindow) return { ok: false, error: 'no window' };
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Link a local folder to this subproject'
+    });
+    if (result.canceled || !result.filePaths.length) return { ok: true, path: null };
+    return { ok: true, path: result.filePaths[0] };
+  } catch (e) {
+    console.error('localfolder-pick:', e);
+    return { ok: false, error: e.message };
+  }
+});
+ipcMain.handle('localfolder-list', (_, absDir) => listLocalFolder(absDir));
+ipcMain.handle('localfolder-open', (_, target) => openLocalPath(target));
+ipcMain.handle('localfolder-show', (_, target) => showLocalEntryInFolder(target));
+ipcMain.handle('localfolder-write-bytes', (_, payload) => {
+  const { dir, name, base64 } = payload || {};
+  return writeBytesToLocalFolder(dir, name, base64);
+});
+ipcMain.handle('localfolder-delete-entry', (_, payload) => {
+  const { dir, name } = payload || {};
+  return deleteLocalEntry(dir, name);
+});
+ipcMain.handle('localfolder-icon', async (_, absPath) => {
+  const dataUrl = await getLocalFileIconDataUrl(absPath);
+  return { ok: true, dataUrl };
+});
+
+ipcMain.handle('get-last-backup-mtime', async () => {
+  try {
+    const bakRoot = path.join(app.getPath('desktop'), 'WorkspaceHub-Backups');
+    if (!fs.existsSync(bakRoot)) return { ok: true, mtime: 0 };
+    let newest = 0;
+    for (const name of fs.readdirSync(bakRoot)) {
+      if (!/^workspacehub-backup-.*\.zip$/i.test(name)) continue;
+      try {
+        const m = fs.statSync(path.join(bakRoot, name)).mtimeMs;
+        if (m > newest) newest = m;
+      } catch {}
+    }
+    return { ok: true, mtime: newest };
+  } catch (e) {
+    return { ok: false, error: e.message, mtime: 0 };
+  }
+});
 
 ipcMain.handle('create-backup', async () => {
   try {
